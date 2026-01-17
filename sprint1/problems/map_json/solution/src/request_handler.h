@@ -1,5 +1,11 @@
 #pragma once
 
+#include <functional>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
+
 #include "http_server.h"
 #include "model.h"
 
@@ -7,6 +13,7 @@ namespace http_handler {
 
 namespace beast = boost::beast;
 namespace http = beast::http;
+using StringResponse = http::response<http::string_body>;
 
 class RequestHandler {
 public:
@@ -20,16 +27,11 @@ public:
     ~RequestHandler() = default;
 
     template <typename Body, typename Allocator, typename Send>
-    void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
-        HandleRequest(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
-    }
+    void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send);
 
 private:
     const model::Game& game_;
 
-    template <typename Body, typename Allocator, typename Send>
-    void HandleRequest(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send);
-    
     std::vector<std::string_view> SplitUrl(std::string_view url) const;
     bool IsApiRequest(std::string_view target) const;
     bool IsMapRequest(std::string_view target) const;

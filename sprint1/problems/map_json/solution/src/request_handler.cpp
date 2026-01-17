@@ -2,7 +2,6 @@
 #include "json_converter.h"
 
 #include <boost/beast/http/status.hpp>
-#include <optional>
 
 namespace http_handler {
 
@@ -136,7 +135,7 @@ StringResponse RequestHandler::MakeMethodNotAllowed(const http::request<Body, ht
 }
 
 template <typename Body, typename Allocator, typename Send>
-void RequestHandler::HandleRequest(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
+void RequestHandler::operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
     if (!IsApiRequest(req.target())) {
         send(MakePageNotFound(req));
         return;
@@ -167,10 +166,5 @@ void RequestHandler::HandleRequest(http::request<Body, http::basic_fields<Alloca
         send(MakeBadRequest(req));
     }
 }
-
-// Явные инстанцирования для компилятора
-template void RequestHandler::HandleRequest(
-    http::request<http::string_body, http::basic_fields<std::allocator<char>>>&&,
-    std::function<void(StringResponse&&)>&&);
 
 }  // namespace http_handler

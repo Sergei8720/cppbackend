@@ -45,6 +45,16 @@ Json::Value OfficeToJson(const model::Office& office) {
     return json_office;
 }
 
+std::string CreateErrorResponse(const std::string& code, const std::string& message) {
+    Json::Value root;
+    root["code"] = code;
+    root["message"] = message;
+    
+    Json::StreamWriterBuilder builder;
+    builder["indentation"] = "";
+    return Json::writeString(builder, root);
+}
+
 }  // namespace
 
 std::string ConvertMapListToJson(const model::Game& game) {
@@ -85,16 +95,6 @@ std::string ConvertMapToJson(const model::Map& map) {
         offices.append(OfficeToJson(office));
     }
     root["offices"] = offices;
-    
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "";
-    return Json::writeString(builder, root);
-}
-
-std::string CreateErrorResponse(const std::string& code, const std::string& message) {
-    Json::Value root;
-    root["code"] = code;
-    root["message"] = message;
     
     Json::StreamWriterBuilder builder;
     builder["indentation"] = "";
