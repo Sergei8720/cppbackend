@@ -1,14 +1,17 @@
 #include "json_converter.h"
 
-#include <json/json.h>
+#include <boost/json.hpp>
+#include <boost/json/src.hpp>  // или подключите boost_json.cpp
 #include <sstream>
 
 namespace jsonConverter {
 
+namespace json = boost::json;
+
 namespace {
 
-Json::Value RoadToJson(const model::Road& road) {
-    Json::Value json_road;
+json::object RoadToJson(const model::Road& road) {
+    json::object json_road;
     json_road["x0"] = road.GetStart().x;
     json_road["y0"] = road.GetStart().y;
     
@@ -21,8 +24,8 @@ Json::Value RoadToJson(const model::Road& road) {
     return json_road;
 }
 
-Json::Value BuildingToJson(const model::Building& building) {
-    Json::Value json_building;
+json::object BuildingToJson(const model::Building& building) {
+    json::object json_building;
     const auto& bounds = building.GetBounds();
     
     json_building["x"] = bounds.position.x;
@@ -33,8 +36,8 @@ Json::Value BuildingToJson(const model::Building& building) {
     return json_building;
 }
 
-Json::Value OfficeToJson(const model::Office& office) {
-    Json::Value json_office;
+json::object OfficeToJson(const model::Office& office) {
+    json::object json_office;
     
     json_office["id"] = *office.GetId();
     json_office["x"] = office.GetPosition().x;
@@ -46,59 +49,53 @@ Json::Value OfficeToJson(const model::Office& office) {
 }
 
 std::string CreateErrorResponse(const std::string& code, const std::string& message) {
-    Json::Value root;
+    json::object root;
     root["code"] = code;
     root["message"] = message;
     
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "";
-    return Json::writeString(builder, root);
+    return json::serialize(root);
 }
 
 }  // namespace
 
 std::string ConvertMapListToJson(const model::Game& game) {
-    Json::Value root(Json::arrayValue);
+    json::array root;
     
     for (const auto& map : game.GetMaps()) {
-        Json::Value json_map;
+        json::object json_map;
         json_map["id"] = *map.GetId();
         json_map["name"] = map.GetName();
-        root.append(json_map);
+        root.push_back(json_map);
     }
     
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "";
-    return Json::writeString(builder, root);
+    return json::serialize(root);
 }
 
 std::string ConvertMapToJson(const model::Map& map) {
-    Json::Value root;
+    json::object root;
     
     root["id"] = *map.GetId();
     root["name"] = map.GetName();
     
-    Json::Value roads(Json::arrayValue);
+    json::array roads;
     for (const auto& road : map.GetRoads()) {
-        roads.append(RoadToJson(road));
+        roads.push_back(RoadToJson(road));
     }
     root["roads"] = roads;
     
-    Json::Value buildings(Json::arrayValue);
+    json::array buildings;
     for (const auto& building : map.GetBuildings()) {
-        buildings.append(BuildingToJson(building));
+        buildings.push_back(BuildingToJson(building));
     }
     root["buildings"] = buildings;
     
-    Json::Value offices(Json::arrayValue);
+    json::array offices;
     for (const auto& office : map.GetOffices()) {
-        offices.append(OfficeToJson(office));
+        offices.push_back(OfficeToJson(office));
     }
     root["offices"] = offices;
     
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "";
-    return Json::writeString(builder, root);
+    return json::serialize(root);
 }
 
 std::string CreateMapNotFoundResponse() {
