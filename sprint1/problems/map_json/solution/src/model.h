@@ -33,10 +33,8 @@ struct Offset {
 
 class Road {
 public:
-    enum class Orientation { kHorizontal, kVertical };
-
     Road(Point start, Point end) noexcept;
-
+    
     bool IsHorizontal() const noexcept;
     bool IsVertical() const noexcept;
     Point GetStart() const noexcept;

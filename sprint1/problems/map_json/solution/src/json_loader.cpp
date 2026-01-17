@@ -42,12 +42,10 @@ void AddRoadsToMap(model::Map& map, const json::value& map_data) {
         
         if (road_obj.contains("x1")) {
             model::Coord end_x = static_cast<model::Coord>(road_obj.at("x1").as_int64());
-            model::Road road(start, {end_x, start.y});
-            map.AddRoad(road);
+            map.AddRoad(model::Road(start, {end_x, start.y}));
         } else {
             model::Coord end_y = static_cast<model::Coord>(road_obj.at("y1").as_int64());
-            model::Road road(start, {start.x, end_y});
-            map.AddRoad(road);
+            map.AddRoad(model::Road(start, {start.x, end_y}));
         }
     }
 }
@@ -68,8 +66,7 @@ void AddBuildingsToMap(model::Map& map, const json::value& map_data) {
             }
         };
         
-        model::Building building(rect);
-        map.AddBuilding(building);
+        map.AddBuilding(model::Building(rect));
     }
 }
 
@@ -89,8 +86,7 @@ void AddOfficesToMap(model::Map& map, const json::value& map_data) {
             static_cast<model::Dimension>(office_obj.at("offsetY").as_int64())
         };
         
-        model::Office office(std::move(id), position, offset);
-        map.AddOffice(std::move(office));
+        map.AddOffice(model::Office(std::move(id), position, offset));
     }
 }
 
