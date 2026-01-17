@@ -1,10 +1,7 @@
-#ifndef MODEL_H_
-#define MODEL_H_
+#pragma once
 
-#include <cstddef>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "tagged.h"
@@ -17,8 +14,6 @@ using Coord = Dimension;
 struct Point {
     Coord x;
     Coord y;
-    
-    bool operator==(const Point&) const = default;
 };
 
 struct Size {
@@ -37,109 +32,90 @@ struct Offset {
 };
 
 class Road {
- public:
-    enum class Orientation { HORIZONTAL, VERTICAL };
+public:
+    enum class Orientation { kHorizontal, kVertical };
 
-    Road(Orientation orientation, Point start, Coord end)
-        : start_{start},
-          end_{orientation == Orientation::HORIZONTAL ? 
-               Point{end, start.y} : Point{start.x, end}} {
-    }
+    Road(Point start, Point end) noexcept;
 
-    bool IsHorizontal() const { return start_.y == end_.y; }
-    bool IsVertical() const { return start_.x == end_.x; }
-    Point GetStart() const { return start_; }
-    Point GetEnd() const { return end_; }
+    bool IsHorizontal() const noexcept;
+    bool IsVertical() const noexcept;
+    Point GetStart() const noexcept;
+    Point GetEnd() const noexcept;
 
- private:
+private:
     Point start_;
     Point end_;
 };
 
 class Building {
- public:
-    explicit Building(Rectangle bounds) : bounds_{bounds} {}
-    const Rectangle& GetBounds() const { return bounds_; }
+public:
+    explicit Building(Rectangle bounds) noexcept;
+    const Rectangle& GetBounds() const noexcept;
 
- private:
+private:
     Rectangle bounds_;
 };
 
 class Office {
- public:
+public:
     using Id = util::Tagged<std::string, Office>;
 
-    Office(Id id, Point position, Offset offset)
-        : id_{std::move(id)},
-          position_{position},
-          offset_{offset} {
-    }
+    Office(Id id, Point position, Offset offset) noexcept;
+    
+    const Id& GetId() const noexcept;
+    Point GetPosition() const noexcept;
+    Offset GetOffset() const noexcept;
 
-    const Id& GetId() const { return id_; }
-    Point GetPosition() const { return position_; }
-    Offset GetOffset() const { return offset_; }
-
- private:
+private:
     Id id_;
     Point position_;
     Offset offset_;
 };
 
 class Map {
- public:
+public:
     using Id = util::Tagged<std::string, Map>;
     using Roads = std::vector<Road>;
     using Buildings = std::vector<Building>;
     using Offices = std::vector<Office>;
 
-    Map(Id id, std::string name)
-        : id_{std::move(id)},
-          name_{std::move(name)} {
-    }
+    Map(Id id, std::string name);
+    
+    const Id& GetId() const noexcept;
+    const std::string& GetName() const noexcept;
+    const Buildings& GetBuildings() const noexcept;
+    const Roads& GetRoads() const noexcept;
+    const Offices& GetOffices() const noexcept;
 
-    const Id& GetId() const { return id_; }
-    const std::string& GetName() const { return name_; }
-    const Buildings& GetBuildings() const { return buildings_; }
-    const Roads& GetRoads() const { return roads_; }
-    const Offices& GetOffices() const { return offices_; }
-
-    void AddRoad(const Road& road) { roads_.push_back(road); }
-    void AddBuilding(const Building& building) { buildings_.push_back(building); }
+    void AddRoad(const Road& road);
+    void AddBuilding(const Building& building);
     void AddOffice(Office office);
 
- private:
-    using OfficeIdToIndex = std::unordered_map<Office::Id, std::size_t,
-                                               util::TaggedHasher<Office::Id>>;
+private:
+    using OfficeIdToIndex = std::unordered_map<Office::Id, size_t, util::TaggedHasher<Office::Id>>;
 
     Id id_;
     std::string name_;
     Roads roads_;
     Buildings buildings_;
-    Offices offices_;
     OfficeIdToIndex warehouse_id_to_index_;
+    Offices offices_;
 };
 
 class Game {
- public:
+public:
     using Maps = std::vector<Map>;
 
     void AddMap(Map map);
-    
-    const Maps& GetMaps() const { return maps_; }
-    
-    const Map* FindMap(const Map::Id& id) const {
-        auto it = map_id_to_index_.find(id);
-        return it != map_id_to_index_.end() ? &maps_[it->second] : nullptr;
-    }
+    const Maps& GetMaps() const noexcept;
+    const Map* FindMap(const Map::Id& id) const noexcept;
 
- private:
-    using MapIdToIndex = std::unordered_map<Map::Id, std::size_t,
-                                            util::TaggedHasher<Map::Id>>;
+private:
+    using MapIdHasher = util::TaggedHasher<Map::Id>;
+    using MapIdToIndex = std::unordered_map<Map::Id, size_t, MapIdHasher>;
 
-    Maps maps_;
+    std::vector<Map> maps_;
     MapIdToIndex map_id_to_index_;
 };
 
 }  // namespace model
-
-#endif  // MODEL_H_

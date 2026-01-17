@@ -1,5 +1,4 @@
-#ifndef TAGGED_H_
-#define TAGGED_H_
+#pragma once
 
 #include <compare>
 #include <functional>
@@ -8,7 +7,7 @@ namespace util {
 
 template <typename Value, typename Tag>
 class Tagged {
- public:
+public:
     using ValueType = Value;
     using TagType = Tag;
 
@@ -17,23 +16,18 @@ class Tagged {
 
     const Value& operator*() const { return value_; }
     Value& operator*() { return value_; }
-
-    const Value* operator->() const { return &value_; }
-    Value* operator->() { return &value_; }
-
+    
     auto operator<=>(const Tagged<Value, Tag>&) const = default;
 
- private:
+private:
     Value value_;
 };
 
 template <typename TaggedValue>
 struct TaggedHasher {
-    std::size_t operator()(const TaggedValue& value) const {
+    size_t operator()(const TaggedValue& value) const {
         return std::hash<typename TaggedValue::ValueType>{}(*value);
     }
 };
 
 }  // namespace util
-
-#endif  // TAGGED_H_

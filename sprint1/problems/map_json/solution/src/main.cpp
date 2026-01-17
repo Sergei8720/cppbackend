@@ -6,10 +6,8 @@
 
 #include "json_loader.h"
 #include "request_handler.h"
-#include "http_server.h"
 
 using namespace std::literals;
-
 namespace net = boost::asio;
 namespace sys = boost::system;
 
@@ -38,20 +36,20 @@ int main(int argc, const char* argv[]) {
     
     try {
         model::Game game = json_loader::LoadGame(argv[1]);
+        
         const unsigned num_threads = std::thread::hardware_concurrency();
-        
-        net::io_context ioc(static_cast<int>(num_threads));
+        net::io_context ioc(num_threads);
+
         net::signal_set signals(ioc, SIGINT, SIGTERM);
-        
         signals.async_wait([&ioc](const sys::error_code& ec, int signal_number) {
             if (!ec) {
-                std::cout << "Signal " << signal_number << " received" << std::endl;
+                std::cout << "Signal "sv << signal_number << " received"sv << std::endl;
                 ioc.stop();
             }
         });
-        
+
         http_handler::RequestHandler handler{game};
-        
+
         const auto address = net::ip::make_address("0.0.0.0");
         constexpr net::ip::port_type port = 8080;
         
@@ -60,14 +58,12 @@ int main(int argc, const char* argv[]) {
         });
         
         std::cout << "Server has started..."sv << std::endl;
-        std::cout << "Listening on " << address << ":" << port << std::endl;
-        
+
         RunWorkers(std::max(1u, num_threads), [&ioc] {
             ioc.run();
         });
-        
     } catch (const std::exception& ex) {
-        std::cerr << "Fatal error: " << ex.what() << std::endl;
+        std::cerr << ex.what() << std::endl;
         return EXIT_FAILURE;
     }
     

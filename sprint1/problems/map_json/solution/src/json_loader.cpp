@@ -1,28 +1,34 @@
 #include "json_loader.h"
 
 #include <fstream>
-#include <string>
+#include <sstream>
+#include <stdexcept>
+
 #include <boost/json.hpp>
 
 namespace json_loader {
 
 namespace json = boost::json;
+using namespace std::literals;
 
 namespace {
 
-model::Coord GetCoord(const json::object& obj, const std::string& key) {
-    return static_cast<model::Coord>(obj.at(key).as_int64());
-}
-
 std::string ReadFile(const std::filesystem::path& json_path) {
-    std::ifstream file(json_path, std::ios::binary);
+    std::ifstream file(json_path);
     if (!file.is_open()) {
-        throw std::runtime_error("Failed to open file: " + json_path.string());
+        throw std::runtime_error("Failed to open file: "s + json_path.string());
     }
     
-    std::string content((std::istreambuf_iterator<char>(file)),
-                        std::istreambuf_iterator<char>());
-    return content;
+    std::ostringstream ss;
+    ss << file.rdbuf();
+    return ss.str();
+}
+
+model::Point ParsePoint(const json::object& obj, const std::string& x_key, const std::string& y_key) {
+    return {
+        static_cast<model::Coord>(obj.at(x_key).as_int64()),
+        static_cast<model::Coord>(obj.at(y_key).as_int64())
+    };
 }
 
 void AddRoadsToMap(model::Map& map, const json::value& map_data) {
@@ -30,18 +36,18 @@ void AddRoadsToMap(model::Map& map, const json::value& map_data) {
         return;
     }
     
-    const auto& roads = map_data.as_object().at("roads").as_array();
-    
-    for (const auto& road_item : roads) {
-        const auto& road_obj = road_item.as_object();
-        model::Point start{GetCoord(road_obj, "x0"), GetCoord(road_obj, "y0")};
+    for (const auto& road_data : map_data.as_object().at("roads").as_array()) {
+        const auto& road_obj = road_data.as_object();
+        auto start = ParsePoint(road_obj, "x0", "y0");
         
         if (road_obj.contains("x1")) {
-            model::Coord end_x = GetCoord(road_obj, "x1");
-            map.AddRoad(model::Road(model::Road::Orientation::HORIZONTAL, start, end_x));
+            model::Coord end_x = static_cast<model::Coord>(road_obj.at("x1").as_int64());
+            model::Road road(start, {end_x, start.y});
+            map.AddRoad(road);
         } else {
-            model::Coord end_y = GetCoord(road_obj, "y1");
-            map.AddRoad(model::Road(model::Road::Orientation::VERTICAL, start, end_y));
+            model::Coord end_y = static_cast<model::Coord>(road_obj.at("y1").as_int64());
+            model::Road road(start, {start.x, end_y});
+            map.AddRoad(road);
         }
     }
 }
@@ -51,15 +57,19 @@ void AddBuildingsToMap(model::Map& map, const json::value& map_data) {
         return;
     }
     
-    const auto& buildings = map_data.as_object().at("buildings").as_array();
-    
-    for (const auto& building_item : buildings) {
-        const auto& building_obj = building_item.as_object();
+    for (const auto& building_data : map_data.as_object().at("buildings").as_array()) {
+        const auto& building_obj = building_data.as_object();
+        
         model::Rectangle rect{
-            {GetCoord(building_obj, "x"), GetCoord(building_obj, "y")},
-            {GetCoord(building_obj, "w"), GetCoord(building_obj, "h")}
+            ParsePoint(building_obj, "x", "y"),
+            {
+                static_cast<model::Dimension>(building_obj.at("w").as_int64()),
+                static_cast<model::Dimension>(building_obj.at("h").as_int64())
+            }
         };
-        map.AddBuilding(model::Building(rect));
+        
+        model::Building building(rect);
+        map.AddBuilding(building);
     }
 }
 
@@ -68,37 +78,45 @@ void AddOfficesToMap(model::Map& map, const json::value& map_data) {
         return;
     }
     
-    const auto& offices = map_data.as_object().at("offices").as_array();
-    
-    for (const auto& office_item : offices) {
-        const auto& office_obj = office_item.as_object();
-        model::Office::Id id{std::string(office_obj.at("id").as_string())};
-        model::Point position{GetCoord(office_obj, "x"), GetCoord(office_obj, "y")};
-        model::Offset offset{GetCoord(office_obj, "offsetX"), GetCoord(office_obj, "offsetY")};
+    for (const auto& office_data : map_data.as_object().at("offices").as_array()) {
+        const auto& office_obj = office_data.as_object();
         
-        map.AddOffice(model::Office(std::move(id), position, offset));
+        model::Office::Id id(std::string(office_obj.at("id").as_string()));
+        auto position = ParsePoint(office_obj, "x", "y");
+        
+        model::Offset offset{
+            static_cast<model::Dimension>(office_obj.at("offsetX").as_int64()),
+            static_cast<model::Dimension>(office_obj.at("offsetY").as_int64())
+        };
+        
+        model::Office office(std::move(id), position, offset);
+        map.AddOffice(std::move(office));
     }
 }
 
 }  // namespace
 
 model::Game LoadGame(const std::filesystem::path& json_path) {
-    std::string json_content = ReadFile(json_path);
-    json::value game_json = json::parse(json_content);
+    std::string content = ReadFile(json_path);
+    json::value game_data = json::parse(content);
     
     model::Game game;
-    const auto& maps_array = game_json.as_object().at("maps").as_array();
     
-    for (const auto& map_item : maps_array) {
-        const auto& map_obj = map_item.as_object();
-        model::Map::Id id{std::string(map_obj.at("id").as_string())};
-        std::string name{map_obj.at("name").as_string()};
+    if (!game_data.as_object().contains("maps")) {
+        return game;
+    }
+    
+    for (const auto& map_data : game_data.as_object().at("maps").as_array()) {
+        const auto& map_obj = map_data.as_object();
+        
+        model::Map::Id id(std::string(map_obj.at("id").as_string()));
+        std::string name(map_obj.at("name").as_string());
         
         model::Map map(std::move(id), std::move(name));
         
-        AddRoadsToMap(map, map_item);
-        AddBuildingsToMap(map, map_item);
-        AddOfficesToMap(map, map_item);
+        AddRoadsToMap(map, map_data);
+        AddBuildingsToMap(map, map_data);
+        AddOfficesToMap(map, map_data);
         
         game.AddMap(std::move(map));
     }
