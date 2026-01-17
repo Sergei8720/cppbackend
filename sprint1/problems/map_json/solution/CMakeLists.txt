@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.11)
 
 project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
@@ -27,5 +28,9 @@ add_executable(game_server
 	src/json_loader.cpp
 	src/request_handler.cpp
 	src/request_handler.h
+	src/json_converter.cpp
+	src/json_converter.h
 )
-target_link_libraries(game_server PRIVATE Threads::Threads)
+target_link_libraries(game_server PRIVATE Threads::Threads jsoncpp)
+# Boost.Beast будет использовать std::string_view вместо boost::string_view
+add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
