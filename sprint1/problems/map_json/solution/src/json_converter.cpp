@@ -90,7 +90,7 @@ std::string ConvertMapToJson(const model::Map& map) {
     return JsonToString(json::value(std::move(map_obj)));
 }
 
-std::string CreateErrorResponse(std::string_view code, std::string_view message) {
+std::string CreateErrorResponse(const std::string& code, const std::string& message) {
     json::object error_obj;
     error_obj["code"] = code;
     error_obj["message"] = message;

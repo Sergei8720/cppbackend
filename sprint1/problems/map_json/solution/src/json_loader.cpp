@@ -10,6 +10,10 @@ namespace json = boost::json;
 
 namespace {
 
+model::Coord GetCoord(const json::object& obj, const std::string& key) {
+    return static_cast<model::Coord>(obj.at(key).as_int64());
+}
+
 std::string ReadFile(const std::filesystem::path& json_path) {
     std::ifstream file(json_path, std::ios::binary);
     if (!file.is_open()) {
@@ -21,11 +25,11 @@ std::string ReadFile(const std::filesystem::path& json_path) {
     return content;
 }
 
-model::Coord GetCoord(const json::object& obj, std::string_view key) {
-    return static_cast<model::Coord>(obj.at(key).as_int64());
-}
-
 void AddRoadsToMap(model::Map& map, const json::value& map_data) {
+    if (!map_data.as_object().contains("roads")) {
+        return;
+    }
+    
     const auto& roads = map_data.as_object().at("roads").as_array();
     
     for (const auto& road_item : roads) {
@@ -34,15 +38,19 @@ void AddRoadsToMap(model::Map& map, const json::value& map_data) {
         
         if (road_obj.contains("x1")) {
             model::Coord end_x = GetCoord(road_obj, "x1");
-            map.AddRoad(model::Road(model::Road::HORIZONTAL, start, end_x));
+            map.AddRoad(model::Road(model::Road::Orientation::HORIZONTAL, start, end_x));
         } else {
             model::Coord end_y = GetCoord(road_obj, "y1");
-            map.AddRoad(model::Road(model::Road::VERTICAL, start, end_y));
+            map.AddRoad(model::Road(model::Road::Orientation::VERTICAL, start, end_y));
         }
     }
 }
 
 void AddBuildingsToMap(model::Map& map, const json::value& map_data) {
+    if (!map_data.as_object().contains("buildings")) {
+        return;
+    }
+    
     const auto& buildings = map_data.as_object().at("buildings").as_array();
     
     for (const auto& building_item : buildings) {
@@ -56,6 +64,10 @@ void AddBuildingsToMap(model::Map& map, const json::value& map_data) {
 }
 
 void AddOfficesToMap(model::Map& map, const json::value& map_data) {
+    if (!map_data.as_object().contains("offices")) {
+        return;
+    }
+    
     const auto& offices = map_data.as_object().at("offices").as_array();
     
     for (const auto& office_item : offices) {
@@ -84,17 +96,9 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
         
         model::Map map(std::move(id), std::move(name));
         
-        if (map_obj.contains("roads")) {
-            AddRoadsToMap(map, map_item);
-        }
-        
-        if (map_obj.contains("buildings")) {
-            AddBuildingsToMap(map, map_item);
-        }
-        
-        if (map_obj.contains("offices")) {
-            AddOfficesToMap(map, map_item);
-        }
+        AddRoadsToMap(map, map_item);
+        AddBuildingsToMap(map, map_item);
+        AddOfficesToMap(map, map_item);
         
         game.AddMap(std::move(map));
     }
