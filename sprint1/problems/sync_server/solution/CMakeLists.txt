@@ -1,29 +1,30 @@
-cmake_minimum_required(VERSION 3.15)
-project(sync_server CXX)
+cmake_minimum_required(VERSION 3.11)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+# Проект называется Hello и написан на C++
+project(Hello CXX)
+# Исходый код будет компилироваться с поддержкой стандарта С++ 20
+set(CMAKE_CXX_STANDARD 20)
 
-# РћС‚РєР»СЋС‡Р°РµРј C РєРѕРјРїРёР»СЏС‚РѕСЂ, С‚Р°Рє РєР°Рє РЅР°Рј РЅСѓР¶РµРЅ С‚РѕР»СЊРєРѕ C++
-enable_language(CXX)
+# Подключаем сгенерированный скрипт conanbuildinfo.cmake, созданный Conan
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+# Выполняем макрос из conanbuildinfo.cmake, который настроит СMake на работу с библиотеками, установленными Conan
+conan_basic_setup()
 
-# РџРѕРёСЃРє Р·Р°РІРёСЃРёРјРѕСЃС‚РµР№ С‡РµСЂРµР· Conan
-find_package(Boost 1.81.0 REQUIRED)
+# Ищем Boost версии 1.78
+find_package(Boost 1.78.0 REQUIRED)
+if(Boost_FOUND)
+  # boost найден, добавляем к каталогам заголовочных файлов проекта путь к
+  # заголовочным файлам boost
+  include_directories(${Boost_INCLUDE_DIRS})
+endif()
 
-# РЎРѕР·РґР°РµРј РёСЃРїРѕР»РЅСЏРµРјС‹Р№ С„Р°Р№Р»
-add_executable(sync_server main.cpp)
+# Платформы вроде linux требуют подключения библиотеки pthread для
+# поддержки стандартных потоков.
+# Следующие две строки подключат эту библиотеку на таких платформах
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 
-# РџРѕРґРєР»СЋС‡Р°РµРј Р·Р°РІРёСЃРёРјРѕСЃС‚Рё
-target_link_libraries(sync_server 
-    PUBLIC 
-        Boost::boost
-        Boost::system
-)
-
-# РќР°СЃС‚СЂРѕР№РєР° СЃРІРѕР№СЃС‚РІ РґР»СЏ С†РµР»Рё
-set_target_properties(sync_server PROPERTIES
-    CXX_STANDARD 17
-    CXX_STANDARD_REQUIRED ON
-    CXX_EXTENSIONS OFF
-)
+# Проект содержит единственный исходный файл src/main.cpp
+add_executable(hello src/main.cpp)
+# Просим компоновщик подключить библиотеку для поддержки потоков
+target_link_libraries(hello PRIVATE Threads::Threads)
