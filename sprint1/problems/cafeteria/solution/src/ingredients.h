@@ -3,6 +3,7 @@
 #include <cassert>
 #include <functional>
 #include <optional>
+#include <atomic>  // Добавлен заголовок
 
 #include "clock.h"
 #include "gascooker.h"
@@ -126,5 +127,5 @@ public:
     }
 
 private:
-    int next_id_ = 0;
+    std::atomic<int> next_id_{0};  // Исправлено: атомарный счетчик
 };

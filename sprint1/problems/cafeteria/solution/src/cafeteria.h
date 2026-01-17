@@ -10,6 +10,7 @@
 #include <boost/asio/strand.hpp>
 #include <memory>
 #include <utility>
+#include <atomic>  // Добавлен заголовок
 
 #include "hotdog.h"
 #include "result.h"
@@ -146,5 +147,5 @@ private:
     net::strand<net::io_context::executor_type> strand_;
     Store store_;
     std::shared_ptr<GasCooker> gas_cooker_ = std::make_shared<GasCooker>(io_);
-    int hotdog_counter_ = 0;
+    std::atomic<int> hotdog_counter_{0};  // Исправлено: атомарный счетчик
 };
