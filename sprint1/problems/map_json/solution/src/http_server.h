@@ -2,6 +2,7 @@
 #define HTTP_SERVER_H_
 
 #include <memory>
+#include <string>
 #include <string_view>
 
 #include <boost/asio/ip/tcp.hpp>
@@ -18,6 +19,8 @@ namespace beast = boost::beast;
 namespace http = beast::http;
 namespace sys = boost::system;
 
+void ReportError(beast::error_code ec, std::string_view where);
+
 class SessionBase : public std::enable_shared_from_this<SessionBase> {
  public:
     SessionBase(const SessionBase&) = delete;
@@ -32,10 +35,9 @@ class SessionBase : public std::enable_shared_from_this<SessionBase> {
     template <typename Body, typename Fields>
     void Write(http::response<Body, Fields>&& response) {
         auto safe_response = std::make_shared<http::response<Body, Fields>>(std::move(response));
-        auto self = shared_from_this();
         
         http::async_write(stream_, *safe_response,
-            [safe_response, self](beast::error_code ec, std::size_t bytes_written) {
+            [safe_response, self = shared_from_this()](beast::error_code ec, std::size_t bytes_written) {
                 self->OnWrite(safe_response->need_eof(), ec, bytes_written);
             });
     }
@@ -68,6 +70,7 @@ class Session final : public SessionBase {
     void HandleRequest(http::request<http::string_body>&& request) override {
         request_handler_(std::move(request),
             [self = shared_from_this()](auto&& response) {
+                // Метод Write теперь публично доступен через shared_from_this
                 self->Write(std::move(response));
             });
     }
@@ -104,6 +107,7 @@ class Listener final : public std::enable_shared_from_this<Listener<RequestHandl
 
     void OnAccept(sys::error_code ec, tcp::socket socket) {
         if (ec) {
+            ReportError(ec, "accept");
             return;
         }
         

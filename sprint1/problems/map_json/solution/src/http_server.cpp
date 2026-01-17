@@ -6,15 +6,23 @@ namespace http_server {
 
 namespace {
 
-void ReportError(beast::error_code ec, std::string_view where) {
+void ReportErrorImpl(beast::error_code ec, std::string_view where) {
     std::cerr << "Error in " << where << ": " << ec.message() << std::endl;
 }
 
 }  // namespace
 
+void ReportError(beast::error_code ec, std::string_view where) {
+    ReportErrorImpl(ec, where);
+}
+
+SessionBase::SessionBase(tcp::socket&& socket)
+    : stream_(std::move(socket)) {
+}
+
 void SessionBase::Run() {
     net::dispatch(stream_.get_executor(),
-                  beast::bind_front_handler(&SessionBase::Read, GetSharedThis()));
+                  beast::bind_front_handler(&SessionBase::Read, shared_from_this()));
 }
 
 void SessionBase::Read() {
@@ -22,7 +30,7 @@ void SessionBase::Read() {
     stream_.expires_after(std::chrono::seconds(30));
     
     http::async_read(stream_, buffer_, request_,
-                     beast::bind_front_handler(&SessionBase::OnRead, GetSharedThis()));
+                     beast::bind_front_handler(&SessionBase::OnRead, shared_from_this()));
 }
 
 void SessionBase::OnRead(beast::error_code ec, std::size_t bytes_read) {

@@ -31,24 +31,25 @@ class RequestHandler {
  private:
     const model::Game& game_;
 
-    static std::vector<std::string_view> SplitTarget(std::string_view target) {
+    static std::vector<std::string_view> SplitTarget(beast::string_view target) {
         std::vector<std::string_view> parts;
+        std::string_view sv(target.data(), target.size());
         
-        if (target.empty() || target == "/") {
+        if (sv.empty() || sv == "/") {
             return parts;
         }
         
-        size_t start = target.starts_with('/') ? 1 : 0;
-        size_t end = target.find('/', start);
+        size_t start = sv.starts_with('/') ? 1 : 0;
+        size_t end = sv.find('/', start);
         
         while (end != std::string_view::npos) {
-            parts.push_back(target.substr(start, end - start));
+            parts.push_back(sv.substr(start, end - start));
             start = end + 1;
-            end = target.find('/', start);
+            end = sv.find('/', start);
         }
         
-        if (start < target.length()) {
-            parts.push_back(target.substr(start));
+        if (start < sv.length()) {
+            parts.push_back(sv.substr(start));
         }
         
         return parts;
@@ -103,8 +104,9 @@ class RequestHandler {
         
         http::response<http::string_body> response{status, req.version()};
         response.set(http::field::content_type, "application/json");
+        response.set(http::field::cache_control, "no-cache");
         response.body() = std::move(body);
-        response.prepare_payload();
+        response.content_length(response.body().size());
         response.keep_alive(req.keep_alive());
         return response;
     }
@@ -154,8 +156,9 @@ class RequestHandler {
         http::response<http::string_body> response{http::status::method_not_allowed, req.version()};
         response.set(http::field::allow, "GET, HEAD");
         response.set(http::field::content_type, "application/json");
+        response.set(http::field::cache_control, "no-cache");
         response.body() = json_converter::CreateBadRequestResponse();
-        response.prepare_payload();
+        response.content_length(response.body().size());
         response.keep_alive(req.keep_alive());
         return response;
     }
