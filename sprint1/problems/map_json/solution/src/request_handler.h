@@ -31,31 +31,31 @@ class RequestHandler {
  private:
     const model::Game& game_;
 
-    static std::vector<std::string_view> SplitTarget(beast::string_view target) {
-        std::vector<std::string_view> parts;
-        std::string_view sv(target.data(), target.size());
+    static std::vector<std::string> SplitTarget(beast::string_view target) {
+        std::vector<std::string> parts;
+        std::string target_str(target.data(), target.size());
         
-        if (sv.empty() || sv == "/") {
+        if (target_str.empty() || target_str == "/") {
             return parts;
         }
         
-        size_t start = sv.starts_with('/') ? 1 : 0;
-        size_t end = sv.find('/', start);
+        size_t start = target_str.starts_with('/') ? 1 : 0;
+        size_t end = target_str.find('/', start);
         
-        while (end != std::string_view::npos) {
-            parts.push_back(sv.substr(start, end - start));
+        while (end != std::string::npos) {
+            parts.push_back(target_str.substr(start, end - start));
             start = end + 1;
-            end = sv.find('/', start);
+            end = target_str.find('/', start);
         }
         
-        if (start < sv.length()) {
-            parts.push_back(sv.substr(start));
+        if (start < target_str.length()) {
+            parts.push_back(target_str.substr(start));
         }
         
         return parts;
     }
 
-    static bool IsValidApiRequest(const std::vector<std::string_view>& parts) {
+    static bool IsValidApiRequest(const std::vector<std::string>& parts) {
         if (parts.size() < 3) {
             return false;
         }
@@ -63,11 +63,11 @@ class RequestHandler {
         return parts[0] == "api" && parts[1] == "v1" && parts[2] == "maps";
     }
 
-    static bool IsValidMapIdRequest(const std::vector<std::string_view>& parts) {
+    static bool IsValidMapIdRequest(const std::vector<std::string>& parts) {
         return parts.size() == 4;
     }
 
-    static bool IsValidMapListRequest(const std::vector<std::string_view>& parts) {
+    static bool IsValidMapListRequest(const std::vector<std::string>& parts) {
         return parts.size() == 3;
     }
 
@@ -121,9 +121,9 @@ class RequestHandler {
     template <typename Body, typename Allocator>
     http::response<http::string_body> MakeMapByIdResponse(
         const http::request<Body, http::basic_fields<Allocator>>& req,
-        std::string_view map_id) const {
+        const std::string& map_id) const {
         
-        auto map = game_.FindMap(model::Map::Id{std::string(map_id)});
+        auto map = game_.FindMap(model::Map::Id{map_id});
         
         if (!map) {
             return MakeResponse(http::status::not_found, req,

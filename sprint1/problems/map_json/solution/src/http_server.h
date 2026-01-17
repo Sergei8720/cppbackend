@@ -29,9 +29,6 @@ class SessionBase : public std::enable_shared_from_this<SessionBase> {
 
     void Run();
 
- protected:
-    explicit SessionBase(tcp::socket&& socket);
-
     template <typename Body, typename Fields>
     void Write(http::response<Body, Fields>&& response) {
         auto safe_response = std::make_shared<http::response<Body, Fields>>(std::move(response));
@@ -41,6 +38,9 @@ class SessionBase : public std::enable_shared_from_this<SessionBase> {
                 self->OnWrite(safe_response->need_eof(), ec, bytes_written);
             });
     }
+
+ protected:
+    explicit SessionBase(tcp::socket&& socket);
 
  private:
     beast::tcp_stream stream_;
@@ -70,7 +70,6 @@ class Session final : public SessionBase {
     void HandleRequest(http::request<http::string_body>&& request) override {
         request_handler_(std::move(request),
             [self = shared_from_this()](auto&& response) {
-                // Метод Write теперь публично доступен через shared_from_this
                 self->Write(std::move(response));
             });
     }
