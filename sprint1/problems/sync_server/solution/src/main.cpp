@@ -7,6 +7,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
+
 #include <functional>
 #include <iostream>
 #include <optional>
@@ -45,6 +46,7 @@ class HttpServer {
 
  private:
   static constexpr std::string_view kContentTypeTextHtml = "text/html";
+  static constexpr std::string_view kAllowMethods = "GET, HEAD";
 
   unsigned short port_;
   net::io_context io_context_;
@@ -112,20 +114,22 @@ class HttpServer {
     StringResponse response =
         CreateResponse(http::status::method_not_allowed, http_version,
                        keep_alive);
-    response.set(http::field::allow, "GET, HEAD");
+    response.set(http::field::allow, kAllowMethods);
     response.body() = "Invalid method";
     response.content_length(response.body().size());
     return response;
   }
 
   static std::string GenerateGreeting(std::string_view target) {
-    std::stringstream stream;
+    std::string greeting = "Hello, ";
+    
     if (target.length() > 1) {
-      stream << "Hello, " << target.substr(1);
+      greeting += target.substr(1);
     } else {
-      stream << "Hello, World";
+      greeting += "World";
     }
-    return stream.str();
+    
+    return greeting;
   }
 
   static StringResponse HandleRequest(StringRequest&& request) {
