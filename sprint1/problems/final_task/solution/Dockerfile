@@ -10,12 +10,14 @@ RUN apt update && \
     && \
     pip3 install conan==1.*
 
-    # Обновить профиль для использования нового ABI
+# Создать профиль default вручную перед обновлением
+RUN conan profile new default --detect --force
+
+# Теперь можно обновить профиль
 RUN conan profile update settings.compiler.libcxx=libstdc++11 default
 
-# копируем conanfile.txt в контейнер и запускаем conan install
 COPY conanfile.txt /app/
-RUN mkdir /app/build && cd /app/build && \
+RUN mkdir -p /app/build && cd /app/build && \
     conan install .. --build=missing
 
 # только после этого копируем остальные иходники
