@@ -1,103 +1,92 @@
 #include "http_server.h"
+
 #include <iostream>
 
 namespace http_server {
 
-void ReportError(beast::error_code ec, std::string_view what) {
-    std::cerr << what << ": " << ec.message() << std::endl;
+using namespace std::literals;
+
+void ReportError(beast::error_code ec, std::string_view where) {
+    std::cerr << where << ": " << ec.message() << std::endl;
 }
 
-Session::Session(tcp::socket&& socket, const RequestHandler& handle_request)
+Session::Session(tcp::socket&& socket, RequestHandler request_handler)
     : stream_(std::move(socket))
-    , handle_request_(handle_request) {
+    , request_handler_(std::move(request_handler)) {
 }
 
 void Session::Run() {
     net::dispatch(stream_.get_executor(),
-                  beast::bind_front_handler(&Session::Read,
-                  shared_from_this()));
+        [self = shared_from_this()]() {
+            self->Read();
+        });
 }
 
 void Session::Read() {
     request_ = {};
-    stream_.expires_after(std::chrono::seconds(30));
+    stream_.expires_after(30s);
+    
     http::async_read(stream_, buffer_, request_,
-                     beast::bind_front_handler(&Session::OnRead,
-                     shared_from_this()));
+        [self = shared_from_this()]
+        (beast::error_code ec, std::size_t bytes_read) {
+            self->OnRead(ec, bytes_read);
+        });
 }
 
 void Session::OnRead(beast::error_code ec, std::size_t bytes_read) {
     if (ec == http::error::end_of_stream) {
-        return Close();
+        Close();
+        return;
     }
+    
     if (ec) {
-        return ReportError(ec, "read");
+        ReportError(ec, "read");
+        return;
     }
-    HandleRequest();
+    
+    request_handler_(std::move(request_),
+        [self = shared_from_this()](http::response<http::string_body>&& response) {
+            auto safe_response = std::make_shared<http::response<http::string_body>>(std::move(response));
+            
+            http::async_write(self->stream_, *safe_response,
+                [self, safe_response]
+                (beast::error_code ec, std::size_t bytes_written) {
+                    self->OnWrite(safe_response->need_eof(), ec, bytes_written);
+                });
+        });
 }
 
 void Session::OnWrite(bool close, beast::error_code ec, std::size_t bytes_written) {
     if (ec) {
-        return ReportError(ec, "write");
+        ReportError(ec, "write");
+        return;
     }
+    
     if (close) {
-        return Close();
+        Close();
+        return;
     }
+    
     Read();
-}
-
-void Session::HandleRequest() {
-    response_ = handle_request_(std::move(request_));
-    http::async_write(stream_, response_,
-                      beast::bind_front_handler(&Session::OnWrite,
-                      shared_from_this(), response_.need_eof()));
 }
 
 void Session::Close() {
     beast::error_code ec;
     stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
-    
-    if (ec && ec != beast::errc::not_connected) {
-        std::cerr << "Session close error: " << ec.message() << std::endl;
+    if (ec) {
+        ReportError(ec, "shutdown");
     }
 }
 
-void ServeHttp(net::io_context& ioc, const tcp::endpoint& endpoint, 
-               const RequestHandler& handle_request) {
-    auto listener = std::make_shared<Listener>(ioc, endpoint, handle_request);
-    listener->Run();
-}
-
-Listener::Listener(net::io_context& ioc, const tcp::endpoint& endpoint, 
-                   const RequestHandler& handle_request)
+Listener::Listener(net::io_context& ioc, const tcp::endpoint& endpoint, RequestHandler request_handler)
     : ioc_(ioc)
     , acceptor_(net::make_strand(ioc))
-    , handle_request_(handle_request) {
-    beast::error_code ec;
+    , request_handler_(std::move(request_handler)) {
     
-    acceptor_.open(endpoint.protocol(), ec);
-    if (ec) {
-        ReportError(ec, "open");
-        return;
-    }
-    
-    acceptor_.set_option(net::socket_base::reuse_address(true), ec);
-    if (ec) {
-        ReportError(ec, "set_option");
-        return;
-    }
-    
-    acceptor_.bind(endpoint, ec);
-    if (ec) {
-        ReportError(ec, "bind");
-        return;
-    }
-    
-    acceptor_.listen(net::socket_base::max_listen_connections, ec);
-    if (ec) {
-        ReportError(ec, "listen");
-        return;
-    }
+    acceptor_.open(endpoint.protocol());
+    acceptor_.set_option(net::socket_base::reuse_address(true));
+    acceptor_.bind(endpoint);
+    acceptor_.listen(net::socket_base::max_listen_connections);
 }
 
 void Listener::Run() {
@@ -107,16 +96,21 @@ void Listener::Run() {
 void Listener::DoAccept() {
     acceptor_.async_accept(
         net::make_strand(ioc_),
-        beast::bind_front_handler(&Listener::OnAccept, shared_from_this()));
+        beast::bind_front_handler(&Listener::OnAccept, this->shared_from_this()));
 }
 
-void Listener::OnAccept(beast::error_code ec, tcp::socket socket) {
+void Listener::OnAccept(sys::error_code ec, tcp::socket socket) {
     if (ec) {
         ReportError(ec, "accept");
-    } else {
-        std::make_shared<Session>(std::move(socket), handle_request_)->Run();
+        return;
     }
+
+    std::make_shared<Session>(std::move(socket), request_handler_)->Run();
     DoAccept();
+}
+
+void ServeHttp(net::io_context& ioc, const tcp::endpoint& endpoint, RequestHandler&& handler) {
+    std::make_shared<Listener>(ioc, endpoint, std::forward<RequestHandler>(handler))->Run();
 }
 
 }  // namespace http_server
