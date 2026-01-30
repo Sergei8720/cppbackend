@@ -6,6 +6,8 @@
 #include "http_server.h"
 
 namespace net = boost::asio;
+namespace beast = boost::beast;
+namespace http = beast::http;
 using namespace std::literals;
 
 int main(int argc, const char* argv[]) {
