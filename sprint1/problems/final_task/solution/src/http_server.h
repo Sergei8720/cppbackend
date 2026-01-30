@@ -14,12 +14,12 @@ using tcp = net::ip::tcp;
 
 void ReportError(beast::error_code ec, std::string_view what);
 
-using RequestHandler = std::function<http::message_generator(http::request<http::string_body>&&)>;
+using RequestHandler = std::function<http::response<http::string_body>(
+    http::request<http::string_body>&&)>;
 
 class Session : public std::enable_shared_from_this<Session> {
 public:
     Session(tcp::socket&& socket, const RequestHandler& handle_request);
-    
     void Run();
     
 private:
@@ -27,7 +27,7 @@ private:
     beast::flat_buffer buffer_;
     RequestHandler handle_request_;
     http::request<http::string_body> request_;
-    http::message_generator response_;
+    http::response<http::string_body> response_;
     
     void Read();
     void OnRead(beast::error_code ec, std::size_t bytes_read);
@@ -40,7 +40,6 @@ class Listener : public std::enable_shared_from_this<Listener> {
 public:
     Listener(net::io_context& ioc, const tcp::endpoint& endpoint, 
              const RequestHandler& handle_request);
-
     void Run();
     
 private:

@@ -57,7 +57,6 @@ void Session::Close() {
     beast::error_code ec;
     stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
     
-    // Логирование ошибки, если она произошла (но не критично)
     if (ec && ec != beast::errc::not_connected) {
         std::cerr << "Session close error: " << ec.message() << std::endl;
     }

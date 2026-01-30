@@ -141,4 +141,9 @@ std::string CreateBadRequestResponse() {
     return ConvertToJsonString(json_error);
 }
 
+std::string CreatePageNotFoundResponse() {
+    Json::Value json_error = CreateErrorResponse("pageNotFound", "Page not found");
+    return ConvertToJsonString(json_error);
+}
+
 }  // namespace json_converter
