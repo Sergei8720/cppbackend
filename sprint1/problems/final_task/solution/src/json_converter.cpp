@@ -1,116 +1,144 @@
 #include "json_converter.h"
-
-#include <json/json.h>
 #include <sstream>
 
-namespace jsonConverter {
+namespace json_converter {
+
+namespace constants {
+    // Common fields
+    constexpr const char* ID = "id";
+    constexpr const char* NAME = "name";
+    constexpr const char* X = "x";
+    constexpr const char* Y = "y";
+    constexpr const char* OFFSET_X = "offsetX";
+    constexpr const char* OFFSET_Y = "offsetY";
+    
+    // Map related
+    constexpr const char* MAPS = "maps";
+    constexpr const char* ROADS = "roads";
+    constexpr const char* BUILDINGS = "buildings";
+    constexpr const char* OFFICES = "offices";
+    constexpr const char* WIDTH = "width";
+    constexpr const char* HEIGHT = "height";
+    
+    // Error related
+    constexpr const char* ERROR_CODE = "code";
+    constexpr const char* ERROR_MESSAGE = "message";
+    
+    // Road types
+    constexpr const char* ROAD_START = "x0";
+    constexpr const char* ROAD_END = "x1";
+    constexpr const char* ROAD_START_VERTICAL = "y0";
+    constexpr const char* ROAD_END_VERTICAL = "y1";
+}
 
 namespace {
 
-Json::Value RoadToJson(const model::Road& road) {
+std::string ConvertToJsonString(const Json::Value& json_value) {
+    Json::StreamWriterBuilder builder;
+    builder["indentation"] = "";
+    return Json::writeString(builder, json_value);
+}
+
+Json::Value CreateRoadJson(const model::Road& road) {
     Json::Value json_road;
-    json_road["x0"] = road.GetStart().x;
-    json_road["y0"] = road.GetStart().y;
     
     if (road.IsHorizontal()) {
-        json_road["x1"] = road.GetEnd().x;
-    } else {
-        json_road["y1"] = road.GetEnd().y;
+        json_road[constants::ROAD_START] = road.GetStart().x;
+        json_road[constants::ROAD_END] = road.GetEnd().x;
+        json_road[constants::Y] = road.GetStart().y;
+    } else {  // Vertical road
+        json_road[constants::X] = road.GetStart().x;
+        json_road[constants::ROAD_START_VERTICAL] = road.GetStart().y;
+        json_road[constants::ROAD_END_VERTICAL] = road.GetEnd().y;
     }
     
     return json_road;
 }
 
-Json::Value BuildingToJson(const model::Building& building) {
+Json::Value CreateBuildingJson(const model::Building& building) {
     Json::Value json_building;
-    const auto& bounds = building.GetBounds();
     
-    json_building["x"] = bounds.position.x;
-    json_building["y"] = bounds.position.y;
-    json_building["w"] = bounds.size.width;
-    json_building["h"] = bounds.size.height;
+    json_building[constants::X] = building.GetBounds().position.x;
+    json_building[constants::Y] = building.GetBounds().position.y;
+    json_building[constants::WIDTH] = building.GetBounds().size.width;
+    json_building[constants::HEIGHT] = building.GetBounds().size.height;
     
     return json_building;
 }
 
-Json::Value OfficeToJson(const model::Office& office) {
+Json::Value CreateOfficeJson(const model::Office& office) {
     Json::Value json_office;
     
-    json_office["id"] = *office.GetId();
-    json_office["x"] = office.GetPosition().x;
-    json_office["y"] = office.GetPosition().y;
-    json_office["offsetX"] = office.GetOffset().dx;
-    json_office["offsetY"] = office.GetOffset().dy;
+    json_office[constants::ID] = *office.GetId();
+    json_office[constants::X] = office.GetPosition().x;
+    json_office[constants::Y] = office.GetPosition().y;
+    json_office[constants::OFFSET_X] = office.GetOffset().dx;
+    json_office[constants::OFFSET_Y] = office.GetOffset().dy;
     
     return json_office;
 }
 
-std::string CreateErrorResponse(const std::string& code, const std::string& message) {
-    Json::Value root;
-    root["code"] = code;
-    root["message"] = message;
-    
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "";
-    return Json::writeString(builder, root);
+Json::Value CreateErrorResponse(const std::string& code, const std::string& message) {
+    Json::Value json_error;
+    json_error[constants::ERROR_CODE] = code;
+    json_error[constants::ERROR_MESSAGE] = message;
+    return json_error;
 }
 
 }  // namespace
 
 std::string ConvertMapListToJson(const model::Game& game) {
-    Json::Value root(Json::arrayValue);
+    Json::Value json_maps;
     
     for (const auto& map : game.GetMaps()) {
         Json::Value json_map;
-        json_map["id"] = *map.GetId();
-        json_map["name"] = map.GetName();
-        root.append(json_map);
+        json_map[constants::ID] = *map.GetId();
+        json_map[constants::NAME] = map.GetName();
+        json_maps.append(json_map);
     }
     
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "";
-    return Json::writeString(builder, root);
+    return ConvertToJsonString(json_maps);
 }
 
 std::string ConvertMapToJson(const model::Map& map) {
-    Json::Value root;
+    Json::Value json_map;
     
-    root["id"] = *map.GetId();
-    root["name"] = map.GetName();
+    // Basic info
+    json_map[constants::ID] = *map.GetId();
+    json_map[constants::NAME] = map.GetName();
     
-    Json::Value roads(Json::arrayValue);
+    // Roads
+    Json::Value json_roads;
     for (const auto& road : map.GetRoads()) {
-        roads.append(RoadToJson(road));
+        json_roads.append(CreateRoadJson(road));
     }
-    root["roads"] = roads;
+    json_map[constants::ROADS] = json_roads;
     
-    Json::Value buildings(Json::arrayValue);
+    // Buildings
+    Json::Value json_buildings;
     for (const auto& building : map.GetBuildings()) {
-        buildings.append(BuildingToJson(building));
+        json_buildings.append(CreateBuildingJson(building));
     }
-    root["buildings"] = buildings;
+    json_map[constants::BUILDINGS] = json_buildings;
     
-    Json::Value offices(Json::arrayValue);
+    // Offices
+    Json::Value json_offices;
     for (const auto& office : map.GetOffices()) {
-        offices.append(OfficeToJson(office));
+        json_offices.append(CreateOfficeJson(office));
     }
-    root["offices"] = offices;
+    json_map[constants::OFFICES] = json_offices;
     
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "";
-    return Json::writeString(builder, root);
+    return ConvertToJsonString(json_map);
 }
 
 std::string CreateMapNotFoundResponse() {
-    return CreateErrorResponse("mapNotFound", "Map not found");
+    Json::Value json_error = CreateErrorResponse("mapNotFound", "Map not found");
+    return ConvertToJsonString(json_error);
 }
 
 std::string CreateBadRequestResponse() {
-    return CreateErrorResponse("badRequest", "Bad request");
+    Json::Value json_error = CreateErrorResponse("badRequest", "Bad request");
+    return ConvertToJsonString(json_error);
 }
 
-std::string CreatePageNotFoundResponse() {
-    return CreateErrorResponse("pageNotFound", "Page not found");
-}
-
-}  // namespace jsonConverter
+}  // namespace json_converter

@@ -1,14 +1,14 @@
 #pragma once
 
 #include "model.h"
+#include <json/json.h>
 #include <string>
 
-namespace jsonConverter {
+namespace json_converter {
 
 std::string ConvertMapListToJson(const model::Game& game);
 std::string ConvertMapToJson(const model::Map& map);
 std::string CreateMapNotFoundResponse();
 std::string CreateBadRequestResponse();
-std::string CreatePageNotFoundResponse();
 
-}  // namespace jsonConverter
+}  // namespace json_converter
