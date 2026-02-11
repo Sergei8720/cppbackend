@@ -1,52 +1,65 @@
 #pragma once
-#include "api_v1_request_handlers_storage.h"
+
 #include "request_handler_node.h"
-#include <functional>
+#include "../api_v1_handlers/api_v1_activators.h"
+#include "../api_v1_handlers/api_v1_handlers.h"
+
 #include <vector>
+#include <unordered_map>
 
 namespace rh_storage {
 
-template<typename Request, typename Send>
+namespace http = boost::beast::http;
+
+template <typename Request, typename Send>
 class ApiV1RequestHandlerExecutor {
-    using ActivatorType = bool(*)(const Request&, const model::Game&);
-    using HandlerType = void(*)(const Request&, const model::Game&, Send&&);
-    
 public:
-    ApiV1RequestHandlerExecutor(const ApiV1RequestHandlerExecutor&) = delete;
-    ApiV1RequestHandlerExecutor& operator=(const ApiV1RequestHandlerExecutor&) = delete;
-    ApiV1RequestHandlerExecutor(ApiV1RequestHandlerExecutor&&) = delete;
-    ApiV1RequestHandlerExecutor& operator=(ApiV1RequestHandlerExecutor&&) = delete;
+    using HandlerType = void(*)(const Request&, const model::Game&, Send&&);
+    using ActivatorType = bool(*)(const Request&, const model::Game&);
 
     static ApiV1RequestHandlerExecutor& GetInstance() {
-        static ApiV1RequestHandlerExecutor obj;
-        return obj;
+        static ApiV1RequestHandlerExecutor instance;
+        return instance;
     }
 
-    bool Execute(const Request& req, const model::Game& game, Send&& send) {
-        for (auto& item : rh_storage_) {
-            if (item.GetActivator()(req, game)) {
-                item.GetHandler(req, fault_handler_)(req, game, std::move(send));
-                return true;
+    bool Execute(const Request& req, const model::Game& game, Send&& send) const {
+        for (const auto& node : rh_storage_) {
+            if (node.activator(req, game)) {
+                auto it = node.handlers.find(req.method());
+                if (it != node.handlers.end()) {
+                    it->second(req, game, std::forward<Send>(send));
+                    return true;
+                }
             }
         }
         return false;
     }
 
 private:
-    std::vector<RequestHandlerNode<ActivatorType, HandlerType>> rh_storage_;
-    HandlerType fault_handler_;
+    ApiV1RequestHandlerExecutor() {
+ 
+        rh_storage_.emplace_back(RequestHandlerNode<ActivatorType, HandlerType>{
+            BadRequestActivator,
+            std::unordered_map<http::verb, HandlerType>{{http::verb::get, BadRequestHandler}}
+        });
 
-    ApiV1RequestHandlerExecutor()
-        : fault_handler_(BadRequestHandler) {
-        rh_storage_.emplace_back(BadRequestActivator,
-            std::unordered_map<http::verb, HandlerType>{{http::verb::get, BadRequestHandler}});
-        rh_storage_.emplace_back(GetMapListActivator,
-            std::unordered_map<http::verb, HandlerType>{{http::verb::get, GetMapListHandler}});
-        rh_storage_.emplace_back(MapNotFoundActivator,
-            std::unordered_map<http::verb, HandlerType>{{http::verb::get, MapNotFoundHandler}});
-        rh_storage_.emplace_back(GetMapByIdActivator,
-            std::unordered_map<http::verb, HandlerType>{{http::verb::get, GetMapByIdHandler}});
+        rh_storage_.emplace_back(RequestHandlerNode<ActivatorType, HandlerType>{
+            GetMapListActivator,
+            std::unordered_map<http::verb, HandlerType>{{http::verb::get, GetMapListHandler}}
+        });
+
+        rh_storage_.emplace_back(RequestHandlerNode<ActivatorType, HandlerType>{
+            MapNotFoundActivator,
+            std::unordered_map<http::verb, HandlerType>{{http::verb::get, MapNotFoundHandler}}
+        });
+
+        rh_storage_.emplace_back(RequestHandlerNode<ActivatorType, HandlerType>{
+            GetMapByIdActivator,
+            std::unordered_map<http::verb, HandlerType>{{http::verb::get, GetMapByIdHandler}}
+        });
     }
+
+    std::vector<RequestHandlerNode<ActivatorType, HandlerType>> rh_storage_;
 };
 
-}
+} // namespace rh_storage
