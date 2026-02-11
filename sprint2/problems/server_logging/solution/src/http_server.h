@@ -6,6 +6,7 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <string_view>
+#include <memory>
 
 namespace http_server {
 
@@ -31,30 +32,36 @@ public:
         try {
             remote_ip = stream_.socket().remote_endpoint().address().to_string();
         } catch(...) {
+            remote_ip = "unknown";
         }
         return remote_ip;
     }
 
 protected:
     explicit SessionBase(tcp::socket&& socket) : stream_(std::move(socket)) {}
+    
     using HttpRequest = http::request<http::string_body>;
+    
     ~SessionBase() = default;
 
     template <typename Body, typename Fields>
     void Write(http::response<Body, Fields>&& response) {
         auto safe_response = std::make_shared<http::response<Body, Fields>>(std::move(response));
         auto self = GetSharedThis();
+        bool need_eof = safe_response->need_eof();
         
         http::async_write(stream_, *safe_response,
-            [safe_response, self](beast::error_code ec, std::size_t bytes_written) {
-                self->OnWrite(safe_response->need_eof(), ec, bytes_written);
-                auto now = boost::posix_time::microsec_clock::local_time();
-                long duration = self->GetDurationFromTimeReceivedRequestMs(now);
-                BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("response sent",
-                    logware::ResponseLogData<Body, Fields>(
-                        self->GetRemoteIp(),
-                        duration,
-                        *safe_response));
+            [safe_response, self, need_eof](beast::error_code ec, std::size_t bytes_written) {
+                if (!ec) {
+                    auto now = boost::posix_time::microsec_clock::local_time();
+                    long duration = self->GetDurationFromTimeReceivedRequestMs(now);
+                    BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("response sent",
+                        logware::ResponseLogData<Body, Fields>(
+                            self->GetRemoteIp(),
+                            duration,
+                            *safe_response));
+                }
+                self->OnWrite(need_eof, ec, bytes_written);
             });
     }
 
@@ -88,8 +95,7 @@ public:
     template <typename Handler>
     Session(tcp::socket&& socket, Handler&& request_handler)
         : SessionBase(std::move(socket))
-        , request_handler_(std::forward<Handler>(request_handler)) {
-    }
+        , request_handler_(std::forward<Handler>(request_handler)) {}
 
 private:
     RequestHandler request_handler_;

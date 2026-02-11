@@ -23,11 +23,11 @@ public:
     template<typename Request>
     Handler& GetHandler(const Request& req, Handler& fault_handler) {
         http::verb method = req.method();
-        if (handlers_.contains(method)) {
-            return handlers_[method];
-        } else {
-            return fault_handler;
+        auto it = handlers_.find(method);
+        if (it != handlers_.end()) {
+            return it->second;
         }
+        return fault_handler;
     }
 
     Activator& GetActivator() {

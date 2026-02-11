@@ -73,7 +73,7 @@ Road tag_invoke(json::value_to_tag<Road>, const json::value& jv);
 
 class Building {
 public:
-    explicit Building(Rectangle bounds) noexcept : bounds_{bounds} {}
+    explicit Building(Rectangle bounds) noexcept : bounds_(bounds) {}
 
     const Rectangle& GetBounds() const noexcept {
         return bounds_;
@@ -149,8 +149,8 @@ public:
     }
 
     void AddRoads(Roads& roads) {
-        for (const auto& item : roads) {
-            AddRoad(item);
+        for (const auto& road : roads) {
+            AddRoad(road);
         }
     }
 
@@ -159,8 +159,8 @@ public:
     }
 
     void AddBuildings(Buildings& buildings) {
-        for (const auto& item : buildings) {
-            AddBuilding(item);
+        for (const auto& building : buildings) {
+            AddBuilding(building);
         }
     }
 

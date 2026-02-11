@@ -33,7 +33,7 @@ int main(int argc, const char* argv[]) {
     logware::InitLogger();
     
     if (argc != 3) {
-        BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("Usage: game_server <game-config-json>",
+        BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("Usage: game_server <game-config-json> <static-content-path>",
             logware::ExitCodeLogData(EXIT_FAILURE));
         return EXIT_FAILURE;
     }
@@ -63,7 +63,7 @@ int main(int argc, const char* argv[]) {
             handler(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
         });
         
-        BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("Server has started...",
+        BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("server started",
             logware::ServerAddressLogData(address.to_string(), port));
         
         RunWorkers(std::max(1u, num_threads), [&ioc] {
@@ -71,7 +71,9 @@ int main(int argc, const char* argv[]) {
         });
     } catch (const std::exception& ex) {
         BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error",
-            logware::ExceptionLogData(EXIT_FAILURE, "Server down", ex.what()));
+            logware::ExceptionLogData(EXIT_FAILURE, ex.what(), "main"));
         return EXIT_FAILURE;
     }
+    
+    return EXIT_SUCCESS;
 }

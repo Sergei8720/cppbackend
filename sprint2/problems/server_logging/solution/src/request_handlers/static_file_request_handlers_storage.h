@@ -5,7 +5,7 @@
 #include <boost/beast/http.hpp>
 #include <unordered_map>
 #include <string>
-#include <iostream>
+#include <fstream>
 
 namespace rh_storage {
 
@@ -42,19 +42,23 @@ const std::string IndexFileName = "index.html";
 
 template <typename Request>
 bool StaticContentFileNotFoundActivator(const Request& req, const fs::path& static_content_root) {
-    fs::path static_content{static_content_root};
+    fs::path static_content = static_content_root;
     
-    if (req.target().empty() || req.target() == "/") {
-        fs::path rel_path{IndexFileName};
-        static_content = fs::weakly_canonical(static_content / rel_path);
+    std::string target(req.target());
+    if (target.empty() || target == "/") {
+        static_content = fs::weakly_canonical(static_content_root / IndexFileName);
     } else {
-        std::string_view path_str = req.target().substr(1, req.target().size() - 1);
-        fs::path rel_path{path_str};
-        static_content = fs::weakly_canonical(static_content / rel_path);
+        std::string path_str;
+        if (target[0] == '/') {
+            path_str = target.substr(1);
+        } else {
+            path_str = target;
+        }
+        fs::path rel_path(path_str);
+        static_content = fs::weakly_canonical(static_content_root / rel_path);
         
         if (fs::is_directory(static_content)) {
-            fs::path rel_path{IndexFileName};
-            static_content = fs::weakly_canonical(static_content / rel_path);
+            static_content = fs::weakly_canonical(static_content / IndexFileName);
         }
     }
     
@@ -73,10 +77,20 @@ void StaticContentFileNotFoundHandler(const Request& req, const fs::path& static
 
 template <typename Request>
 bool LeaveStaticContentRootDirActivator(const Request& req, const fs::path& static_content_root) {
-    fs::path static_content{static_content_root};
-    std::string_view path_str = req.target().substr(1, req.target().size() - 1);
-    fs::path rel_path{path_str};
-    static_content = fs::weakly_canonical(static_content / rel_path);
+    std::string target(req.target());
+    if (target.empty() || target == "/") {
+        return false;
+    }
+    
+    std::string path_str;
+    if (target[0] == '/') {
+        path_str = target.substr(1);
+    } else {
+        path_str = target;
+    }
+    
+    fs::path rel_path(path_str);
+    fs::path static_content = fs::weakly_canonical(static_content_root / rel_path);
     
     return !fs_utils::IsSubPath(static_content, static_content_root);
 }
@@ -102,19 +116,26 @@ void GetStaticContentFileHandler(const Request& req, const fs::path& static_cont
     response.version(11);
     response.result(http::status::ok);
 
-    fs::path static_content{static_content_root};
+    fs::path static_content = static_content_root;
     
-    if (req.target().empty() || req.target() == "/") {
-        fs::path rel_path{IndexFileName};
-        static_content = fs::weakly_canonical(static_content / rel_path);
+    std::string target(req.target());
+    if (target.empty() || target == "/") {
+        static_content = fs::weakly_canonical(static_content_root / IndexFileName);
     } else {
-        std::string_view path_str = req.target().substr(1, req.target().size() - 1);
-        fs::path rel_path{path_str};
-        static_content = fs::weakly_canonical(static_content / rel_path);
+        std::string path_str;
+        if (target[0] == '/') {
+            path_str = target.substr(1);
+        } else {
+            path_str = target;
+        }
+        fs::path rel_path(path_str);
+        static_content = fs::weakly_canonical(static_content_root / rel_path);
     }
     
-    if (ExtensionFileToContentType.contains(static_content.extension())) {
-        response.insert(http::field::content_type, ExtensionFileToContentType.at(static_content.extension()));
+    std::string extension = static_content.extension().string();
+    auto it = ExtensionFileToContentType.find(extension);
+    if (it != ExtensionFileToContentType.end()) {
+        response.insert(http::field::content_type, it->second);
     } else {
         response.insert(http::field::content_type, "application/octet-stream");
     }
@@ -122,14 +143,21 @@ void GetStaticContentFileHandler(const Request& req, const fs::path& static_cont
     http::file_body::value_type file;
     sys::error_code ec;
     
-    file.open(static_content.c_str(), beast::file_mode::read, ec);
+    file.open(static_content.string(), beast::file_mode::read, ec);
     if (ec) {
         BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error",
-            logware::ExceptionLogData(0, "Failed to open static content file ", ec.what()));
-    } else {
-        response.body() = std::move(file);
+            logware::ExceptionLogData(ec.value(), "Failed to open static content file", ec.message()));
+        
+        StringResponse error_response(http::status::internal_server_error, req.version());
+        error_response.set(http::field::content_type, "text/plain");
+        error_response.body() = "Failed to open file.";
+        error_response.content_length(error_response.body().size());
+        error_response.keep_alive(req.keep_alive());
+        send(error_response);
+        return;
     }
-
+    
+    response.body() = std::move(file);
     response.prepare_payload();
     send(response);
 }

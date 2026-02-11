@@ -22,6 +22,12 @@ void Map::AddOffice(Office office) {
     }
 }
 
+void Map::AddOffices(Offices& offices) {
+    for (auto& office : offices) {
+        AddOffice(std::move(office));
+    }
+}
+
 void Game::AddMap(Map map) {
     const size_t index = maps_.size();
     if (auto [it, inserted] = map_id_to_index_.emplace(map.GetId(), index); !inserted) {
@@ -37,8 +43,8 @@ void Game::AddMap(Map map) {
 }
 
 void Game::AddMaps(Maps& maps) {
-    for (auto& item : maps) {
-        AddMap(std::move(item));
+    for (auto& map : maps) {
+        AddMap(std::move(map));
     }
 }
 

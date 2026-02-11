@@ -21,21 +21,21 @@ public:
 
     template <typename Body, typename Allocator, typename Send>
     void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
-        if (rh_storage::ApiV1RequestHandlerExecutor<
-                http::request<Body, http::basic_fields<Allocator>>, Send>
+        using RequestType = http::request<Body, http::basic_fields<Allocator>>;
+        
+        if (rh_storage::ApiV1RequestHandlerExecutor<RequestType, Send>
                 ::GetInstance()
                 .Execute(req, game_, std::move(send))) {
             return;
         }
         
-        if (rh_storage::StaticFileRequestHandlerExecutor<
-                http::request<Body, http::basic_fields<Allocator>>, Send>
+        if (rh_storage::StaticFileRequestHandlerExecutor<RequestType, Send>
                 ::GetInstance()
                 .Execute(req, static_content_root_path_, std::move(send))) {
             return;
         }
         
-        rh_storage::PageNotFoundHandler(req, game_, send);
+        rh_storage::PageNotFoundHandler(req, game_, std::move(send));
     }
 
 private:

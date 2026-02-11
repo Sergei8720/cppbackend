@@ -33,20 +33,20 @@ public:
     }
 
 private:
-    std::vector<RequestHandlerNode<ActivatorType, HandlerType>> rh_storage_ = {
-        RequestHandlerNode<ActivatorType, HandlerType>(BadRequestActivator,
-            {{http::verb::get, BadRequestHandler}}),
-        RequestHandlerNode<ActivatorType, HandlerType>(GetMapListActivator,
-            {{http::verb::get, GetMapListHandler}}),
-        RequestHandlerNode<ActivatorType, HandlerType>(MapNotFoundActivator,
-            {{http::verb::get, MapNotFoundHandler}}),
-        RequestHandlerNode<ActivatorType, HandlerType>(GetMapByIdActivator,
-            {{http::verb::get, GetMapByIdHandler}})
-    };
-    
-    HandlerType fault_handler_ = BadRequestHandler;
+    std::vector<RequestHandlerNode<ActivatorType, HandlerType>> rh_storage_;
+    HandlerType fault_handler_;
 
-    ApiV1RequestHandlerExecutor() = default;
+    ApiV1RequestHandlerExecutor()
+        : fault_handler_(BadRequestHandler) {
+        rh_storage_.emplace_back(BadRequestActivator,
+            std::unordered_map<http::verb, HandlerType>{{http::verb::get, BadRequestHandler}});
+        rh_storage_.emplace_back(GetMapListActivator,
+            std::unordered_map<http::verb, HandlerType>{{http::verb::get, GetMapListHandler}});
+        rh_storage_.emplace_back(MapNotFoundActivator,
+            std::unordered_map<http::verb, HandlerType>{{http::verb::get, MapNotFoundHandler}});
+        rh_storage_.emplace_back(GetMapByIdActivator,
+            std::unordered_map<http::verb, HandlerType>{{http::verb::get, GetMapByIdHandler}});
+    }
 };
 
 }

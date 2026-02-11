@@ -8,7 +8,7 @@ using namespace std::literals;
 
 void ReportError(beast::error_code ec, std::string_view where) {
     BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error",
-        logware::ExceptionLogData(0, ec.message(), ec.what()));
+        logware::ExceptionLogData(ec.value(), ec.message(), where));
 }
 
 void SessionBase::Run() {

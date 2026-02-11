@@ -33,18 +33,18 @@ public:
     }
 
 private:
-    std::vector<RequestHandlerNode<ActivatorType, HandlerType>> rh_storage_ = {
-        RequestHandlerNode<ActivatorType, HandlerType>(StaticContentFileNotFoundActivator,
-            {{http::verb::get, StaticContentFileNotFoundHandler}}),
-        RequestHandlerNode<ActivatorType, HandlerType>(LeaveStaticContentRootDirActivator,
-            {{http::verb::get, LeaveStaticContentRootDirHandler}}),
-        RequestHandlerNode<ActivatorType, HandlerType>(GetStaticContentFileActivator,
-            {{http::verb::get, GetStaticContentFileHandler}})
-    };
-    
-    HandlerType fault_handler_ = StaticContentFileNotFoundHandler;
+    std::vector<RequestHandlerNode<ActivatorType, HandlerType>> rh_storage_;
+    HandlerType fault_handler_;
 
-    StaticFileRequestHandlerExecutor() = default;
+    StaticFileRequestHandlerExecutor()
+        : fault_handler_(StaticContentFileNotFoundHandler) {
+        rh_storage_.emplace_back(StaticContentFileNotFoundActivator,
+            std::unordered_map<http::verb, HandlerType>{{http::verb::get, StaticContentFileNotFoundHandler}});
+        rh_storage_.emplace_back(LeaveStaticContentRootDirActivator,
+            std::unordered_map<http::verb, HandlerType>{{http::verb::get, LeaveStaticContentRootDirHandler}});
+        rh_storage_.emplace_back(GetStaticContentFileActivator,
+            std::unordered_map<http::verb, HandlerType>{{http::verb::get, GetStaticContentFileHandler}});
+    }
 };
 
 }

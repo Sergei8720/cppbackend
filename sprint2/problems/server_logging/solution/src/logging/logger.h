@@ -1,4 +1,6 @@
 #pragma once
+#include <string>
+#include <string_view>
 #include <boost/log/trivial.hpp>
 #include <boost/log/core.hpp>
 #include <boost/log/utility/setup/console.hpp>

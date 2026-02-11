@@ -17,7 +17,8 @@ const size_t SizeOfFourSegmentUrl = 4;
 
 template <typename Request>
 bool GetMapListActivator(const Request& req, const model::Game& game) {
-    return req.target() == "/api/v1/maps" || req.target() == "/api/v1/maps/";
+    std::string target(req.target());
+    return target == "/api/v1/maps" || target == "/api/v1/maps/";
 }
 
 template <typename Request, typename Send>
@@ -33,19 +34,22 @@ void GetMapListHandler(const Request& req, const model::Game& game, Send&& send)
 template <typename Request>
 bool GetMapByIdActivator(const Request& req, const model::Game& game) {
     auto url = SplitUrl(req.target());
-    return url.size() == SizeOfFourSegmentUrl &&
-           url[0] == "api" &&
-           url[1] == "v1" &&
-           url[2] == "maps" &&
-           game.FindMap(model::Map::Id(std::string(url[3]))) != nullptr;
+    if (url.size() != SizeOfFourSegmentUrl) {
+        return false;
+    }
+    if (url[0] != "api" || url[1] != "v1" || url[2] != "maps") {
+        return false;
+    }
+    return game.FindMap(model::Map::Id(std::string(url[3]))) != nullptr;
 }
 
 template <typename Request, typename Send>
 void GetMapByIdHandler(const Request& req, const model::Game& game, Send&& send) {
     http::response<http::string_body> response(http::status::ok, req.version());
-    auto id = SplitUrl(req.target())[3];
+    auto url_parts = SplitUrl(req.target());
+    std::string id_str(url_parts[3]);
     response.set(http::field::content_type, "application/json");
-    response.body() = json_converter::ConvertMapToJson(*game.FindMap(model::Map::Id(std::string(id))));
+    response.body() = json_converter::ConvertMapToJson(*game.FindMap(model::Map::Id(id_str)));
     response.content_length(response.body().size());
     response.keep_alive(req.keep_alive());
     send(response);
@@ -85,11 +89,13 @@ void BadRequestHandler(const Request& req, const model::Game& game, Send&& send)
 template <typename Request>
 bool MapNotFoundActivator(const Request& req, const model::Game& game) {
     auto url = SplitUrl(req.target());
-    return url.size() == SizeOfFourSegmentUrl &&
-           url[0] == "api" &&
-           url[1] == "v1" &&
-           url[2] == "maps" &&
-           game.FindMap(model::Map::Id(std::string(url[3]))) == nullptr;
+    if (url.size() != SizeOfFourSegmentUrl) {
+        return false;
+    }
+    if (url[0] != "api" || url[1] != "v1" || url[2] != "maps") {
+        return false;
+    }
+    return game.FindMap(model::Map::Id(std::string(url[3]))) == nullptr;
 }
 
 template <typename Request, typename Send>

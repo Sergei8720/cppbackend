@@ -15,7 +15,7 @@ boost::json::value ReadFile(const std::filesystem::path& json_path) {
         BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error",
             logware::ExceptionLogData(EXIT_FAILURE,
                 "Error: Can't open file.",
-                "write something here"));
+                "json_loader::ReadFile"));
         std::exit(1);
     }
     

@@ -81,6 +81,7 @@ struct ExceptionLogData {
 void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ExceptionLogData& exception);
 
 struct ExitCodeLogData {
+    explicit ExitCodeLogData(int c) : code(c) {}
     int code;
 };
 
@@ -89,7 +90,7 @@ void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, ExitCodeLog
 template <class T>
 struct LogMessage {
     LogMessage(std::string_view msg, T&& custom_data)
-        : message(msg), data(custom_data) {
+        : message(msg), data(std::forward<T>(custom_data)) {
         timestamp = boost::posix_time::to_iso_extended_string(
             boost::posix_time::microsec_clock::local_time());
     }
