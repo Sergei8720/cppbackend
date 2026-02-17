@@ -1,40 +1,40 @@
 #include "json_loader.h"
 #include "logger.h"
-#include "json_key_storage.h"
-#include "model_key_storage.h"
+
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
 
 namespace json_loader {
 
-using namespace std::literals;
+namespace {
 
 boost::json::value ReadFile(const std::filesystem::path& json_path) {
-    std::ifstream file(json_path);
-    if (!file.is_open()) {
-        BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error",
-            logware::ExceptionLogData(EXIT_FAILURE,
-                "Error: Can't open file.",
-                "json_loader::ReadFile"));
-        std::exit(1);
-    }
-    
-    std::stringstream ss;
-    ss << file.rdbuf();
-    return boost::json::parse(ss.str());
+  std::ifstream file(json_path);
+  
+  if (!file.is_open()) {
+    BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage(
+      "error",
+      logware::ExceptionLogData(EXIT_FAILURE, "Can't open file.", ""));
+    std::exit(EXIT_FAILURE);
+  }
+  
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  return boost::json::parse(buffer.str());
 }
+
+}  // namespace
 
 model::Game LoadGame(const std::filesystem::path& json_path) {
-    model::Game game;
-    boost::json::value json_val = ReadFile(json_path);
-    std::vector<model::Map> maps = boost::json::value_to<std::vector<model::Map>>(
-        json_val.as_object().at(model::MAPS));
-    
-    for (auto& map : maps) {
-        game.AddMap(std::move(map));
-    }
-    
-    return game;
+  model::Game game;
+  boost::json::value json_value = ReadFile(json_path);
+  
+  std::vector<model::Map> maps = boost::json::value_to<std::vector<model::Map>>(
+    json_value.as_object().at(model::MAPS));
+  
+  game.AddMaps(maps);
+  return game;
 }
 
-}
+}  // namespace json_loader

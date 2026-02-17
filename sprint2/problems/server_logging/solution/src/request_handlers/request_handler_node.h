@@ -9,34 +9,34 @@ namespace http = beast::http;
 
 template<typename Activator, typename Handler>
 class RequestHandlerNode {
-public:
-    RequestHandlerNode(Activator activator, std::unordered_map<http::verb, Handler> handlers)
-        : activator_(std::move(activator)), handlers_(std::move(handlers)) {}
+ public:
+  RequestHandlerNode(Activator activator, std::unordered_map<http::verb, Handler> handlers)
+    : activator_(std::move(activator))
+    , handlers_(std::move(handlers)) {}
 
-    RequestHandlerNode(const RequestHandlerNode& other) = default;
-    RequestHandlerNode(RequestHandlerNode&& other) = default;
-    RequestHandlerNode& operator=(const RequestHandlerNode& other) = default;
-    RequestHandlerNode& operator=(RequestHandlerNode&& other) = default;
-    
-    virtual ~RequestHandlerNode() = default;
+  RequestHandlerNode(const RequestHandlerNode&) = default;
+  RequestHandlerNode(RequestHandlerNode&&) = default;
+  RequestHandlerNode& operator=(const RequestHandlerNode&) = default;
+  RequestHandlerNode& operator=(RequestHandlerNode&&) = default;
+  
+  ~RequestHandlerNode() = default;
 
-    template<typename Request>
-    Handler& GetHandler(const Request& req, Handler& fault_handler) {
-        http::verb method = req.method();
-        auto it = handlers_.find(method);
-        if (it != handlers_.end()) {
-            return it->second;
-        }
-        return fault_handler;
+  template<typename Request>
+  Handler& GetHandler(const Request& req, Handler& fault_handler) {
+    auto it = handlers_.find(req.method());
+    if (it != handlers_.end()) {
+      return it->second;
     }
+    return fault_handler;
+  }
 
-    Activator& GetActivator() {
-        return activator_;
-    }
+  Activator& GetActivator() {
+    return activator_;
+  }
 
-private:
-    Activator activator_;
-    std::unordered_map<http::verb, Handler> handlers_;
+ private:
+  Activator activator_;
+  std::unordered_map<http::verb, Handler> handlers_;
 };
 
-}
+}  // namespace rh_storage

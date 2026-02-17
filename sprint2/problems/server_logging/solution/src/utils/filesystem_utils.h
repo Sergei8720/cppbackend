@@ -3,8 +3,6 @@
 
 namespace fs_utils {
 
-namespace fs = std::filesystem;
+bool IsSubPath(std::filesystem::path path, std::filesystem::path base);
 
-bool IsSubPath(fs::path path, fs::path base);
-
-}
+}  // namespace fs_utils

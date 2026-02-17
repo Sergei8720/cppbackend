@@ -26,4 +26,4 @@ const std::string OFFICE_Y = "y";
 const std::string OFFICE_OFFSET_X = "offsetX";
 const std::string OFFICE_OFFSET_Y = "offsetY";
 
-}
+}  // namespace model
