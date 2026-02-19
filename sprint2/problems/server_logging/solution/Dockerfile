@@ -10,12 +10,15 @@ RUN apt update && \
     && \
     pip3 install conan
 
+# Создаем профиль Conan по умолчанию
+RUN conan profile detect
+
 # копируем conanfile.txt в контейнер и запускаем conan install
 COPY conanfile.txt /app/
 RUN mkdir /app/build && cd /app/build && \
     conan install .. --build=missing -s compiler.libcxx=libstdc++11 -s build_type=Release
 
-# только после этого копируем остальные иходники
+# только после этого копируем остальные исходники
 COPY ./src /app/src
 COPY ./data /app/data
 COPY ./static /app/static
@@ -40,4 +43,4 @@ COPY ./data /app/data
 COPY ./static /app/static
 
 # Запускаем игровой сервер
-ENTRYPOINT ["/app/game_server", "/app/data/config.json", "/app/static"] 
+ENTRYPOINT ["/app/game_server", "/app/data/config.json", "/app/static"]
