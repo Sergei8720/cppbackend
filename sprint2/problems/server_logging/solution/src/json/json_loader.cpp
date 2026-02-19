@@ -1,5 +1,6 @@
 #include "json_loader.h"
 #include "logger.h"
+#include "model_key_storage.h"  // Добавлен недостающий заголовок
 
 #include <fstream>
 #include <sstream>
