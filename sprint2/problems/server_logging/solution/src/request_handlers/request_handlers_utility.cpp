@@ -1,5 +1,4 @@
 #include "request_handlers_utility.h"
-#include <string>
 
 namespace rh_storage {
 
