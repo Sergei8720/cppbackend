@@ -22,7 +22,7 @@ class ApiV1RequestHandlerExecutor {
     return instance;
   }
 
-  bool Execute(const Request& req, const model::Game& game, Send&& send) {
+  bool Execute(const Request& req, const model::Game& game, Send&& send) const {
     for (const auto& handler_node : storage_) {
       if (handler_node.GetActivator()(req, game)) {
         handler_node.GetHandler(req, fault_handler_)(req, game, std::move(send));
@@ -48,7 +48,7 @@ class ApiV1RequestHandlerExecutor {
       {{http::verb::get, GetMapByIdHandler<Request, Send>}})
   };
   
-  HandlerType fault_handler_ = BadRequestHandler<Request, Send>;
+  const HandlerType fault_handler_ = BadRequestHandler<Request, Send>;
 
   ApiV1RequestHandlerExecutor() = default;
 };

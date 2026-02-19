@@ -24,7 +24,7 @@ class RequestHandler {
   RequestHandler& operator=(const RequestHandler&) = delete;
 
   template <typename Body, typename Allocator, typename Send>
-  void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
+  void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) const {
     using RequestType = http::request<Body, http::basic_fields<Allocator>>;
     
     if (rh_storage::ApiV1RequestHandlerExecutor<RequestType, Send>::GetInstance()

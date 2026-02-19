@@ -22,7 +22,7 @@ class StaticFileRequestHandlerExecutor {
     return instance;
   }
 
-  bool Execute(const Request& req, const std::filesystem::path& static_content_root, Send&& send) {
+  bool Execute(const Request& req, const std::filesystem::path& static_content_root, Send&& send) const {
     for (const auto& handler_node : storage_) {
       if (handler_node.GetActivator()(req, static_content_root)) {
         handler_node.GetHandler(req, fault_handler_)(req, static_content_root, std::move(send));
@@ -45,7 +45,7 @@ class StaticFileRequestHandlerExecutor {
       {{http::verb::get, GetStaticContentFileHandler<Request, Send>}})
   };
   
-  HandlerType fault_handler_ = StaticContentFileNotFoundHandler<Request, Send>;
+  const HandlerType fault_handler_ = StaticContentFileNotFoundHandler<Request, Send>;
 
   StaticFileRequestHandlerExecutor() = default;
 };

@@ -22,7 +22,7 @@ class RequestHandlerNode {
   ~RequestHandlerNode() = default;
 
   template<typename Request>
-  Handler& GetHandler(const Request& req, Handler& fault_handler) {
+  const Handler& GetHandler(const Request& req, const Handler& fault_handler) const {
     auto it = handlers_.find(req.method());
     if (it != handlers_.end()) {
       return it->second;
@@ -30,7 +30,7 @@ class RequestHandlerNode {
     return fault_handler;
   }
 
-  Activator& GetActivator() {
+  const Activator& GetActivator() const {
     return activator_;
   }
 
