@@ -111,8 +111,8 @@ class Session : public SessionBase {
                                                               request));
     request_handler_(
         std::move(request),
-        [self = shared_from_this()](auto&& response) {
-          self->Write(std::forward<decltype(response)>(response));
+        [self = this->shared_from_this()](auto&& response) {
+          self->Write(std::move(response));
         });
   }
 };
