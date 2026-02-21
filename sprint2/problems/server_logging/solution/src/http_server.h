@@ -53,8 +53,6 @@ class SessionBase : public std::enable_shared_from_this<SessionBase> {
             auto content_type_it = safe_response->find(http::field::content_type);
             if (content_type_it != safe_response->end()) {
               response_data.content_type = std::string(content_type_it->value());
-            } else {
-              response_data.content_type = "";
             }
             
             BOOST_LOG_TRIVIAL(info) 
@@ -120,7 +118,6 @@ class Session : public SessionBase {
   void HandleRequest(HttpRequest&& request) override {
     SetReceivedRequestTime(boost::posix_time::microsec_clock::local_time());
     
-    // Логирование запроса с IP-адресом
     logware::RequestLogData request_data;
     request_data.ip = GetRemoteIp();
     request_data.uri = std::string(request.target());

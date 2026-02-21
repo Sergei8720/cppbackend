@@ -2,7 +2,7 @@
 
 namespace logware {
 
-void tag_invoke(json::value_from_tag, json::value& jv, const RequestLogData& data) {
+void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const RequestLogData& data) {
   jv = {
       {"ip", data.ip},
       {"URI", data.uri},
@@ -10,8 +10,8 @@ void tag_invoke(json::value_from_tag, json::value& jv, const RequestLogData& dat
   };
 }
 
-void tag_invoke(json::value_from_tag, json::value& jv, const ResponseLogData& data) {
-  json::object obj;
+void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ResponseLogData& data) {
+  boost::json::object obj;
   obj["response_time"] = data.response_time;
   obj["code"] = data.code;
   if (data.content_type.empty()) {
@@ -22,15 +22,15 @@ void tag_invoke(json::value_from_tag, json::value& jv, const ResponseLogData& da
   jv = std::move(obj);
 }
 
-void tag_invoke(json::value_from_tag, json::value& jv, const ServerStartLogData& data) {
+void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ServerStartLogData& data) {
   jv = {
       {"port", data.port},
       {"address", data.address}
   };
 }
 
-void tag_invoke(json::value_from_tag, json::value& jv, const ServerExitLogData& data) {
-  json::object obj;
+void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ServerExitLogData& data) {
+  boost::json::object obj;
   obj["code"] = data.code;
   if (data.exception.has_value()) {
     obj["exception"] = data.exception.value();
@@ -38,7 +38,7 @@ void tag_invoke(json::value_from_tag, json::value& jv, const ServerExitLogData& 
   jv = std::move(obj);
 }
 
-void tag_invoke(json::value_from_tag, json::value& jv, const ErrorLogData& data) {
+void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ErrorLogData& data) {
   jv = {
       {"code", data.code},
       {"text", data.text},

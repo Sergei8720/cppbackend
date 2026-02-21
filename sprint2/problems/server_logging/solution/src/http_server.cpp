@@ -1,7 +1,5 @@
 #include "http_server.h"
 
-#include <iostream>
-
 #include "logger.h"
 
 namespace http_server {
@@ -9,11 +7,11 @@ namespace http_server {
 using namespace std::literals;
 
 void ReportError(beast::error_code ec, std::string_view where) {
-  logware::ErrorLogData error_data;
-  error_data.code = ec.value();
-  error_data.text = ec.message();
-  error_data.where = std::string(where);
-  BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error", error_data);
+  logware::ErrorLogData data;
+  data.code = ec.value();
+  data.text = ec.message();
+  data.where = std::string(where);
+  BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error", data);
 }
 
 void SessionBase::Run() {
@@ -30,8 +28,7 @@ void SessionBase::Read() {
                                              shared_from_this()));
 }
 
-void SessionBase::OnRead(beast::error_code ec,
-                         [[maybe_unused]] std::size_t bytes_read) {
+void SessionBase::OnRead(beast::error_code ec, std::size_t bytes_read) {
   if (ec == http::error::end_of_stream) {
     Close();
     return;
@@ -43,8 +40,7 @@ void SessionBase::OnRead(beast::error_code ec,
   HandleRequest(std::move(request_));
 }
 
-void SessionBase::OnWrite(bool close, beast::error_code ec,
-                          [[maybe_unused]] std::size_t bytes_written) {
+void SessionBase::OnWrite(bool close, beast::error_code ec, std::size_t bytes_written) {
   if (ec) {
     ReportError(ec, "write");
     return;

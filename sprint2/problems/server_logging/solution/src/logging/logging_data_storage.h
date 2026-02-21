@@ -1,20 +1,10 @@
 #pragma once
 
-#include <boost/beast/http.hpp>
-#include <boost/date_time.hpp>
 #include <boost/json.hpp>
 #include <optional>
 #include <string>
-#include <string_view>
 
 namespace logware {
-
-namespace beast = boost::beast;
-namespace http = beast::http;
-namespace json = boost::json;
-
-using HttpRequest = http::request<http::string_body>;
-using namespace std::literals;
 
 struct RequestLogData {
   std::string ip;
@@ -29,7 +19,7 @@ struct ResponseLogData {
 };
 
 struct ServerStartLogData {
-  uint32_t port = 0;
+  int port = 0;
   std::string address;
 };
 
@@ -44,10 +34,10 @@ struct ErrorLogData {
   std::string where;
 };
 
-void tag_invoke(json::value_from_tag, json::value& jv, const RequestLogData& data);
-void tag_invoke(json::value_from_tag, json::value& jv, const ResponseLogData& data);
-void tag_invoke(json::value_from_tag, json::value& jv, const ServerStartLogData& data);
-void tag_invoke(json::value_from_tag, json::value& jv, const ServerExitLogData& data);
-void tag_invoke(json::value_from_tag, json::value& jv, const ErrorLogData& data);
+void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const RequestLogData& data);
+void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ResponseLogData& data);
+void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ServerStartLogData& data);
+void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ServerExitLogData& data);
+void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ErrorLogData& data);
 
 }  // namespace logware
