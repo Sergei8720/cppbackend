@@ -1,18 +1,22 @@
 #include "logger.h"
 
-#include <boost/log/expressions/formatters/date_time.hpp>
+#include <boost/log/expressions.hpp>
 #include <boost/log/support/date_time.hpp>
-#include <iostream>
+#include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/log/utility/setup/console.hpp>
 
 namespace logware {
 
-void InitLogger() {
-  logging::add_common_attributes();
+namespace expr = boost::log::expressions;
+namespace keywords = boost::log::keywords;
 
-  auto console_sink = logging::add_console_log(
-      std::clog,
+void InitLogger() {
+  boost::log::add_common_attributes();
+
+  boost::log::add_console_log(
+      std::cout,
       keywords::format = (
-          expr::stream << expr::smessage
+        expr::stream << expr::smessage
       ),
       keywords::auto_flush = true
   );

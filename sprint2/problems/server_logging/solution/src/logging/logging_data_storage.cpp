@@ -3,47 +3,47 @@
 namespace logware {
 
 void tag_invoke(json::value_from_tag, json::value& jv, const RequestLogData& data) {
-  json::object obj;
-  obj[kIp] = data.ip;
-  obj[kUri] = data.uri;
-  obj[kMethod] = data.method;
-  jv = std::move(obj);
+  jv = {
+      {"ip", data.ip},
+      {"URI", data.uri},
+      {"method", data.method}
+  };
 }
 
 void tag_invoke(json::value_from_tag, json::value& jv, const ResponseLogData& data) {
   json::object obj;
-  obj[kResponseTime] = data.response_time;
-  obj[kCode] = data.code;
+  obj["response_time"] = data.response_time;
+  obj["code"] = data.code;
   if (data.content_type.empty()) {
-    obj[kContentType] = nullptr;
+    obj["content_type"] = nullptr;
   } else {
-    obj[kContentType] = data.content_type;
+    obj["content_type"] = data.content_type;
   }
   jv = std::move(obj);
 }
 
 void tag_invoke(json::value_from_tag, json::value& jv, const ServerStartLogData& data) {
-  json::object obj;
-  obj[kPort] = data.port;
-  obj[kAddress] = data.address;
-  jv = std::move(obj);
+  jv = {
+      {"port", data.port},
+      {"address", data.address}
+  };
 }
 
 void tag_invoke(json::value_from_tag, json::value& jv, const ServerExitLogData& data) {
   json::object obj;
-  obj[kCode] = data.code;
+  obj["code"] = data.code;
   if (data.exception.has_value()) {
-    obj[kException] = data.exception.value();
+    obj["exception"] = data.exception.value();
   }
   jv = std::move(obj);
 }
 
 void tag_invoke(json::value_from_tag, json::value& jv, const ErrorLogData& data) {
-  json::object obj;
-  obj[kCode] = data.code;
-  obj[kText] = data.text;
-  obj[kWhere] = data.where;
-  jv = std::move(obj);
+  jv = {
+      {"code", data.code},
+      {"text", data.text},
+      {"where", data.where}
+  };
 }
 
 }  // namespace logware
