@@ -2,7 +2,6 @@
 
 namespace fs_utils {
 
-using namespace std::literals;
 namespace fs = std::filesystem;
 
 bool IsSubPath(fs::path path, fs::path base) {
@@ -12,10 +11,12 @@ bool IsSubPath(fs::path path, fs::path base) {
   auto base_iterator = base.begin();
   auto path_iterator = path.begin();
 
-  for (; base_iterator != base.end(); ++base_iterator, ++path_iterator) {
-    if ((path_iterator == path.end()) || (*path_iterator != *base_iterator)) {
+  while (base_iterator != base.end()) {
+    if (path_iterator == path.end() || *path_iterator != *base_iterator) {
       return false;
     }
+    ++base_iterator;
+    ++path_iterator;
   }
 
   return true;
