@@ -1,61 +1,51 @@
 #pragma once
+#include "static_file_request_handlers_storage.h"
+#include "request_handler_node.h"
 
 #include <functional>
 #include <vector>
 
-#include "request_handler_node.h"
-#include "static_file_request_handlers_storage.h"
+namespace rh_storage{
 
-namespace rh_storage {
+template<typename Request, typename Send>
+class StaticFileRequestHandlerExecutor{
+    using ActivatorType = bool(*)(const Request&, const std::filesystem::path& );
+    using HandlerType = void(*)(const Request&, const std::filesystem::path&, Send&&);
+public:
+    // убираем конструктор копирования
+    StaticFileRequestHandlerExecutor(const StaticFileRequestHandlerExecutor&) = delete;
+    StaticFileRequestHandlerExecutor& operator=(const StaticFileRequestHandlerExecutor&) = delete;
+    StaticFileRequestHandlerExecutor(StaticFileRequestHandlerExecutor&&) = delete;
+    StaticFileRequestHandlerExecutor& operator=(StaticFileRequestHandlerExecutor&&) = delete;
 
-template <typename Request, typename Send>
-class StaticFileRequestHandlerExecutor {
- public:
-  using ActivatorType = bool (*)(const Request&, const std::filesystem::path&);
-  using HandlerType =
-      void (*)(const Request&, const std::filesystem::path&, Send&&);
+    // получение ссылки на единственный объект
+    static StaticFileRequestHandlerExecutor& GetInstance() {
+        static StaticFileRequestHandlerExecutor obj;
+        return obj;
+    };
 
-  StaticFileRequestHandlerExecutor(const StaticFileRequestHandlerExecutor&) =
-      delete;
-  StaticFileRequestHandlerExecutor& operator=(
-      const StaticFileRequestHandlerExecutor&) = delete;
-  StaticFileRequestHandlerExecutor(StaticFileRequestHandlerExecutor&&) = delete;
-  StaticFileRequestHandlerExecutor& operator=(
-      StaticFileRequestHandlerExecutor&&) = delete;
+    bool Execute(const Request& req, const std::filesystem::path& static_content_root, Send&& send) {
+        for(auto item : rh_storage_) {
+            if(item.GetActivator()(req, static_content_root)){
+                item.GetHandler(req, fault_handler_)(req, static_content_root, std::move(send));
+                return true;
+            }
+        }
+        return false;
+    };
 
-  static StaticFileRequestHandlerExecutor& GetInstance() {
-    static StaticFileRequestHandlerExecutor instance;
-    return instance;
-  }
+private:
+    std::vector< RequestHandlerNode<ActivatorType, HandlerType> > rh_storage_ = {
+        RequestHandlerNode<ActivatorType, HandlerType>(StaticContentFileNotFoundActivator,
+                                                        {{http::verb::get, StaticContentFileNotFoundHandler}}),
+        RequestHandlerNode<ActivatorType, HandlerType>(LeaveStaticContentRootDirActivator,
+                                                        {{http::verb::get, LeaveStaticContentRootDirHandler}}),
+        RequestHandlerNode<ActivatorType, HandlerType>(GetStaticContentFileActivator,
+                                                        {{http::verb::get, GetStaticContentFileHandler}})
+    };
+    HandlerType fault_handler_ = StaticContentFileNotFoundHandler;
 
-  bool Execute(const Request& req,
-               const std::filesystem::path& static_content_root,
-               Send&& send) {
-    for (const auto& node : handler_storage_) {
-      if (node.GetActivator()(req, static_content_root)) {
-        node.GetHandler(req, fault_handler_)(req, static_content_root,
-                                             std::move(send));
-        return true;
-      }
-    }
-    return false;
-  }
-
- private:
-  std::vector<RequestHandlerNode<ActivatorType, HandlerType>> handler_storage_ =
-      {RequestHandlerNode<ActivatorType, HandlerType>(
-           StaticContentFileNotFoundActivator,
-           {{http::verb::get, StaticContentFileNotFoundHandler}}),
-       RequestHandlerNode<ActivatorType, HandlerType>(
-           LeaveStaticContentRootDirActivator,
-           {{http::verb::get, LeaveStaticContentRootDirHandler}}),
-       RequestHandlerNode<ActivatorType, HandlerType>(
-           GetStaticContentFileActivator,
-           {{http::verb::get, GetStaticContentFileHandler}})};
-
-  HandlerType fault_handler_ = StaticContentFileNotFoundHandler;
-
-  StaticFileRequestHandlerExecutor() = default;
+    StaticFileRequestHandlerExecutor() = default;
 };
 
 }

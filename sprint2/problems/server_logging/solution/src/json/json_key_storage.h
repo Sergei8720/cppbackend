@@ -1,10 +1,8 @@
-#pragma once
-
 #include <string>
 
-namespace json_keys {
+namespace json_keys{
 
-inline const std::string kResponseCode = "code";
-inline const std::string kResponseMessage = "message";
+const std::string RESPONSE_CODE    = "code";
+const std::string RESPONSE_MESSAGE = "message";
 
 }

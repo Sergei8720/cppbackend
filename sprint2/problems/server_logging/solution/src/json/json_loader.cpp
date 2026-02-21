@@ -1,46 +1,45 @@
 #include "json_loader.h"
+#include "logger.h"
+#include "json_key_storage.h"
+#include "model_key_storage.h"
 
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <string_view>
+#include <sstream>
 
-#include "json_key_storage.h"
-#include "logger.h"
-#include "model_key_storage.h"
+#include <iostream>
 
 namespace json_loader {
 
 using namespace std::literals;
 
-namespace {
 
 boost::json::value ReadFile(const std::filesystem::path& json_path) {
-  std::ifstream file(json_path);
-  if (!file.is_open()) {
-    BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage(
-        "error"sv,
-        logware::ExceptionLogData(EXIT_FAILURE, "Error: Can't open file."sv,
-                                  "write something here"sv));
-    std::exit(1);
-  }
-
-  std::stringstream string_stream;
-  string_stream << file.rdbuf();
-  boost::json::value root = boost::json::parse(string_stream.str());
-  return root;
-}
-
-}
+    std::ifstream file(json_path);
+    if (!file.is_open()) {
+        BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error"sv,
+                                        logware::ExceptionLogData(EXIT_FAILURE,
+                                            "Error: Can't open file."sv,
+                                            "write something here"sv)); // todo: write message and handler.
+        std::exit(1);
+    }
+    
+    std::stringstream ss;
+    ss << file.rdbuf();
+    boost::json::value root = boost::json::parse(ss.str());
+    return root;
+};
 
 model::Game LoadGame(const std::filesystem::path& json_path) {
-  model::Game game;
-  boost::json::value json_value = ReadFile(json_path);
-  std::vector<model::Map> maps =
-      boost::json::value_to<std::vector<model::Map>>(
-          json_value.as_object().at(model::kMaps));
-  game.AddMaps(maps);
-  return game;
-}
+    // Загрузить содержимое файла json_path, например, в виде строки
+    // Распарсить строку как JSON, используя boost::json::parse
+    // Загрузить модель игры из файла
+    model::Game game;
+    boost::json::value jsonVal = ReadFile(json_path);
+    std::vector<model::Map> maps = boost::json::value_to< std::vector<model::Map> >(jsonVal.as_object().at(model::MAPS));
+    game.AddMaps(maps);
+    return game;
+};
 
-}
+}  // namespace json_loader

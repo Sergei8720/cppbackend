@@ -1,30 +1,28 @@
-#pragma once
-
 #include <string>
 
-namespace model {
+namespace model{
 
-inline const std::string kMaps = "maps";
-inline const std::string kMapId = "id";
-inline const std::string kMapName = "name";
+const std::string MAPS     = "maps";
+const std::string MAP_ID   = "id";
+const std::string MAP_NAME = "name";
 
-inline const std::string kRoads = "roads";
-inline const std::string kRoadX0 = "x0";
-inline const std::string kRoadY0 = "y0";
-inline const std::string kRoadX1 = "x1";
-inline const std::string kRoadY1 = "y1";
+const std::string ROADS    = "roads";
+const std::string ROAD_XO  = "x0";
+const std::string ROAD_YO  = "y0";
+const std::string ROAD_X1  = "x1";
+const std::string ROAD_Y1  = "y1";
 
-inline const std::string kBuildings = "buildings";
-inline const std::string kBuildingX = "x";
-inline const std::string kBuildingY = "y";
-inline const std::string kBuildingWidth = "w";
-inline const std::string kBuildingHeight = "h";
+const std::string BUILDINGS       = "buildings";
+const std::string BUILDING_X      = "x";
+const std::string BUILDING_Y      = "y";
+const std::string BUILDING_WIDTH  = "w";
+const std::string BUILDING_HEIGHT = "h";
 
-inline const std::string kOffices = "offices";
-inline const std::string kOfficeId = "id";
-inline const std::string kOfficeX = "x";
-inline const std::string kOfficeY = "y";
-inline const std::string kOfficeOffsetX = "offsetX";
-inline const std::string kOfficeOffsetY = "offsetY";
+const std::string OFFICES         = "offices";
+const std::string OFFICE_ID       = "id";
+const std::string OFFICE_X        = "x";
+const std::string OFFICE_Y        = "y";
+const std::string OFFICE_OFFSET_X = "offsetX";
+const std::string OFFICE_OFFSET_Y = "offsetY";
 
 }
