@@ -23,7 +23,7 @@ class RequestHandlerNode {
   virtual ~RequestHandlerNode() = default;
 
   template <typename Request>
-  Handler& GetHandler(const Request& req, Handler& fault_handler) {
+  Handler& GetHandler(const Request& req, Handler& fault_handler) const {
     http::verb method = req.method();
     auto iterator = handlers_.find(method);
     if (iterator != handlers_.end()) {
@@ -32,7 +32,7 @@ class RequestHandlerNode {
     return fault_handler;
   }
 
-  Activator& GetActivator() { return activator_; }
+  const Activator& GetActivator() const { return activator_; }
 
  private:
   Activator activator_;
