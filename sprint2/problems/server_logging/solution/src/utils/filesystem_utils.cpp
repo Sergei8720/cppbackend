@@ -2,22 +2,23 @@
 
 namespace fs_utils {
 
-bool IsSubPath(std::filesystem::path path, std::filesystem::path base) {
-  path = std::filesystem::weakly_canonical(path);
-  base = std::filesystem::weakly_canonical(base);
-  
-  auto path_it = path.begin();
-  auto base_it = base.begin();
-  
-  while (path_it != path.end() && base_it != base.end()) {
-    if (*path_it != *base_it) {
+using namespace std::literals;
+namespace fs = std::filesystem;
+
+bool IsSubPath(fs::path path, fs::path base) {
+  path = fs::weakly_canonical(path);
+  base = fs::weakly_canonical(base);
+
+  auto base_iterator = base.begin();
+  auto path_iterator = path.begin();
+
+  for (; base_iterator != base.end(); ++base_iterator, ++path_iterator) {
+    if ((path_iterator == path.end()) || (*path_iterator != *base_iterator)) {
       return false;
     }
-    ++path_it;
-    ++base_it;
   }
-  
-  return base_it == base.end();
+
+  return true;
 }
 
 }  // namespace fs_utils

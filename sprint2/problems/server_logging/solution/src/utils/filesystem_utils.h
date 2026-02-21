@@ -1,8 +1,11 @@
 #pragma once
+
 #include <filesystem>
 
 namespace fs_utils {
 
-bool IsSubPath(std::filesystem::path path, std::filesystem::path base);
+namespace fs = std::filesystem;
+
+bool IsSubPath(fs::path path, fs::path base);
 
 }  // namespace fs_utils

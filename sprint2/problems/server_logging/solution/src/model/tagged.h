@@ -1,8 +1,9 @@
 #pragma once
+
 #include <compare>
-#include <utility>
 #include <cstddef>
 #include <functional>
+#include <utility>
 
 namespace util {
 
@@ -15,13 +16,8 @@ class Tagged {
   explicit Tagged(Value&& v) : value_(std::move(v)) {}
   explicit Tagged(const Value& v) : value_(v) {}
 
-  const Value& operator*() const {
-    return value_;
-  }
-
-  Value& operator*() {
-    return value_;
-  }
+  const Value& operator*() const { return value_; }
+  Value& operator*() { return value_; }
 
   auto operator<=>(const Tagged<Value, Tag>&) const = default;
 

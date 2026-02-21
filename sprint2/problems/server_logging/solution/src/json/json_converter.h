@@ -1,6 +1,8 @@
 #pragma once
-#include "model.h"
+
 #include <string>
+
+#include "model.h"
 
 namespace json_converter {
 
