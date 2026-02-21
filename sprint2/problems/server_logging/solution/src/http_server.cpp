@@ -28,7 +28,8 @@ void SessionBase::Read() {
                                              shared_from_this()));
 }
 
-void SessionBase::OnRead(beast::error_code ec, std::size_t bytes_read) {
+void SessionBase::OnRead(beast::error_code ec,
+                         [[maybe_unused]] std::size_t bytes_read) {
   if (ec == http::error::end_of_stream) {
     Close();
     return;
@@ -40,7 +41,8 @@ void SessionBase::OnRead(beast::error_code ec, std::size_t bytes_read) {
   HandleRequest(std::move(request_));
 }
 
-void SessionBase::OnWrite(bool close, beast::error_code ec, std::size_t bytes_written) {
+void SessionBase::OnWrite(bool close, beast::error_code ec,
+                          [[maybe_unused]] std::size_t bytes_written) {
   if (ec) {
     ReportError(ec, "write");
     return;
@@ -55,16 +57,6 @@ void SessionBase::OnWrite(bool close, beast::error_code ec, std::size_t bytes_wr
 void SessionBase::Close() {
   beast::error_code ec;
   stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
-}
-
-const std::string& SessionBase::GetRemoteIp() {
-  static std::string remote_ip;
-  try {
-    auto temp = stream_.socket().remote_endpoint().address().to_string();
-    remote_ip = temp;
-  } catch (...) {
-  }
-  return remote_ip;
 }
 
 }  // namespace http_server
