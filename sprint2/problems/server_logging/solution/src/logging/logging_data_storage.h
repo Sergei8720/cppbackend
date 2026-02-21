@@ -52,15 +52,4 @@ void tag_invoke(json::value_from_tag, json::value& jv, const ServerStartLogData&
 void tag_invoke(json::value_from_tag, json::value& jv, const ServerExitLogData& data);
 void tag_invoke(json::value_from_tag, json::value& jv, const ErrorLogData& data);
 
-// Вспомогательная функция для создания лог-сообщения
-template <typename T>
-std::string CreateLogMessage(std::string_view message, const T& data) {
-  json::object log_entry;
-  log_entry["timestamp"] = boost::posix_time::to_iso_extended_string(
-      boost::posix_time::microsec_clock::local_time());
-  log_entry["message"] = std::string(message);
-  log_entry["data"] = json::value_from(data);
-  return json::serialize(log_entry);
-}
-
 }  // namespace logware
