@@ -3,6 +3,7 @@
 #include <boost/beast/http.hpp>
 #include <boost/date_time.hpp>
 #include <boost/json.hpp>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -61,11 +62,11 @@ struct ErrorLogData {
 };
 
 // Функции для преобразования в JSON
-void TagInvoke(json::value_from_tag, json::value& jv, const RequestLogData& data);
-void TagInvoke(json::value_from_tag, json::value& jv, const ResponseLogData& data);
-void TagInvoke(json::value_from_tag, json::value& jv, const ServerStartLogData& data);
-void TagInvoke(json::value_from_tag, json::value& jv, const ServerExitLogData& data);
-void TagInvoke(json::value_from_tag, json::value& jv, const ErrorLogData& data);
+void tag_invoke(json::value_from_tag, json::value& jv, const RequestLogData& data);
+void tag_invoke(json::value_from_tag, json::value& jv, const ResponseLogData& data);
+void tag_invoke(json::value_from_tag, json::value& jv, const ServerStartLogData& data);
+void tag_invoke(json::value_from_tag, json::value& jv, const ServerExitLogData& data);
+void tag_invoke(json::value_from_tag, json::value& jv, const ErrorLogData& data);
 
 // Вспомогательная функция для создания лог-сообщения
 template <typename T>

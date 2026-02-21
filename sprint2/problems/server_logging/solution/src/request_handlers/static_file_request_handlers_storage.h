@@ -138,7 +138,8 @@ void GetStaticContentFileHandler(const Request& req,
   response.version(req.version());
   response.result(http::status::ok);
 
-  auto extension_iterator = kExtensionToContentType.find(full_path.extension().string());
+  std::string ext = full_path.extension().string();
+  auto extension_iterator = kExtensionToContentType.find(ext);
   if (extension_iterator != kExtensionToContentType.end()) {
     response.set(http::field::content_type, extension_iterator->second);
   } else {
@@ -147,12 +148,15 @@ void GetStaticContentFileHandler(const Request& req,
 
   http::file_body::value_type file;
   sys::error_code ec;
-  file.open(full_path.string(), beast::file_mode::read, ec);
+  file.open(full_path.string().c_str(), beast::file_mode::read, ec);
 
   if (ec) {
-    BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage(
-        "error"sv, logware::ExceptionLogData(
-                       0, "Failed to open static content file", ec.what()));
+    logware::ErrorLogData error_data;
+    error_data.code = ec.value();
+    error_data.text = ec.message();
+    error_data.where = "open_file";
+    BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error", error_data);
+    
     StringResponse error_response(http::status::internal_server_error, req.version());
     error_response.set(http::field::content_type, "text/plain");
     error_response.body() = "Internal server error";

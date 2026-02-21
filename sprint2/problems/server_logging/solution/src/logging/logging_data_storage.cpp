@@ -2,7 +2,7 @@
 
 namespace logware {
 
-void TagInvoke(json::value_from_tag, json::value& jv, const RequestLogData& data) {
+void tag_invoke(json::value_from_tag, json::value& jv, const RequestLogData& data) {
   jv = {
       {kIp, data.ip},
       {kUri, data.uri},
@@ -10,22 +10,26 @@ void TagInvoke(json::value_from_tag, json::value& jv, const RequestLogData& data
   };
 }
 
-void TagInvoke(json::value_from_tag, json::value& jv, const ResponseLogData& data) {
+void tag_invoke(json::value_from_tag, json::value& jv, const ResponseLogData& data) {
   json::object obj;
   obj[kResponseTime] = data.response_time;
   obj[kCode] = data.code;
-  obj[kContentType] = data.content_type.empty() ? nullptr : json::value(data.content_type);
+  if (data.content_type.empty()) {
+    obj[kContentType] = nullptr;
+  } else {
+    obj[kContentType] = data.content_type;
+  }
   jv = std::move(obj);
 }
 
-void TagInvoke(json::value_from_tag, json::value& jv, const ServerStartLogData& data) {
+void tag_invoke(json::value_from_tag, json::value& jv, const ServerStartLogData& data) {
   jv = {
       {kPort, data.port},
       {kAddress, data.address}
   };
 }
 
-void TagInvoke(json::value_from_tag, json::value& jv, const ServerExitLogData& data) {
+void tag_invoke(json::value_from_tag, json::value& jv, const ServerExitLogData& data) {
   json::object obj;
   obj[kCode] = data.code;
   if (data.exception.has_value()) {
@@ -34,7 +38,7 @@ void TagInvoke(json::value_from_tag, json::value& jv, const ServerExitLogData& d
   jv = std::move(obj);
 }
 
-void TagInvoke(json::value_from_tag, json::value& jv, const ErrorLogData& data) {
+void tag_invoke(json::value_from_tag, json::value& jv, const ErrorLogData& data) {
   jv = {
       {kCode, data.code},
       {kText, data.text},
