@@ -22,31 +22,29 @@ using namespace std::literals;
 
 void ReportError(beast::error_code ec, std::string_view what);
 
-class SessionBase {
+class SessionBase : public std::enable_shared_from_this<SessionBase> {
  public:
   SessionBase(const SessionBase&) = delete;
   SessionBase& operator=(const SessionBase&) = delete;
 
   void Run();
-  const std::string& GetRemoteIp();
 
  protected:
   explicit SessionBase(tcp::socket&& socket) : stream_(std::move(socket)) {}
 
   using HttpRequest = http::request<http::string_body>;
 
-  ~SessionBase() = default;
+  virtual ~SessionBase() = default;
 
   template <typename Body, typename Fields>
   void Write(http::response<Body, Fields>&& response) {
     auto safe_response =
         std::make_shared<http::response<Body, Fields>>(std::move(response));
 
-    auto self = GetSharedThis();
     http::async_write(
         stream_, *safe_response,
-        [safe_response, self](beast::error_code ec,
-                              std::size_t bytes_written) {
+        [self = shared_from_this(), safe_response](
+            beast::error_code ec, std::size_t bytes_written) {
           self->OnWrite(true, ec, bytes_written);
           BOOST_LOG_TRIVIAL(info)
               << logware::CreateLogMessage(
@@ -65,10 +63,20 @@ class SessionBase {
   }
 
   long GetDurationFromTimeReceivedRequest_ms(
-      const boost::posix_time::ptime& to_moment) {
+      const boost::posix_time::ptime& to_moment) const {
     boost::posix_time::time_duration duration =
         to_moment - received_request_moment_;
     return duration.total_milliseconds();
+  }
+
+  const std::string& GetRemoteIp() {
+    static std::string remote_ip;
+    try {
+      auto temp = stream_.socket().remote_endpoint().address().to_string();
+      remote_ip = temp;
+    } catch (...) {
+    }
+    return remote_ip;
   }
 
  private:
@@ -82,12 +90,10 @@ class SessionBase {
   void OnWrite(bool close, beast::error_code ec, std::size_t bytes_written);
   void Close();
   virtual void HandleRequest(HttpRequest&& request) = 0;
-  virtual std::shared_ptr<SessionBase> GetSharedThis() = 0;
 };
 
 template <typename RequestHandler>
-class Session : public SessionBase,
-                public std::enable_shared_from_this<Session<RequestHandler>> {
+class Session : public SessionBase {
  public:
   template <typename Handler>
   Session(tcp::socket&& socket, Handler&& request_handler)
@@ -97,10 +103,6 @@ class Session : public SessionBase,
  private:
   RequestHandler request_handler_;
 
-  std::shared_ptr<SessionBase> GetSharedThis() override {
-    return this->shared_from_this();
-  }
-
   void HandleRequest(HttpRequest&& request) override {
     SetReceivedRequestTime(boost::posix_time::microsec_clock::local_time());
     BOOST_LOG_TRIVIAL(info)
@@ -109,8 +111,8 @@ class Session : public SessionBase,
                                                               request));
     request_handler_(
         std::move(request),
-        [self = this->shared_from_this()](auto&& response) {
-          self->Write(std::move(response));
+        [self = shared_from_this()](auto&& response) {
+          self->Write(std::forward<decltype(response)>(response));
         });
   }
 };

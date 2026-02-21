@@ -21,12 +21,12 @@ class ApiV1RequestHandlerExecutor {
   ApiV1RequestHandlerExecutor& operator=(ApiV1RequestHandlerExecutor&&) =
       delete;
 
-  static ApiV1RequestHandlerExecutor& GetInstance() {
+  static const ApiV1RequestHandlerExecutor& GetInstance() {
     static ApiV1RequestHandlerExecutor instance;
     return instance;
   }
 
-  bool Execute(const Request& req, const model::Game& game, Send&& send) {
+  bool Execute(const Request& req, const model::Game& game, Send&& send) const {
     for (const auto& node : handler_storage_) {
       if (node.GetActivator()(req, game)) {
         node.GetHandler(req, fault_handler_)(req, game, std::move(send));
@@ -37,7 +37,7 @@ class ApiV1RequestHandlerExecutor {
   }
 
  private:
-  std::vector<RequestHandlerNode<ActivatorType, HandlerType>> handler_storage_ =
+  const std::vector<RequestHandlerNode<ActivatorType, HandlerType>> handler_storage_ =
       {RequestHandlerNode<ActivatorType, HandlerType>(
            BadRequestActivator, {{http::verb::get, BadRequestHandler}}),
        RequestHandlerNode<ActivatorType, HandlerType>(
@@ -47,7 +47,7 @@ class ApiV1RequestHandlerExecutor {
        RequestHandlerNode<ActivatorType, HandlerType>(
            GetMapByIdActivator, {{http::verb::get, GetMapByIdHandler}})};
 
-  HandlerType fault_handler_ = BadRequestHandler;
+  const HandlerType fault_handler_ = BadRequestHandler;
 
   ApiV1RequestHandlerExecutor() = default;
 };

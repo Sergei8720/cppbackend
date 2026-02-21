@@ -15,7 +15,8 @@ void ReportError(beast::error_code ec, std::string_view where) {
 
 void SessionBase::Run() {
   net::dispatch(stream_.get_executor(),
-                beast::bind_front_handler(&SessionBase::Read, GetSharedThis()));
+                beast::bind_front_handler(&SessionBase::Read,
+                                          shared_from_this()));
 }
 
 void SessionBase::Read() {
@@ -23,7 +24,7 @@ void SessionBase::Read() {
   stream_.expires_after(30s);
   http::async_read(stream_, buffer_, request_,
                    beast::bind_front_handler(&SessionBase::OnRead,
-                                             GetSharedThis()));
+                                             shared_from_this()));
 }
 
 void SessionBase::OnRead(beast::error_code ec,
@@ -55,16 +56,6 @@ void SessionBase::OnWrite(bool close, beast::error_code ec,
 void SessionBase::Close() {
   beast::error_code ec;
   stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
-}
-
-const std::string& SessionBase::GetRemoteIp() {
-  static std::string remote_ip;
-  try {
-    auto temp = stream_.socket().remote_endpoint().address().to_string();
-    remote_ip = temp;
-  } catch (...) {
-  }
-  return remote_ip;
 }
 
 }  // namespace http_server
