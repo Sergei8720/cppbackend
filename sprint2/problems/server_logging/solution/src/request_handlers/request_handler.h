@@ -26,22 +26,22 @@ class RequestHandler {
 
   template <typename Body, typename Allocator, typename Send>
   void operator()(http::request<Body, http::basic_fields<Allocator>>&& req,
-                  Send&& send) const {
+                  Send&& send) {
     using RequestType = http::request<Body, http::basic_fields<Allocator>>;
 
     if (rh_storage::ApiV1RequestHandlerExecutor<RequestType, Send>::
             GetInstance()
-                .Execute(req, game_, std::move(send))) {
+                .Execute(req, game_, std::forward<Send>(send))) {
       return;
     }
 
     if (rh_storage::StaticFileRequestHandlerExecutor<RequestType, Send>::
             GetInstance()
-                .Execute(req, static_content_root_path_, std::move(send))) {
+                .Execute(req, static_content_root_path_, std::forward<Send>(send))) {
       return;
     }
 
-    rh_storage::PageNotFoundHandler(req, game_, send);
+    rh_storage::PageNotFoundHandler(req, game_, std::forward<Send>(send));
   }
 
  private:
