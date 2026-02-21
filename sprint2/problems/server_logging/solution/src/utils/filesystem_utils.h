@@ -8,4 +8,4 @@ namespace fs = std::filesystem;
 
 bool IsSubPath(fs::path path, fs::path base);
 
-}  // namespace fs_utils
+}

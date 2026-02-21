@@ -13,10 +13,9 @@ namespace json_converter {
 std::string ConvertMapListToJson(const model::Game& game) {
   boost::json::array maps_array;
   for (const auto& map : game.GetMaps()) {
-    boost::json::object map_object;
-    map_object[model::kMapId] = *(map.GetId());
-    map_object[model::kMapName] = map.GetName();
-    maps_array.push_back(map_object);
+    boost::json::value item = {{model::kMapId, *(map.GetId())},
+                               {model::kMapName, map.GetName()}};
+    maps_array.push_back(item);
   }
   return boost::json::serialize(maps_array);
 }
@@ -26,24 +25,24 @@ std::string ConvertMapToJson(const model::Map& map) {
 }
 
 std::string CreateMapNotFoundResponse() {
-  boost::json::object response;
-  response[json_keys::kResponseCode] = "mapNotFound";
-  response[json_keys::kResponseMessage] = "Map not found";
-  return boost::json::serialize(response);
+  boost::json::value msg = {
+      {json_keys::kResponseCode, "mapNotFound"},
+      {json_keys::kResponseMessage, "Map not found"}};
+  return boost::json::serialize(msg);
 }
 
 std::string CreateBadRequestResponse() {
-  boost::json::object response;
-  response[json_keys::kResponseCode] = "badRequest";
-  response[json_keys::kResponseMessage] = "Bad request";
-  return boost::json::serialize(response);
+  boost::json::value msg = {
+      {json_keys::kResponseCode, "badRequest"},
+      {json_keys::kResponseMessage, "Bad request"}};
+  return boost::json::serialize(msg);
 }
 
 std::string CreatePageNotFoundResponse() {
-  boost::json::object response;
-  response[json_keys::kResponseCode] = "pageNotFound";
-  response[json_keys::kResponseMessage] = "Page not found";
-  return boost::json::serialize(response);
+  boost::json::value msg = {
+      {json_keys::kResponseCode, "pageNotFound"},
+      {json_keys::kResponseMessage, "Page not found"}};
+  return boost::json::serialize(msg);
 }
 
-}  // namespace json_converter
+}

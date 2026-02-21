@@ -12,4 +12,4 @@ std::string CreateMapNotFoundResponse();
 std::string CreateBadRequestResponse();
 std::string CreatePageNotFoundResponse();
 
-}  // namespace json_converter
+}

@@ -18,12 +18,11 @@ namespace {
 boost::json::value ReadFile(const std::filesystem::path& json_path) {
   std::ifstream file(json_path);
   if (!file.is_open()) {
-    logware::ErrorLogData error_data;
-    error_data.code = EXIT_FAILURE;
-    error_data.text = "Error: Can't open file.";
-    error_data.where = "ReadFile";
-    BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error", error_data);
-    std::exit(EXIT_FAILURE);
+    BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage(
+        "error"sv,
+        logware::ExceptionLogData(EXIT_FAILURE, "Error: Can't open file."sv,
+                                  "write something here"sv));
+    std::exit(1);
   }
 
   std::stringstream string_stream;
@@ -32,7 +31,7 @@ boost::json::value ReadFile(const std::filesystem::path& json_path) {
   return root;
 }
 
-}  // namespace
+}
 
 model::Game LoadGame(const std::filesystem::path& json_path) {
   model::Game game;
@@ -44,4 +43,4 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
   return game;
 }
 
-}  // namespace json_loader
+}

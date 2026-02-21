@@ -23,14 +23,14 @@ class StaticFileRequestHandlerExecutor {
   StaticFileRequestHandlerExecutor& operator=(
       StaticFileRequestHandlerExecutor&&) = delete;
 
-  static const StaticFileRequestHandlerExecutor& GetInstance() {
+  static StaticFileRequestHandlerExecutor& GetInstance() {
     static StaticFileRequestHandlerExecutor instance;
     return instance;
   }
 
   bool Execute(const Request& req,
                const std::filesystem::path& static_content_root,
-               Send&& send) const {
+               Send&& send) {
     for (const auto& node : handler_storage_) {
       if (node.GetActivator()(req, static_content_root)) {
         node.GetHandler(req, fault_handler_)(req, static_content_root,
@@ -42,7 +42,7 @@ class StaticFileRequestHandlerExecutor {
   }
 
  private:
-  const std::vector<RequestHandlerNode<ActivatorType, HandlerType>> handler_storage_ =
+  std::vector<RequestHandlerNode<ActivatorType, HandlerType>> handler_storage_ =
       {RequestHandlerNode<ActivatorType, HandlerType>(
            StaticContentFileNotFoundActivator,
            {{http::verb::get, StaticContentFileNotFoundHandler}}),
@@ -53,9 +53,9 @@ class StaticFileRequestHandlerExecutor {
            GetStaticContentFileActivator,
            {{http::verb::get, GetStaticContentFileHandler}})};
 
-  const HandlerType fault_handler_ = StaticContentFileNotFoundHandler;
+  HandlerType fault_handler_ = StaticContentFileNotFoundHandler;
 
   StaticFileRequestHandlerExecutor() = default;
 };
 
-}  // namespace rh_storage
+}

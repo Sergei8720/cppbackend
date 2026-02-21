@@ -27,4 +27,4 @@ inline const std::string kOfficeY = "y";
 inline const std::string kOfficeOffsetX = "offsetX";
 inline const std::string kOfficeOffsetY = "offsetY";
 
-}  // namespace model
+}

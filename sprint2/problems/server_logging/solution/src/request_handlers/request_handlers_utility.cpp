@@ -25,4 +25,4 @@ std::vector<std::string_view> SplitUrl(std::string_view str) {
   return result;
 }
 
-}  // namespace rh_storage
+}

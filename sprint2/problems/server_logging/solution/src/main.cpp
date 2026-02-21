@@ -7,7 +7,6 @@
 #include "json_loader.h"
 #include "logger.h"
 #include "request_handler.h"
-#include "http_server.h"
 #include "sdk.h"
 
 using namespace std::literals;
@@ -28,13 +27,15 @@ void RunWorkers(size_t n, const Fn& fn) {
   fn();
 }
 
-}  // namespace
+}
 
 int main(int argc, const char* argv[]) {
   logware::InitLogger();
 
   if (argc != 3) {
-    std::cerr << "Usage: game_server <game-config-json> <static-content-path>" << std::endl;
+    BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage(
+        "Usage: game_server <game-config-json>"sv,
+        logware::ExitCodeLogData(EXIT_FAILURE));
     return EXIT_FAILURE;
   }
 
@@ -49,9 +50,8 @@ int main(int argc, const char* argv[]) {
     signals.async_wait([&io_context](const sys::error_code& ec,
                                      [[maybe_unused]] int signal_number) {
       if (!ec) {
-        logware::ServerExitLogData exit_data;
-        exit_data.code = 0;
-        BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("server exited", exit_data);
+        BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage(
+            "server exited"sv, logware::ExitCodeLogData(0));
         io_context.stop();
       }
     });
@@ -60,12 +60,6 @@ int main(int argc, const char* argv[]) {
 
     const auto address = net::ip::make_address("0.0.0.0");
     constexpr net::ip::port_type port = 8080;
-    
-    logware::ServerStartLogData start_data;
-    start_data.port = port;
-    start_data.address = address.to_string();
-    BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("server started", start_data);
-
     http_server::ServeHttp(
         io_context, {address, port},
         [&handler](auto&& req, auto&& send) {
@@ -73,13 +67,16 @@ int main(int argc, const char* argv[]) {
                   std::forward<decltype(send)>(send));
         });
 
+    BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage(
+        "Server has started..."sv,
+        logware::ServerAddressLogData(address.to_string(), port));
+
     RunWorkers(std::max(1u, num_threads),
                [&io_context] { io_context.run(); });
   } catch (const std::exception& ex) {
-    logware::ServerExitLogData exit_data;
-    exit_data.code = EXIT_FAILURE;
-    exit_data.exception = ex.what();
-    BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("server exited", exit_data);
+    BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage(
+        "error"sv, logware::ExceptionLogData(EXIT_FAILURE, "Server down"sv,
+                                             ex.what()));
     return EXIT_FAILURE;
   }
 

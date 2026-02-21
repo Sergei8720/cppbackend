@@ -23,7 +23,7 @@ class RequestHandlerNode {
   virtual ~RequestHandlerNode() = default;
 
   template <typename Request>
-  const Handler& GetHandler(const Request& req, const Handler& fault_handler) const {
+  Handler& GetHandler(const Request& req, Handler& fault_handler) {
     http::verb method = req.method();
     auto iterator = handlers_.find(method);
     if (iterator != handlers_.end()) {
@@ -32,11 +32,11 @@ class RequestHandlerNode {
     return fault_handler;
   }
 
-  const Activator& GetActivator() const { return activator_; }
+  Activator& GetActivator() { return activator_; }
 
  private:
   Activator activator_;
   std::unordered_map<http::verb, Handler> handlers_;
 };
 
-}  // namespace rh_storage
+}

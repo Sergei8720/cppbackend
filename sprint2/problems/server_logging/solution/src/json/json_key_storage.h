@@ -7,4 +7,4 @@ namespace json_keys {
 inline const std::string kResponseCode = "code";
 inline const std::string kResponseMessage = "message";
 
-}  // namespace json_keys
+}

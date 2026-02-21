@@ -31,17 +31,17 @@ class RequestHandler {
 
     if (rh_storage::ApiV1RequestHandlerExecutor<RequestType, Send>::
             GetInstance()
-                .Execute(req, game_, std::forward<Send>(send))) {
+                .Execute(req, game_, std::move(send))) {
       return;
     }
 
     if (rh_storage::StaticFileRequestHandlerExecutor<RequestType, Send>::
             GetInstance()
-                .Execute(req, static_content_root_path_, std::forward<Send>(send))) {
+                .Execute(req, static_content_root_path_, std::move(send))) {
       return;
     }
 
-    rh_storage::PageNotFoundHandler(req, game_, std::forward<Send>(send));
+    rh_storage::PageNotFoundHandler(req, game_, send);
   }
 
  private:
@@ -49,4 +49,4 @@ class RequestHandler {
   fs::path static_content_root_path_;
 };
 
-}  // namespace http_handler
+}

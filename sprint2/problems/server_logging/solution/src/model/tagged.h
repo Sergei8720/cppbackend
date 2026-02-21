@@ -32,4 +32,4 @@ struct TaggedHasher {
   }
 };
 
-}  // namespace util
+}
