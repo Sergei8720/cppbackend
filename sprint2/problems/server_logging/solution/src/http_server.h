@@ -29,13 +29,6 @@ class SessionBase : public std::enable_shared_from_this<SessionBase> {
 
   void Run();
 
- protected:
-  explicit SessionBase(tcp::socket&& socket) : stream_(std::move(socket)) {}
-
-  using HttpRequest = http::request<http::string_body>;
-
-  virtual ~SessionBase() = default;
-
   template <typename Body, typename Fields>
   void Write(http::response<Body, Fields>&& response) {
     auto safe_response =
@@ -56,6 +49,13 @@ class SessionBase : public std::enable_shared_from_this<SessionBase> {
                          *safe_response));
         });
   }
+
+ protected:
+  explicit SessionBase(tcp::socket&& socket) : stream_(std::move(socket)) {}
+
+  using HttpRequest = http::request<http::string_body>;
+
+  virtual ~SessionBase() = default;
 
   void SetReceivedRequestTime(
       const boost::posix_time::ptime& received_request_moment) {
