@@ -1,11 +1,22 @@
 #pragma once
 
+#include <boost/beast/http.hpp>
+#include <boost/date_time.hpp>
 #include <boost/json.hpp>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace logware {
 
+namespace beast = boost::beast;
+namespace http = beast::http;
+namespace json = boost::json;
+
+using HttpRequest = http::request<http::string_body>;
+using namespace std::literals;
+
+// Структуры для логирования
 struct RequestLogData {
   std::string ip;
   std::string uri;
@@ -19,7 +30,7 @@ struct ResponseLogData {
 };
 
 struct ServerStartLogData {
-  int port = 0;
+  uint32_t port = 0;
   std::string address;
 };
 
@@ -34,10 +45,22 @@ struct ErrorLogData {
   std::string where;
 };
 
-void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const RequestLogData& data);
-void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ResponseLogData& data);
-void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ServerStartLogData& data);
-void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ServerExitLogData& data);
-void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const ErrorLogData& data);
+// Функции для преобразования в JSON
+void tag_invoke(json::value_from_tag, json::value& jv, const RequestLogData& data);
+void tag_invoke(json::value_from_tag, json::value& jv, const ResponseLogData& data);
+void tag_invoke(json::value_from_tag, json::value& jv, const ServerStartLogData& data);
+void tag_invoke(json::value_from_tag, json::value& jv, const ServerExitLogData& data);
+void tag_invoke(json::value_from_tag, json::value& jv, const ErrorLogData& data);
+
+// Вспомогательная функция для создания лог-сообщения
+template <typename T>
+std::string CreateLogMessage(std::string_view message, const T& data) {
+  json::object log_entry;
+  log_entry["timestamp"] = boost::posix_time::to_iso_extended_string(
+      boost::posix_time::microsec_clock::local_time());
+  log_entry["message"] = std::string(message);
+  log_entry["data"] = json::value_from(data);
+  return json::serialize(log_entry);
+}
 
 }  // namespace logware

@@ -8,8 +8,8 @@
 #include "logger.h"
 #include "logging_request_handler.h"
 #include "request_handler.h"
-#include "sdk.h"
 #include "http_server.h"
+#include "sdk.h"
 
 using namespace std::literals;
 namespace net = boost::asio;

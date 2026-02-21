@@ -7,11 +7,11 @@ namespace http_server {
 using namespace std::literals;
 
 void ReportError(beast::error_code ec, std::string_view where) {
-  logware::ErrorLogData data;
-  data.code = ec.value();
-  data.text = ec.message();
-  data.where = std::string(where);
-  BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error", data);
+  logware::ErrorLogData error_data;
+  error_data.code = ec.value();
+  error_data.text = ec.message();
+  error_data.where = std::string(where);
+  BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error", error_data);
 }
 
 void SessionBase::Run() {
@@ -55,6 +55,16 @@ void SessionBase::OnWrite(bool close, beast::error_code ec, std::size_t bytes_wr
 void SessionBase::Close() {
   beast::error_code ec;
   stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
+}
+
+const std::string& SessionBase::GetRemoteIp() {
+  static std::string remote_ip;
+  try {
+    auto temp = stream_.socket().remote_endpoint().address().to_string();
+    remote_ip = temp;
+  } catch (...) {
+  }
+  return remote_ip;
 }
 
 }  // namespace http_server
