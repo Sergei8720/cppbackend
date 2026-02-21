@@ -3,11 +3,11 @@
 namespace logware {
 
 void tag_invoke(json::value_from_tag, json::value& jv, const RequestLogData& data) {
-  jv = {
-      {kIp, data.ip},
-      {kUri, data.uri},
-      {kMethod, data.method}
-  };
+  json::object obj;
+  obj[kIp] = data.ip;
+  obj[kUri] = data.uri;
+  obj[kMethod] = data.method;
+  jv = std::move(obj);
 }
 
 void tag_invoke(json::value_from_tag, json::value& jv, const ResponseLogData& data) {
@@ -23,10 +23,10 @@ void tag_invoke(json::value_from_tag, json::value& jv, const ResponseLogData& da
 }
 
 void tag_invoke(json::value_from_tag, json::value& jv, const ServerStartLogData& data) {
-  jv = {
-      {kPort, data.port},
-      {kAddress, data.address}
-  };
+  json::object obj;
+  obj[kPort] = data.port;
+  obj[kAddress] = data.address;
+  jv = std::move(obj);
 }
 
 void tag_invoke(json::value_from_tag, json::value& jv, const ServerExitLogData& data) {
@@ -39,11 +39,11 @@ void tag_invoke(json::value_from_tag, json::value& jv, const ServerExitLogData& 
 }
 
 void tag_invoke(json::value_from_tag, json::value& jv, const ErrorLogData& data) {
-  jv = {
-      {kCode, data.code},
-      {kText, data.text},
-      {kWhere, data.where}
-  };
+  json::object obj;
+  obj[kCode] = data.code;
+  obj[kText] = data.text;
+  obj[kWhere] = data.where;
+  jv = std::move(obj);
 }
 
 }  // namespace logware

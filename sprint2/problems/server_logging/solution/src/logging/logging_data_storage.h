@@ -40,23 +40,23 @@ struct RequestLogData {
 };
 
 struct ResponseLogData {
-  long response_time;
-  int code;
+  long response_time = 0;
+  int code = 0;
   std::string content_type;
 };
 
 struct ServerStartLogData {
-  uint32_t port;
+  uint32_t port = 0;
   std::string address;
 };
 
 struct ServerExitLogData {
-  int code;
+  int code = 0;
   std::optional<std::string> exception;
 };
 
 struct ErrorLogData {
-  int code;
+  int code = 0;
   std::string text;
   std::string where;
 };

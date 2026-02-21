@@ -9,8 +9,11 @@ namespace http_server {
 using namespace std::literals;
 
 void ReportError(beast::error_code ec, std::string_view where) {
-  BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage(
-      "error"sv, logware::ExceptionLogData(0, ec.message(), ec.what()));
+  logware::ErrorLogData error_data;
+  error_data.code = ec.value();
+  error_data.text = ec.message();
+  error_data.where = std::string(where);
+  BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error", error_data);
 }
 
 void SessionBase::Run() {
@@ -34,7 +37,7 @@ void SessionBase::OnRead(beast::error_code ec,
     return;
   }
   if (ec) {
-    ReportError(ec, "read"sv);
+    ReportError(ec, "read");
     return;
   }
   HandleRequest(std::move(request_));
@@ -43,7 +46,7 @@ void SessionBase::OnRead(beast::error_code ec,
 void SessionBase::OnWrite(bool close, beast::error_code ec,
                           [[maybe_unused]] std::size_t bytes_written) {
   if (ec) {
-    ReportError(ec, "write"sv);
+    ReportError(ec, "write");
     return;
   }
   if (close) {
