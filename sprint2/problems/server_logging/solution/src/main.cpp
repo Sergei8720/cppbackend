@@ -31,8 +31,6 @@ void RunWorkers(size_t n, const Fn& fn) {
 }  // namespace
 
 int main(int argc, const char* argv[]) {
-  std::cout << "Starting server..." << std::endl;
-  
   logware::InitLogger();
 
   if (argc != 3) {
@@ -40,15 +38,9 @@ int main(int argc, const char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  std::cout << "Config path: " << argv[1] << std::endl;
-  std::cout << "Static path: " << argv[2] << std::endl;
-
   try {
     model::Game game = json_loader::LoadGame(argv[1]);
     fs::path static_content_root_path{argv[2]};
-    
-    std::cout << "Game loaded, maps count: " << game.GetMaps().size() << std::endl;
-    std::cout << "Static path exists: " << fs::exists(static_content_root_path) << std::endl;
 
     const unsigned num_threads = std::thread::hardware_concurrency();
     net::io_context io_context(num_threads);
@@ -74,8 +66,6 @@ int main(int argc, const char* argv[]) {
     start_data.address = address.to_string();
     BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("server started", start_data);
 
-    std::cout << "Starting HTTP server on port " << port << "..." << std::endl;
-    
     http_server::ServeHttp(
         io_context, {address, port},
         [&handler](auto&& req, auto&& send) {
@@ -83,14 +73,9 @@ int main(int argc, const char* argv[]) {
                   std::forward<decltype(send)>(send));
         });
 
-    std::cout << "HTTP server started, running workers..." << std::endl;
-
     RunWorkers(std::max(1u, num_threads),
                [&io_context] { io_context.run(); });
-               
-    std::cout << "Server stopped." << std::endl;
   } catch (const std::exception& ex) {
-    std::cerr << "Exception: " << ex.what() << std::endl;
     logware::ServerExitLogData exit_data;
     exit_data.code = EXIT_FAILURE;
     exit_data.exception = ex.what();
