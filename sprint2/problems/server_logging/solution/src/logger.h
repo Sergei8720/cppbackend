@@ -26,7 +26,7 @@ namespace logging {
 BOOST_LOG_ATTRIBUTE_KEYWORD(additional_data, "AdditionalData", boost::json::value)
 
 // Форматтер для логов в JSON
-void JsonFormatter(boost::log::record_view const& rec, boost::log::formatting_ostream& strm) {
+inline void JsonFormatter(boost::log::record_view const& rec, boost::log::formatting_ostream& strm) {
     namespace logging = boost::log;
     namespace json = boost::json;
 
@@ -36,12 +36,17 @@ void JsonFormatter(boost::log::record_view const& rec, boost::log::formatting_os
     // Добавляем временную метку
     auto ts = logging::extract<boost::posix_time::ptime>("TimeStamp", rec);
     if (ts) {
-        log_record["timestamp"] = to_iso_extended_string(ts.get()) + (ts.get().time_of_day().fractional_seconds() ? "" : ".000000");
+        std::string timestamp = to_iso_extended_string(ts.get());
+        // Добавляем микросекунды, если их нет
+        if (timestamp.find('.') == std::string::npos) {
+            timestamp += ".000000";
+        }
+        log_record["timestamp"] = timestamp;
     } else {
         log_record["timestamp"] = nullptr;
     }
 
-    // Добавляем сообщение (severity)
+    // Добавляем сообщение
     auto severity = logging::extract<logging::trivial::severity_level>("Severity", rec);
     if (severity) {
         log_record["message"] = logging::trivial::to_string(severity.get());
@@ -50,7 +55,7 @@ void JsonFormatter(boost::log::record_view const& rec, boost::log::formatting_os
     }
 
     // Добавляем дополнительные данные
-    auto data = logging::extract<json::value>("AdditionalData", rec);
+    auto data = logging::extract<json::value>(additional_data.get_name(), rec);
     if (data && !data.get().is_null()) {
         log_record["data"] = data.get();
     } else {
@@ -62,14 +67,14 @@ void JsonFormatter(boost::log::record_view const& rec, boost::log::formatting_os
 }
 
 // Инициализация логгера
-void Init() {
+inline void Init() {
     namespace logging = boost::log;
 
     logging::add_common_attributes();
 
-    // Настройка логирования в консоль
+    // Настройка логирования в консоль (stdout)
     auto console_sink = logging::add_console_log(
-        std::clog,
+        std::cout,
         logging::keywords::format = &JsonFormatter
     );
 

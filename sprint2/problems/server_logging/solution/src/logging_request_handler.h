@@ -21,9 +21,21 @@ public:
     template <typename Body, typename Allocator, typename Send>
     void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
         using namespace std::chrono;
+        
+        // Для получения IP-адреса нам нужен доступ к сокету.
+        // В реальном проекте IP нужно передавать через контекст.
+        // Пока используем заглушку.
+        std::string ip = "unknown";
 
         // Логируем получение запроса
-        LogRequest(req);
+        boost::json::value request_data{
+            {"ip", ip},
+            {"URI", std::string(req.target())},
+            {"method", std::string(http::to_string(req.method()))}
+        };
+        
+        BOOST_LOG_TRIVIAL(info) << logging::add_value(logging::additional_data, request_data)
+                                << "request received";
 
         // Засекаем время начала обработки
         auto start_time = steady_clock::now();
@@ -35,7 +47,20 @@ public:
             auto elapsed_ms = duration_cast<milliseconds>(steady_clock::now() - start_time).count();
 
             // Логируем отправку ответа
-            LogResponse(response, elapsed_ms);
+            std::string content_type_str = "null";
+            auto it = response.find(http::field::content_type);
+            if (it != response.end()) {
+                content_type_str = std::string(it->value());
+            }
+
+            boost::json::value response_data{
+                {"response_time", static_cast<long long>(elapsed_ms)},
+                {"code", response.result_int()},
+                {"content_type", content_type_str}
+            };
+
+            BOOST_LOG_TRIVIAL(info) << logging::add_value(logging::additional_data, response_data)
+                                    << "response sent";
 
             // Отправляем ответ
             send(std::forward<decltype(response)>(response));
@@ -44,41 +69,6 @@ public:
 
 private:
     RequestHandler& decorated_;
-
-    template <typename Body, typename Allocator>
-    void LogRequest(const http::request<Body, http::basic_fields<Allocator>>& req) {
-        // Получаем IP-адрес клиента (это заглушка, так как в этом месте у нас нет сокета)
-        // В реальном проекте IP можно получить из сессии или передать его через контекст.
-        // Пока оставим заглушку.
-        std::string ip = "unknown";
-
-        boost::json::value data{
-            {"ip", ip},
-            {"URI", std::string(req.target())},
-            {"method", std::string(http::to_string(req.method()))}
-        };
-
-        BOOST_LOG_TRIVIAL(info) << logging::add_value(logging::additional_data, data)
-                                << "request received";
-    }
-
-    template <typename Body, typename Fields>
-    void LogResponse(const http::response<Body, Fields>& resp, long long response_time_ms) {
-        std::string content_type_str = "null";
-        auto it = resp.find(http::field::content_type);
-        if (it != resp.end()) {
-            content_type_str = std::string(it->value());
-        }
-
-        boost::json::value data{
-            {"response_time", response_time_ms},
-            {"code", resp.result_int()},
-            {"content_type", content_type_str}
-        };
-
-        BOOST_LOG_TRIVIAL(info) << logging::add_value(logging::additional_data, data)
-                                << "response sent";
-    }
 };
 
 #endif // LOGGING_REQUEST_HANDLER_H_
