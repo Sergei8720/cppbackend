@@ -1,5 +1,4 @@
 # Создать образ на основе базового слоя gcc (там будет ОС и сам компилятор).
-# 11.3 — используемая версия gcc.
 FROM gcc:11.3 as build
 
 # Выполнить установку зависимостей внутри контейнера.
@@ -10,40 +9,36 @@ RUN apt update && \
     && \
     pip3 install conan==1.*
 
-# Создать профиль default вручную перед обновлением
+# Создать профиль default
 RUN conan profile new default --detect --force
-
-# Теперь можно обновить профиль
 RUN conan profile update settings.compiler.libcxx=libstdc++11 default
 
+# Копируем conanfile.txt сначала для установки зависимостей
 COPY conanfile.txt /app/
 RUN mkdir -p /app/build && cd /app/build && \
     conan install .. --build=missing
 
-# Копируем все исходники, включая заголовочные файлы
+# Копируем все исходные файлы проекта
+# Заголовочные файлы находятся в той же директории, что и .cpp файлы
 COPY ./src /app/src
-COPY ./include /app/include 2>/dev/null || true
-COPY ./CMakeLists.txt /app/
-# Копируем все .h и .cpp файлы из корня, если они там есть
-COPY *.h *.cpp /app/ 2>/dev/null || true
+COPY *.h /app/ 2>/dev/null || true
+COPY *.cpp /app/ 2>/dev/null || true
+COPY CMakeLists.txt /app/
 
-# Альтернативный вариант - копировать всё содержимое текущей директории
-# COPY . /app/
+# Также копируем файлы из корня проекта, если они есть
+COPY ./*.h ./*.cpp ./CMakeLists.txt /app/ 2>/dev/null || true
 
 RUN cd /app/build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
     cmake --build .
 
-# Второй контейнер в том же докерфайле
+# Второй контейнер
 FROM ubuntu:22.04 as run
 
-# Создадим пользователя www
 RUN groupadd -r www && useradd -r -g www www
 USER www
 
-# Скопируем приложение со сборочного контейнера в директорию /app.
 COPY --from=build /app/build/bin/game_server /app/
 COPY ./data /app/data
 
-# Запускаем игровой сервер
 ENTRYPOINT ["/app/game_server", "/app/data/config.json"]
