@@ -1,19 +1,14 @@
-# Создать образ на основе базового слоя gcc (там будет ОС и сам компилятор).
-# 11.3 — используемая версия gcc.
-FROM gcc:11.3 as build
+	FROM gcc:11.3 as build
 
-# Выполнить установку зависимостей внутри контейнера.
 RUN apt update && \
-    apt install -y \
-      python3-pip \
-      cmake \
-    && \
-    pip3 install conan
+    apt install -y python3-pip cmake && \
+    pip3 install "conan<2.0" для автоматической установки последней версии 1.x
 
-# копируем conanfile.txt в контейнер и запускаем conan install
 COPY conanfile.txt /app/
+
 RUN mkdir /app/build && cd /app/build && \
     conan install .. --build=missing -s compiler.libcxx=libstdc++11 -s build_type=Release
+	
 
 # только после этого копируем остальные иходники
 COPY ./src /app/src
