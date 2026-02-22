@@ -18,10 +18,9 @@ COPY conanfile.txt /app/
 RUN mkdir -p /app/build && cd /app/build && \
     conan install .. --build=missing
 
-# Копируем все исходные файлы из директории src
-# (включая все .h и .cpp файлы)
+# Копируем все исходные файлы (сохраняя структуру директорий)
 COPY ./src /app/src
-COPY CMakeLists.txt /app/
+COPY ./CMakeLists.txt /app/
 
 RUN cd /app/build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
