@@ -27,10 +27,6 @@ add_executable(game_server
 	src/boost_json.cpp
 	src/logging/logging_data_storage.cpp
 	src/logging/logger.cpp
-	# Добавляем файлы из response_storage
-	src/response_storage/api_v1_response_storage.cpp
-	src/response_storage/static_file_response_storage.cpp
-	src/utils/url_utils.cpp
 )
 target_include_directories(game_server PRIVATE
 	src
@@ -39,7 +35,6 @@ target_include_directories(game_server PRIVATE
 	src/utils
 	src/logging
 	src/model
-	src/response_storage  # Добавляем директорию response_storage
 )
 target_link_libraries(game_server PRIVATE Threads::Threads Boost::log Boost::log_setup)
 
