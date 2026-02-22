@@ -14,7 +14,7 @@ void ReportError(beast::error_code ec, std::string_view where) {
         {"text", ec.message()},
         {"where", std::string(where)}
     };
-    BOOST_LOG_TRIVIAL(error) << logging::additional_data = error_data
+    BOOST_LOG_TRIVIAL(error) << boost::log::add_value(logging::additional_data, error_data)
                              << "error";
     
     // Оставляем вывод в cerr для обратной совместимости

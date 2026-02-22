@@ -40,7 +40,7 @@ public:
             {"method", std::string(http::to_string(req.method()))}
         };
         
-        BOOST_LOG_TRIVIAL(info) << logging::additional_data = request_data
+        BOOST_LOG_TRIVIAL(info) << boost::log::add_value(logging::additional_data, request_data)
                                 << "request received";
 
         // Засекаем время начала обработки
@@ -65,7 +65,7 @@ public:
                 {"content_type", content_type_str}
             };
 
-            BOOST_LOG_TRIVIAL(info) << logging::additional_data = response_data
+            BOOST_LOG_TRIVIAL(info) << boost::log::add_value(logging::additional_data, response_data)
                                     << "response sent";
 
             // Отправляем ответ

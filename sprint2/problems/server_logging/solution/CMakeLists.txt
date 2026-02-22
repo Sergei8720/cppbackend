@@ -7,7 +7,7 @@ include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
 # Подключаем Boost.Log и его зависимости
-find_package(Boost 1.78.0 REQUIRED COMPONENTS log log_setup thread filesystem)
+find_package(Boost 1.78.0 REQUIRED COMPONENTS log log_setup thread filesystem date_time regex chrono atomic)
 if(Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
   link_libraries(${Boost_LIBRARIES})
@@ -26,8 +26,8 @@ add_executable(game_server
   src/tagged.h
   src/request_handler.cpp
   src/request_handler.h
-  src/logger.h # Новый файл
-  src/logging_request_handler.h # Новый файл
+  src/logger.h
+  src/logging_request_handler.h
   src/json/json_loader.h
   src/json/json_loader.cpp
   src/json/json_converter.cpp
@@ -52,9 +52,13 @@ target_include_directories(game_server PRIVATE
 target_link_libraries(game_server PRIVATE
     Threads::Threads
     jsoncpp
-    Boost::log          # Добавлено
-    Boost::log_setup    # Добавлено
-    Boost::thread       # Добавлено
-    Boost::filesystem   # Добавлено
+    Boost::log
+    Boost::log_setup
+    Boost::thread
+    Boost::filesystem
+    Boost::date_time
+    Boost::regex
+    Boost::chrono
+    Boost::atomic
     )
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)

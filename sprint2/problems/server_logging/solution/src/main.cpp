@@ -72,7 +72,7 @@ int main(int argc, const char* argv[]) {
         {"port", port},
         {"address", address.to_string()}
     };
-    BOOST_LOG_TRIVIAL(info) << logging::additional_data = start_data
+    BOOST_LOG_TRIVIAL(info) << boost::log::add_value(logging::additional_data, start_data)
                             << "server started";
 
     http_server::ServeHttp(ioc, endpoint,
@@ -94,14 +94,14 @@ int main(int argc, const char* argv[]) {
         {"code", exit_code},
         {"exception", ex.what()}
     };
-    BOOST_LOG_TRIVIAL(error) << logging::additional_data = error_data
+    BOOST_LOG_TRIVIAL(error) << boost::log::add_value(logging::additional_data, error_data)
                              << "server exited";
     return exit_code;
   }
   
   // Логируем успешное завершение работы сервера
   boost::json::value exit_data{{"code", exit_code}};
-  BOOST_LOG_TRIVIAL(info) << logging::additional_data = exit_data
+  BOOST_LOG_TRIVIAL(info) << boost::log::add_value(logging::additional_data, exit_data)
                           << "server exited";
   
   return exit_code;

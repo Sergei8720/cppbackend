@@ -49,7 +49,6 @@ inline void JsonFormatter(boost::log::record_view const& rec, boost::log::format
     // Добавляем сообщение (из severity)
     auto severity = logging::extract<logging::trivial::severity_level>("Severity", rec);
     if (severity) {
-        // Используем severity как message
         log_record["message"] = logging::trivial::to_string(severity.get());
     } else {
         log_record["message"] = nullptr;
