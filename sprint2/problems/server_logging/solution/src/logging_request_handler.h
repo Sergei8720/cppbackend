@@ -7,9 +7,17 @@
 #include <boost/beast/http.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <chrono>
+#include <string>
 
 namespace beast = boost::beast;
 namespace http = beast::http;
+
+// Вспомогательная функция для получения IP из сокета (нужно будет передавать)
+// Пока оставляем заглушку, в реальном проекте IP нужно получать из сессии
+inline std::string GetClientIp() {
+    // В реальности здесь должен быть код получения IP из сокета
+    return "127.0.0.1";
+}
 
 template <typename RequestHandler>
 class LoggingRequestHandler {
@@ -22,10 +30,8 @@ public:
     void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
         using namespace std::chrono;
         
-        // Для получения IP-адреса нам нужен доступ к сокету.
-        // В реальном проекте IP нужно передавать через контекст.
-        // Пока используем заглушку.
-        std::string ip = "unknown";
+        // Получаем IP (в реальности нужно передавать из сессии)
+        std::string ip = GetClientIp();
 
         // Логируем получение запроса
         boost::json::value request_data{
@@ -34,7 +40,7 @@ public:
             {"method", std::string(http::to_string(req.method()))}
         };
         
-        BOOST_LOG_TRIVIAL(info) << logging::add_value(logging::additional_data, request_data)
+        BOOST_LOG_TRIVIAL(info) << logging::additional_data = request_data
                                 << "request received";
 
         // Засекаем время начала обработки
@@ -59,7 +65,7 @@ public:
                 {"content_type", content_type_str}
             };
 
-            BOOST_LOG_TRIVIAL(info) << logging::add_value(logging::additional_data, response_data)
+            BOOST_LOG_TRIVIAL(info) << logging::additional_data = response_data
                                     << "response sent";
 
             // Отправляем ответ

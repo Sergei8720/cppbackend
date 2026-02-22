@@ -46,16 +46,17 @@ inline void JsonFormatter(boost::log::record_view const& rec, boost::log::format
         log_record["timestamp"] = nullptr;
     }
 
-    // Добавляем сообщение
+    // Добавляем сообщение (из severity)
     auto severity = logging::extract<logging::trivial::severity_level>("Severity", rec);
     if (severity) {
+        // Используем severity как message
         log_record["message"] = logging::trivial::to_string(severity.get());
     } else {
         log_record["message"] = nullptr;
     }
 
     // Добавляем дополнительные данные
-    auto data = logging::extract<json::value>(additional_data.get_name(), rec);
+    auto data = logging::extract<json::value>("AdditionalData", rec);
     if (data && !data.get().is_null()) {
         log_record["data"] = data.get();
     } else {
