@@ -2,7 +2,7 @@
 
 RUN apt update && \
     apt install -y python3-pip cmake && \
-    pip3 install "conan<2.0" для автоматической установки последней версии 1.x
+    pip3 install "conan<2.0"
 
 COPY conanfile.txt /app/
 
