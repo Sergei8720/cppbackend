@@ -20,16 +20,20 @@ COPY conanfile.txt /app/
 RUN mkdir -p /app/build && cd /app/build && \
     conan install .. --build=missing
 
-# только после этого копируем остальные иходники
+# Копируем все исходники, включая заголовочные файлы
 COPY ./src /app/src
-#COPY ./data /app/data
-COPY CMakeLists.txt /app/
+COPY ./include /app/include 2>/dev/null || true
+COPY ./CMakeLists.txt /app/
+# Копируем все .h и .cpp файлы из корня, если они там есть
+COPY *.h *.cpp /app/ 2>/dev/null || true
+
+# Альтернативный вариант - копировать всё содержимое текущей директории
+# COPY . /app/
 
 RUN cd /app/build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
     cmake --build .
-    
-    
+
 # Второй контейнер в том же докерфайле
 FROM ubuntu:22.04 as run
 
@@ -38,9 +42,8 @@ RUN groupadd -r www && useradd -r -g www www
 USER www
 
 # Скопируем приложение со сборочного контейнера в директорию /app.
-# Не забываем также папку data, она пригодится.
 COPY --from=build /app/build/bin/game_server /app/
 COPY ./data /app/data
 
 # Запускаем игровой сервер
-ENTRYPOINT ["/app/game_server", "/app/data/config.json"] 
+ENTRYPOINT ["/app/game_server", "/app/data/config.json"]
