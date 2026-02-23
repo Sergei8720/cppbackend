@@ -16,34 +16,32 @@ namespace fs = std::filesystem;
 class RequestHandler {
 public:
     explicit RequestHandler(app::Application& application, fs::path static_content_root_path)
-        : application_{application}, static_content_root_path_{static_content_root_path} {
+        : application_{application}, static_content_root_path_{std::move(static_content_root_path)} {
     }
 
     RequestHandler(const RequestHandler&) = delete;
     RequestHandler& operator=(const RequestHandler&) = delete;
 
-    /*
-    # Обработчик отвратительный, есть идея как сделать его более гибким, но из-за шаблонов другая реализация пока не взлетела (надо обсудить).
-    */
     template <typename Body, typename Allocator, typename Send>
-    void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {// 
-        // Обработать запрос request и отправить ответ, используя send
-        if(rh_storage::ApiV1RequestHandlerExecutor<http::request<Body, http::basic_fields<Allocator>>, Send>
-            ::GetInstance()
-            .Execute(req, application_, std::move(send))) {
+    void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
+        using RequestType = http::request<Body, http::basic_fields<Allocator>>;
+        
+        if (rh_storage::ApiV1RequestHandlerExecutor<RequestType, Send>
+            ::GetInstance().Execute(req, application_, std::forward<Send>(send))) {
             return;
-        } else if(rh_storage::StaticFileRequestHandlerExecutor<http::request<Body, http::basic_fields<Allocator>>, Send>
-            ::GetInstance()
-            .Execute(req, static_content_root_path_, std::move(send))) {
+        }
+        
+        if (rh_storage::StaticFileRequestHandlerExecutor<RequestType, Send>
+            ::GetInstance().Execute(req, static_content_root_path_, std::forward<Send>(send))) {
             return;
-        };
-        rh_storage::PageNotFoundHandler(req, application_, send);
+        }
+        
+        rh_storage::PageNotFoundHandler(req, application_, std::forward<Send>(send));
     }
 
 private:
     app::Application& application_;
     fs::path static_content_root_path_;
-    
 };
 
-}  // namespace http_handler
+}

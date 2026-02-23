@@ -18,48 +18,50 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 add_executable(game_server
-	src/main.cpp
-	src/model/map.cpp
-	src/model/game.cpp
-	src/model/dog.cpp
-	src/model/road.cpp
-	src/model/office.cpp
-	src/model/building.cpp
-	src/model/roadmap.cpp
-	src/model/support_types.cpp
-	src/json/json_loader.cpp
-	src/json/json_converter.cpp
-	src/request_handlers/request_handler.cpp
-	src/utils/request_handlers_utils.cpp
-	src/utils/filesystem_utils.cpp
-	src/utils/random_generators.cpp
-	src/boost_json.cpp
-	src/logging/logging_data_storage.cpp
-	src/logging/logger.cpp
-	src/authentication/player_tokens.cpp
-	src/app/application.cpp
-	src/app/game_session.cpp
-	src/app/player.cpp
-	src/server/http_server.cpp
-	src/program_options/program_options.cpp
-	src/time_management/ticker.cpp
-	src/error_handling/error_report.cpp
+    src/main.cpp
+    src/model/map.cpp
+    src/model/game.cpp
+    src/model/dog.cpp
+    src/model/road.cpp
+    src/model/office.cpp
+    src/model/building.cpp
+    src/model/roadmap.cpp
+    src/model/support_types.cpp
+    src/json/json_loader.cpp
+    src/json/json_converter.cpp
+    src/request_handlers/request_handler.cpp
+    src/utils/request_handlers_utils.cpp
+    src/utils/filesystem_utils.cpp
+    src/utils/random_generators.cpp
+    src/boost_json.cpp
+    src/logging/logging_data_storage.cpp
+    src/logging/logger.cpp
+    src/authentication/player_tokens.cpp
+    src/app/application.cpp
+    src/app/game_session.cpp
+    src/app/game_session_manager.cpp
+    src/app/player.cpp
+    src/server/http_server.cpp
+    src/program_options/program_options.cpp
+    src/time_management/ticker.cpp
+    src/error_handling/error_report.cpp
 )
+
 target_include_directories(game_server PRIVATE
-	src
-	src/json
-	src/request_handlers
-	src/utils
-	src/logging
-	src/model
-	src/authentication
-	src/app
-	src/server
-	src/program_options
-	src/time_management
-	src/error_handling
+    src
+    src/json
+    src/request_handlers
+    src/utils
+    src/logging
+    src/model
+    src/authentication
+    src/app
+    src/server
+    src/program_options
+    src/time_management
+    src/error_handling
 )
+
 target_link_libraries(game_server PRIVATE Threads::Threads Boost::log Boost::log_setup Boost::program_options)
 
-# Boost.Beast будет использовать std::string_view вместо boost::string_view
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)

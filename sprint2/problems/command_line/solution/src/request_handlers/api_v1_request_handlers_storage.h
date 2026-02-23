@@ -42,28 +42,53 @@ const std::unordered_set<std::string_view> GAME_API_URLS_WITH_JSON_REQ = {
 const std::string CONTENT_TYPE_APPLICATION_JSON = "application/json";
 const std::string NO_CACHE_CONTROL = "no-cache";
 
-
 template <typename Request>
 bool BadRequestActivator(const Request& req) {
     auto url = SplitUrl(req.target());
-    return !url.empty() &&
-            url[0] == "api" &&
-            (
-                url.size() > SIZE_OF_FIVE_SEGMENT_URL ||
-                url.size() < SIZE_OF_THREE_SEGMENT_URL ||
-                (url.size() >= SIZE_OF_TWO_SEGMENT_URL && 
-                    url[1] != "v1") ||
-                (url.size() >= SIZE_OF_THREE_SEGMENT_URL &&
-                    url[2] != "maps" &&
-                    url[2] != "game" &&
-                    url[3] != "join" &&
-                    url[3] != "players" &&
-                    url[3] != "state" &&
-                    url[3] != "player" &&
-                    url[3] != "tick" &&
-                    (url.size() == SIZE_OF_FIVE_SEGMENT_URL && url[4] != "action"))
-            ); // todo: need refactor
-};
+    if (url.empty() || url[0] != "api") {
+        return false;
+    }
+    
+    if (url.size() > SIZE_OF_FIVE_SEGMENT_URL || url.size() < SIZE_OF_THREE_SEGMENT_URL) {
+        return true;
+    }
+    
+    if (url.size() >= SIZE_OF_TWO_SEGMENT_URL && url[1] != "v1") {
+        return true;
+    }
+    
+    if (url.size() >= SIZE_OF_THREE_SEGMENT_URL) {
+        if (url[2] == "maps") {
+            return url.size() > SIZE_OF_FOUR_SEGMENT_URL;
+        }
+        if (url[2] == "game") {
+            if (url.size() == SIZE_OF_THREE_SEGMENT_URL) {
+                return true;
+            }
+            if (url[3] == "join" && url.size() > SIZE_OF_FOUR_SEGMENT_URL) {
+                return true;
+            }
+            if (url[3] == "players" && url.size() > SIZE_OF_FOUR_SEGMENT_URL) {
+                return true;
+            }
+            if (url[3] == "state" && url.size() > SIZE_OF_FOUR_SEGMENT_URL) {
+                return true;
+            }
+            if (url[3] == "player") {
+                if (url.size() == SIZE_OF_FOUR_SEGMENT_URL) {
+                    return true;
+                }
+                if (url[4] != "action" || url.size() > SIZE_OF_FIVE_SEGMENT_URL) {
+                    return true;
+                }
+            }
+            if (url[3] == "tick" && url.size() > SIZE_OF_FOUR_SEGMENT_URL) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 
 template <typename Request, typename Send>
 std::optional<size_t> BadRequestHandler(
@@ -77,8 +102,7 @@ std::optional<size_t> BadRequestHandler(
     response.keep_alive(req.keep_alive());
     send(response);
     return std::nullopt;
-};
-
+}
 
 template <typename Request>
 bool GetMapListActivator(const Request& req) {
@@ -100,7 +124,6 @@ std::optional<size_t> GetMapListHandler(
     return std::nullopt;
 }
 
-
 template <typename Request>
 bool GetMapByIdActivator(const Request& req) {
     auto url = SplitUrl(req.target());
@@ -115,12 +138,13 @@ std::optional<size_t> GetMapByIdHandler(
         const Request& req,
         app::Application& application,
         Send&& send) {
-    auto id = SplitUrl(req.target())[3];
+    auto url = SplitUrl(req.target());
+    auto id = url[3];
     auto map = application.FindMap(model::Map::Id(std::string(id)));
     if(map == nullptr) {
         return 0;
     }
-    http::response<http::string_body> response(http::status::ok, req.version());
+    StringResponse response(http::status::ok, req.version());
     response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
     response.set(http::field::cache_control, NO_CACHE_CONTROL);
     response.body() = json_converter::ConvertMapToJson(*map);
@@ -128,13 +152,13 @@ std::optional<size_t> GetMapByIdHandler(
     response.keep_alive(req.keep_alive());
     send(response);
     return std::nullopt;
-};
+}
 
 template <typename Request, typename Send>
 std::optional<size_t> MapNotFoundHandler(
         const Request& req,
         app::Application& application,
-        Send&& send)                                                                                                                                                                          {
+        Send&& send) {
     StringResponse response(http::status::not_found, req.version());
     response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
     response.body() = json_converter::CreateMapNotFoundResponse();
@@ -142,13 +166,12 @@ std::optional<size_t> MapNotFoundHandler(
     response.keep_alive(req.keep_alive());
     send(response);
     return std::nullopt;
-};
-
+}
 
 template <typename Request>
 bool JoinToGameInvalidJsonReqActivator(const Request& req) {
     return IsEqualUrls(api_urls::JOIN_TO_GAME_API, req.target()) &&
-        !json_converter::ParseJoinToGameRequest(req.body());
+        !json_converter::ParseJoinToGameRequest(req.body()).has_value();
 }
 
 template <typename Request, typename Send>
@@ -166,18 +189,17 @@ std::optional<size_t> JoinToGameInvalidJsonReqHandler(
     return std::nullopt;
 }
 
-
 template <typename Request>
 bool JoinToGameEmptyPlayerNameActivator(const Request& req) {
-    if(IsEqualUrls(api_urls::JOIN_TO_GAME_API, req.target())) {
-        auto res = json_converter::ParseJoinToGameRequest(req.body());
-        if(!res) {
-            return false;
-        }
-        auto [player_name, map_id] = res.value();
-        return player_name.empty();
+    if (!IsEqualUrls(api_urls::JOIN_TO_GAME_API, req.target())) {
+        return false;
     }
-    return false;
+    auto res = json_converter::ParseJoinToGameRequest(req.body());
+    if (!res) {
+        return false;
+    }
+    auto [player_name, map_id] = res.value();
+    return player_name.empty();
 }
 
 template <typename Request, typename Send>
@@ -195,7 +217,6 @@ std::optional<size_t> JoinToGameEmptyPlayerNameHandler(
     return std::nullopt;
 }
 
-
 template <typename Request>
 bool JoinToGameActivator(const Request& req) {
     return IsEqualUrls(api_urls::JOIN_TO_GAME_API, req.target());
@@ -206,11 +227,17 @@ std::optional<size_t> JoinToGameHandler(
         const Request& req,
         app::Application& application,
         Send&& send) {
-    auto [player_name, map_id] = json_converter::ParseJoinToGameRequest(req.body()).value();
-    if(application.FindMap(map_id) == nullptr) {
+    auto parse_result = json_converter::ParseJoinToGameRequest(req.body());
+    if (!parse_result) {
+        return std::nullopt;
+    }
+    
+    auto [player_name, map_id] = parse_result.value();
+    if (application.FindMap(map_id) == nullptr) {
         return 0;
     }
-    net::dispatch(*application.GetStrand(), [req = std::move(req), application = &application, send = std::move(send)]{
+    
+    net::dispatch(*application.GetStrand(), [req, application = &application, send = std::forward<Send>(send)]() mutable {
         auto [player_name, map_id] = json_converter::ParseJoinToGameRequest(req.body()).value();
         auto [token, player_id] = application->JoinGame(player_name, map_id);
         StringResponse response(http::status::ok, req.version());
@@ -253,14 +280,15 @@ std::optional<size_t> OnlyPostMethodAllowedHandler(
     response.keep_alive(req.keep_alive());
     send(response);
     return std::nullopt;
-};
-
+}
 
 template <typename Request>
 bool EmptyAuthorizationActivator(const Request& req) {
-    return (GAME_API_URLS_WITH_AUTHORIZATION.count(req.target()) > 0) &&
-            (req[http::field::authorization].empty() ||
-            GetTokenString(req[http::field::authorization]).empty());
+    if (GAME_API_URLS_WITH_AUTHORIZATION.count(req.target()) == 0) {
+        return false;
+    }
+    auto auth_header = req[http::field::authorization];
+    return auth_header.empty() || GetTokenString(auth_header).empty();
 }
 
 template <typename Request, typename Send>
@@ -278,7 +306,6 @@ std::optional<size_t> EmptyAuthorizationHandler(
     return std::nullopt;
 }
 
-
 template <typename Request>
 bool GetPlayersListActivator(const Request& req) {
     return IsEqualUrls(api_urls::GET_PLAYERS_LIST_API, req.target());
@@ -290,10 +317,11 @@ std::optional<size_t> GetPlayersListHandler(
         app::Application& application,
         Send&& send) {
     authentication::Token token{GetTokenString(req[http::field::authorization])};
-    if(!application.IsExistPlayer(token)) {
+    if (!application.IsExistPlayer(token)) {
         return 0;
     }
-    net::dispatch(*application.GetStrand(), [req = std::move(req), application = &application, send = std::move(send)]{
+    
+    net::dispatch(*application.GetStrand(), [req, application = &application, send = std::forward<Send>(send)]() mutable {
         authentication::Token token{GetTokenString(req[http::field::authorization])};
         auto players = application->GetPlayersFromGameSession(token);
         StringResponse response(http::status::ok, req.version());
@@ -321,8 +349,7 @@ std::optional<size_t> InvalidMethodHandler(
     response.keep_alive(req.keep_alive());
     send(response);
     return std::nullopt;
-};
-
+}
 
 template <typename Request>
 bool GetGameStateActivator(const Request& req) {
@@ -335,10 +362,11 @@ std::optional<size_t> GetGameStateHandler(
         app::Application& application,
         Send&& send) {
     authentication::Token token{GetTokenString(req[http::field::authorization])};
-    if(!application.IsExistPlayer(token)) {
+    if (!application.IsExistPlayer(token)) {
         return 0;
     }
-    net::dispatch(*application.GetStrand(), [req = std::move(req), application = &application, send = std::move(send)]{
+    
+    net::dispatch(*application.GetStrand(), [req, application = &application, send = std::forward<Send>(send)]() mutable {
         authentication::Token token{GetTokenString(req[http::field::authorization])};
         auto players = application->GetPlayersFromGameSession(token);
         StringResponse response(http::status::ok, req.version());
@@ -352,12 +380,13 @@ std::optional<size_t> GetGameStateHandler(
     return std::nullopt;
 }
 
-
 template <typename Request>
 bool InvalidContentTypeActivator(const Request& req) {
-    return (GAME_API_URLS_WITH_JSON_REQ.count(req.target()) > 0) &&
-            (req[http::field::content_type].empty() ||
-            req[http::field::content_type] != CONTENT_TYPE_APPLICATION_JSON);
+    if (GAME_API_URLS_WITH_JSON_REQ.count(req.target()) == 0) {
+        return false;
+    }
+    auto content_type = req[http::field::content_type];
+    return content_type.empty() || content_type != CONTENT_TYPE_APPLICATION_JSON;
 }
 
 template <typename Request, typename Send>
@@ -377,13 +406,14 @@ std::optional<size_t> InvalidContentTypeHandler(
 
 template <typename Request>
 bool PlayerActionInvalidActionActivator(const Request& req) {
-    if(IsEqualUrls(api_urls::MAKE_ACTION_API, req.target())) {
-        auto res = json_converter::ParsePlayerActionRequest(req.body());
-        if(res.has_value()) {
-            return !model::STRING_TO_DIRECTION.contains(res.value());
-        }
+    if (!IsEqualUrls(api_urls::MAKE_ACTION_API, req.target())) {
+        return false;
     }
-    return false;
+    auto res = json_converter::ParsePlayerActionRequest(req.body());
+    if (!res.has_value()) {
+        return false;
+    }
+    return !model::STRING_TO_DIRECTION.contains(res.value());
 }
 
 template <typename Request, typename Send>
@@ -412,10 +442,11 @@ std::optional<size_t> PlayerActionHandler(
         app::Application& application,
         Send&& send) {
     authentication::Token token{GetTokenString(req[http::field::authorization])};
-    if(!application.IsExistPlayer(token)) {
+    if (!application.IsExistPlayer(token)) {
         return 0;
     }
-    net::dispatch(*application.GetStrand(), [req = std::move(req), application = &application, send = std::move(send)]{
+    
+    net::dispatch(*application.GetStrand(), [req, application = &application, send = std::forward<Send>(send)]() mutable {
         authentication::Token token{GetTokenString(req[http::field::authorization])};
         std::string directionStr = json_converter::ParsePlayerActionRequest(req.body()).value();
         application->SetPlayerAction(token, model::STRING_TO_DIRECTION.at(directionStr));
@@ -429,7 +460,6 @@ std::optional<size_t> PlayerActionHandler(
     });
     return std::nullopt;
 }
-
 
 template <typename Request, typename Send>
 std::optional<size_t> UnknownTokenHandler(
@@ -446,7 +476,6 @@ std::optional<size_t> UnknownTokenHandler(
     return std::nullopt;
 }
 
-
 template <typename Request, typename Send>
 std::optional<size_t> PageNotFoundHandler(
         const Request& req,
@@ -459,16 +488,15 @@ std::optional<size_t> PageNotFoundHandler(
     response.keep_alive(req.keep_alive());
     send(response);
     return std::nullopt;
-};
-
+}
 
 template <typename Request>
 bool TimeTickInvalidMsgActivator(const Request& req) {
-    if(IsEqualUrls(api_urls::MAKE_TIME_TICK_API, req.target())) {
-        auto res = json_converter::ParseSetDeltaTimeRequest(req.body());
-        return !res.has_value();
+    if (!IsEqualUrls(api_urls::MAKE_TIME_TICK_API, req.target())) {
+        return false;
     }
-    return false;
+    auto res = json_converter::ParseSetDeltaTimeRequest(req.body());
+    return !res.has_value();
 }
 
 template <typename Request, typename Send>
@@ -476,7 +504,7 @@ std::optional<size_t> TimeTickInvalidMsgHandler(
         const Request& req,
         app::Application& application,
         Send&& send) {
-    if(!application.IsManualTimeManagement()) {
+    if (!application.IsManualTimeManagement()) {
         return 0;
     }
     StringResponse response(http::status::bad_request, req.version());
@@ -489,7 +517,6 @@ std::optional<size_t> TimeTickInvalidMsgHandler(
     return std::nullopt;
 }
 
-
 template <typename Request>
 bool TimeTickActivator(const Request& req) {
     return IsEqualUrls(api_urls::MAKE_TIME_TICK_API, req.target());
@@ -500,10 +527,11 @@ std::optional<size_t> TimeTickHandler(
         const Request& req,
         app::Application& application,
         Send&& send) {
-    if(!application.IsManualTimeManagement()) {
+    if (!application.IsManualTimeManagement()) {
         return 0;
     }
-    net::dispatch(*application.GetStrand(), [req = std::move(req), application = &application, send = std::move(send)]{
+    
+    net::dispatch(*application.GetStrand(), [req, application = &application, send = std::forward<Send>(send)]() mutable {
         int delta_time = json_converter::ParseSetDeltaTimeRequest(req.body()).value();
         std::chrono::milliseconds dtime(delta_time);
         application->UpdateGameState(dtime);

@@ -5,28 +5,40 @@ namespace time_m {
 
 using namespace std::literals;
 
+Ticker::Ticker(std::shared_ptr<Strand> strand, std::chrono::milliseconds period, Handler handler)
+    : strand_{std::move(strand)}
+    , timer_{*strand_}
+    , period_{period}
+    , handler_{std::move(handler)} {
+}
+
 void Ticker::Start() {
     last_tick_ = std::chrono::steady_clock::now();
-    /* Выполнить SchedulTick внутри strand_ */
     ScheduleTick();
 }
 
 void Ticker::ScheduleTick() {
-    /* выполнить OnTick через промежуток времени period_ */
     timer_.expires_after(period_);
-    timer_.async_wait(net::bind_executor(*strand_, [self = shared_from_this()](sys::error_code ec) {
-        self->OnTick(ec);
-    }));
+    timer_.async_wait(net::bind_executor(*strand_,
+        [self = shared_from_this()](sys::error_code ec) {
+            self->OnTick(ec);
+        }));
 }
 
 void Ticker::OnTick(sys::error_code ec) {
     if (ec) {
-        error_report::ReportError(ec, "Update game state timer tick"sv);
+        if (ec != net::error::operation_aborted) {
+            error_report::ReportError(ec, "ticker"sv);
+        }
+        return;
     }
-    std::chrono::time_point<std::chrono::steady_clock> current_tick = std::chrono::steady_clock::now();
-    std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(current_tick - last_tick_);
+    
+    auto now = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_tick_);
+    
     handler_(duration);
-    last_tick_ = current_tick;
+    
+    last_tick_ = now;
     ScheduleTick();
 }
 

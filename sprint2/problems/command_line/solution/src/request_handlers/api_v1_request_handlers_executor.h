@@ -15,13 +15,11 @@ class ApiV1RequestHandlerExecutor{
     using ActivatorType = bool(*)(const Request&);
     using HandlerType = std::optional<size_t>(*)(const Request&, app::Application&, Send&&);
 public:
-    // убираем конструктор копирования
     ApiV1RequestHandlerExecutor(const ApiV1RequestHandlerExecutor&) = delete;
     ApiV1RequestHandlerExecutor& operator=(const ApiV1RequestHandlerExecutor&) = delete;
     ApiV1RequestHandlerExecutor(ApiV1RequestHandlerExecutor&&) = delete;
     ApiV1RequestHandlerExecutor& operator=(ApiV1RequestHandlerExecutor&&) = delete;
 
-    // получение ссылки на единственный объект
     static ApiV1RequestHandlerExecutor& GetInstance() {
         static ApiV1RequestHandlerExecutor obj;
         return obj;

@@ -11,44 +11,46 @@ const size_t TOKEN_INDEX = 1;
 
 std::vector<std::string_view> SplitUrl(std::string_view str) {
     std::vector<std::string_view> result;
-    std::string delim = "/";
-    if(str.empty() or str == delim) return result;
-    auto start = 1U; // Ignore first slash
-    auto end = str.find(delim, start);
-    while (end != std::string::npos) {
-        result.push_back(str.substr(start, end - start));
-        start = end + delim.length();
-        end = str.find(delim, start);
+    
+    if (str.empty() || str == "/") {
+        return result;
     }
-    result.push_back(str.substr(start, end));
+    
+    size_t start = 1;
+    size_t end = str.find('/', start);
+    
+    while (end != std::string_view::npos) {
+        result.push_back(str.substr(start, end - start));
+        start = end + 1;
+        end = str.find('/', start);
+    }
+    
+    result.push_back(str.substr(start));
     return result;
-};
+}
 
 std::string GetTokenString(std::string_view bearer_string) {
-    std::string token;
-    std::vector<std::string_view> splitted;
-    std::string delim = " ";
-    if(bearer_string.empty() or bearer_string == delim) {
-        return token;
+    if (bearer_string.empty()) {
+        return "";
     }
-    auto start = 0U;
-    auto end = bearer_string.find(delim, start);
-    while (end != std::string::npos) {
-        splitted.push_back(bearer_string.substr(start, end - start));
-        start = end + delim.length();
-        end = bearer_string.find(delim, start);
+    
+    size_t space_pos = bearer_string.find(' ');
+    if (space_pos == std::string_view::npos) {
+        return "";
     }
-    splitted.push_back(bearer_string.substr(start, end));
-    if(splitted.size() != AUTHORIZATION_NUMBER_PARTS ||
-    splitted[BEARER_INDEX] != BEARER ||
-    splitted[TOKEN_INDEX].size() != TOKEN_SIZE) {
-        return token;
+    
+    std::string_view bearer_part = bearer_string.substr(0, space_pos);
+    std::string_view token_part = bearer_string.substr(space_pos + 1);
+    
+    if (bearer_part != BEARER || token_part.size() != TOKEN_SIZE) {
+        return "";
     }
-    return std::string(splitted[TOKEN_INDEX]);
-};
+    
+    return std::string(token_part);
+}
 
-bool IsEqualUrls(const std::string& server_url, const std::string_view request_url){
+bool IsEqualUrls(const std::string& server_url, const std::string_view request_url) {
     return request_url == server_url || request_url == server_url + "/";
-};
+}
 
 }

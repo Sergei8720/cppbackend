@@ -57,7 +57,6 @@ void Map::AddOffice(const Office& office) {
     try {
         warehouse_id_to_index_.emplace(o.GetId(), index);
     } catch (...) {
-        // Удаляем офис из вектора, если не удалось вставить в unordered_map
         offices_.pop_back();
         throw;
     }
@@ -87,7 +86,6 @@ std::tuple<Position, Velocity> Map::GetValidMove(const Position& old_position,
 void tag_invoke(json::value_from_tag, json::value& jv, const Map& map) {
     jv = {{MAP_ID, json::value_from(*(map.GetId()))},
             {MAP_NAME, json::value_from(map.GetName())},
-            //{MAP_DOG_VELOCITY, json::value_from(map.GetDogVelocity())}, // todo: need?
             {ROADS, json::value_from(map.GetRoads())},
             {BUILDINGS, json::value_from(map.GetBuildings())},
             {OFFICES, json::value_from(map.GetOffices())}};

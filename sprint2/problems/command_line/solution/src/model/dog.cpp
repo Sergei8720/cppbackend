@@ -4,64 +4,57 @@ namespace model {
 
 const Dog::Id& Dog::GetId() const {
     return id_;
-};
+}
 
 const std::string& Dog::GetName() const {
     return name_;
-};
+}
 
 void Dog::SetDirection(Direction direction) {
-    direction_ = std::move(direction);
-};
+    direction_ = direction;
+}
 
 const Direction Dog::GetDirection() const {
     return direction_;
-};
+}
 
 void Dog::SetPosition(Position position) {
-    position_ = std::move(position);
-};
+    position_ = position;
+}
 
 const Position& Dog::GetPosition() const {
     return position_;
-};
+}
 
 void Dog::SetVelocity(Velocity velocity) {
     velocity_ = velocity;
-};
+}
 
 const Velocity& Dog::GetVelocity() const {
     return velocity_;
-};
+}
 
 void Dog::SetAction(Direction direction, double velocity) {
+    direction_ = direction;
+    
     switch(direction){
-        case Direction::NORTH: {
-            SetDirection(direction);
-            SetVelocity({0, -velocity});
+        case Direction::NORTH:
+            velocity_ = {0, -velocity};
             break;
-        }
-        case Direction::SOUTH: {
-            SetDirection(direction);
-            SetVelocity({0, velocity});
+        case Direction::SOUTH:
+            velocity_ = {0, velocity};
             break;
-        }
-        case Direction::WEST: {
-            SetDirection(direction);
-            SetVelocity({-velocity, 0});
+        case Direction::WEST:
+            velocity_ = {-velocity, 0};
             break;
-        }
-        case Direction::EAST: {
-            SetDirection(direction);
-            SetVelocity({velocity, 0});
+        case Direction::EAST:
+            velocity_ = {velocity, 0};
             break;
-        }
-        case Direction::NONE: {
-            SetVelocity({0, 0});
+        case Direction::NONE:
+            velocity_ = {0, 0};
             break;
-        }
     }
-};
+}
 
 Position Dog::CalculateNewPosition(const std::chrono::milliseconds& delta_time) {
     Position position = GetPosition();
@@ -69,6 +62,6 @@ Position Dog::CalculateNewPosition(const std::chrono::milliseconds& delta_time) 
     position.x += velocity.vx * delta_time.count() / MILLISECONDS_IN_SECOND;
     position.y += velocity.vy * delta_time.count() / MILLISECONDS_IN_SECOND;
     return position;
-};
+}
 
 }
