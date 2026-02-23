@@ -107,8 +107,9 @@ private:
         BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("request received"sv,
             logware::RequestLogData(GetRemoteIp(), request));
         
+        auto self = this->shared_from_this();
         request_handler_(std::move(request),
-            [self = this->shared_from_this()](auto&& response) {
+            [self](auto&& response) {
                 self->Write(std::move(response));
             });
     }
