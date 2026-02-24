@@ -9,7 +9,6 @@
 
 namespace model {
 
-
 class Roadmap {
 public:
     using Roads = std::vector<Road>;
@@ -39,18 +38,18 @@ private:
     MatrixMap matrix_map_;
     Roads roads_;
 
-    std::optional<const MatrixMapCoord> GetDestinationRoadsOfRoute(
-        std::optional<const MatrixMapCoord> start,
-        std::optional<const MatrixMapCoord> end,
+    std::optional<MatrixMapCoord> GetDestinationRoadsOfRoute(
+        std::optional<MatrixMapCoord> start,
+        std::optional<MatrixMapCoord> end,
         const Velocity& old_velocity);
-    std::optional<const MatrixMapCoord> GetCoordinatesOfPosition(const Position& position);
-    const Direction VelocityToDirection(const Velocity& velocity);
-    const std::unordered_map<Direction, Position> MatrixCoordinateToPosition(const MatrixMapCoord& coord,
+    std::optional<MatrixMapCoord> GetCoordinatesOfPosition(const Position& position);
+    Direction VelocityToDirection(const Velocity& velocity);
+    std::unordered_map<Direction, Position> MatrixCoordinateToPosition(const MatrixMapCoord& coord,
                                                                             const Position& target_position);
     bool IsCrossedSets(const std::unordered_set<size_t>& lhs,
                         const std::unordered_set<size_t>& rhs);
     bool ValidateCoordinates(const MatrixMapCoord& coordinates);
-    const Position GetFarestPoinOfRoute(const MatrixMapCoord& roads_coord,
+    Position GetFarestPoinOfRoute(const MatrixMapCoord& roads_coord,
                                         const Position& old_position,
                                         const Velocity& old_velocity);
     bool IsValidPosition(const std::unordered_set<size_t>& roads_ind,
