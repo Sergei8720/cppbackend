@@ -34,6 +34,11 @@ public:
         }
     }
 
+    template <typename Body, typename Fields>
+    void WriteResponse(http::response<Body, Fields>&& response) {
+        Write(std::move(response));
+    }
+
 protected:
     explicit SessionBase(tcp::socket&& socket)
         : stream_(std::move(socket)) {
@@ -110,7 +115,7 @@ private:
         auto self = this->shared_from_this();
         request_handler_(std::move(request),
             [self](auto&& response) {
-                self->Write(std::move(response));
+                self->WriteResponse(std::move(response));
             });
     }
 };
