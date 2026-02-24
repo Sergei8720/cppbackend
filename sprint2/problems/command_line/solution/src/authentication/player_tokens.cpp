@@ -14,13 +14,14 @@ Token PlayerTokens::AddPlayer(std::weak_ptr<app::Player> player) {
     Token token{ss.str()};
     tokenToPalyer_[token] = player;
     return token;
-};
+}
 
-std::weak_ptr<app::Player> PlayerTokens::FindPlayerBy(Token token) {
-    if(!tokenToPalyer_.contains(token)){
+std::weak_ptr<app::Player> PlayerTokens::FindPlayerBy(Token token) const {
+    auto it = tokenToPalyer_.find(token);
+    if(it == tokenToPalyer_.end()){
         return std::weak_ptr<app::Player>();
     }
-    return tokenToPalyer_[token];
-};
+    return it->second;
+}
 
 }

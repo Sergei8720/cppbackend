@@ -24,7 +24,7 @@ public:
     virtual ~PlayerTokens() = default;
 
     Token AddPlayer(std::weak_ptr<app::Player> player);
-    std::weak_ptr<app::Player> FindPlayerBy(Token token);
+    std::weak_ptr<app::Player> FindPlayerBy(Token token) const;
 private:
     std::unordered_map< Token, std::weak_ptr<app::Player>, TokenHasher > tokenToPalyer_;
     std::random_device random_device_;
@@ -36,7 +36,6 @@ private:
         std::uniform_int_distribution<std::mt19937_64::result_type> dist;
         return dist(random_device_);
     }()};
-   
 }; 
 
-}  // namespace authentication
+}
