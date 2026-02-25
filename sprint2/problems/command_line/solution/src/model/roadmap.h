@@ -34,7 +34,9 @@ private:
             return (x == other.x) && (y == other.y); 
         };
     };
+    
     using MatrixMap = std::map< int64_t, std::map<int64_t, std::unordered_set<size_t> > >;
+    
     MatrixMap matrix_map_;
     Roads roads_;
 
@@ -54,9 +56,11 @@ private:
                                         const Velocity& old_velocity);
     bool IsValidPosition(const std::unordered_set<size_t>& roads_ind,
                         const Position& position);
-    
     bool IsValidPositionOnRoad(const Road& road, const Position& position);
     void CopyContent(const Roads& roads);
+    
+    void FillMatrixForRoad(const Road& road, size_t index, int64_t start, int64_t end, 
+                          int64_t fixed_coord, bool is_horizontal);
 };
 
 }

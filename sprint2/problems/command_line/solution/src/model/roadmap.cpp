@@ -18,7 +18,7 @@ Roadmap::Roadmap(const Roadmap& other) {
     CopyContent(other.roads_);
 }
 
-Roadmap::Roadmap(Roadmap&& other) noexcept {
+Roadmap::Roadmap(Roadmap&& other) {
     matrix_map_ = std::move(other.matrix_map_);
     roads_ = std::move(other.roads_);
 }
@@ -30,7 +30,7 @@ Roadmap& Roadmap::operator = (const Roadmap& other) {
     return *this;
 }
 
-Roadmap& Roadmap::operator = (Roadmap&& other) noexcept {
+Roadmap& Roadmap::operator = (Roadmap&& other) {
     if(this != &other) {
         matrix_map_ = std::move(other.matrix_map_);
         roads_ = std::move(other.roads_);
@@ -46,10 +46,8 @@ void Roadmap::FillMatrixForRoad(const Road& road, size_t index, int64_t start, i
         for (int64_t coord = start; coord <= end; ++coord) {
             for (int64_t i = -SCALLED_OFFSET; i <= SCALLED_OFFSET; ++i) {
                 if (is_horizontal) {
-                    // Для горизонтальной дороги: coord = x, фиксированная координата = y
                     matrix_map_[coord][fixed_coord + i].insert(index);
                 } else {
-                    // Для вертикальной дороги: coord = y, фиксированная координата = x
                     matrix_map_[fixed_coord + i][coord].insert(index);
                 }
             }
@@ -117,18 +115,20 @@ const Roadmap::Roads& Roadmap::GetRoads() const noexcept {
 std::tuple<Position, Velocity> Roadmap::GetValidMove(const Position& old_position,
                             const Position& potential_new_position,
                             const Velocity& old_velocity) {
+    Velocity zero_velocity = {0, 0};
+    
     try {
-        Velocity velocity = {0, 0};
         auto start_roads = GetCoordinatesOfPosition(old_position);
         
         if (!start_roads) {
             BOOST_LOG_TRIVIAL(warning) << logware::CreateLogMessage("warning"sv,
                 logware::ExceptionLogData(0, "Start position not on any road", 
                     "x: " + std::to_string(old_position.x) + ", y: " + std::to_string(old_position.y)));
-            return std::tie(old_position, Velocity{0, 0});
+            return std::make_tuple(old_position, zero_velocity);
         }
         
         auto end_roads = GetCoordinatesOfPosition(potential_new_position);
+        Velocity velocity = zero_velocity;
         
         if(end_roads){
             if(!IsValidPosition(matrix_map_[end_roads.value().x][end_roads.value().y],
@@ -141,7 +141,7 @@ std::tuple<Position, Velocity> Roadmap::GetValidMove(const Position& old_positio
             } else if(start_roads == end_roads) {
                 BOOST_LOG_TRIVIAL(debug) << logware::CreateLogMessage("debug"sv,
                     logware::ExceptionLogData(0, "Move within same road cell", ""));
-                return std::tie(potential_new_position, old_velocity);
+                return std::make_tuple(potential_new_position, old_velocity);
             }
         }
         
@@ -163,12 +163,12 @@ std::tuple<Position, Velocity> Roadmap::GetValidMove(const Position& old_positio
                     "x: " + std::to_string(position.x) + ", y: " + std::to_string(position.y)));
         }
         
-        return std::tie(position, velocity);
+        return std::make_tuple(position, velocity);
         
     } catch (const std::exception& e) {
         BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error"sv,
             logware::ExceptionLogData(0, "Error in GetValidMove", e.what()));
-        return std::tie(old_position, Velocity{0, 0});
+        return std::make_tuple(old_position, zero_velocity);
     }
 }
 
