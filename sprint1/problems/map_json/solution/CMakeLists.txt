@@ -2,13 +2,7 @@ cmake_minimum_required(VERSION 3.11)
 
 project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
-
-# Устанавливаем директорию для выходных файлов
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 # Подключаем правильный файл для cmake_multi
 if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
@@ -42,37 +36,21 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# Определяем переменные для текущего типа сборки
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CONAN_CURRENT_INCLUDE_DIRS ${CONAN_INCLUDE_DIRS_DEBUG})
-    set(CONAN_CURRENT_LIBS ${CONAN_LIBS_DEBUG})
-    message(STATUS "Using Debug configuration")
-else()
-    set(CONAN_CURRENT_INCLUDE_DIRS ${CONAN_INCLUDE_DIRS_RELEASE})
-    set(CONAN_CURRENT_LIBS ${CONAN_LIBS_RELEASE})
-    message(STATUS "Using Release configuration")
-endif()
+# Добавляем директории с заголовками из Conan для текущей конфигурации
+target_include_directories(game_server PRIVATE 
+    ${CONAN_INCLUDE_DIRS_${CMAKE_BUILD_TYPE}}
+)
 
-# Добавляем директории с заголовками из Conan
-target_include_directories(game_server PRIVATE ${CONAN_CURRENT_INCLUDE_DIRS})
-
-# Линкуем библиотеки
+# Линкуем библиотеки для текущей конфигурации
 target_link_libraries(game_server 
     PRIVATE 
     Threads::Threads 
-    ${CONAN_CURRENT_LIBS}
+    ${CONAN_LIBS_${CMAKE_BUILD_TYPE}}
 )
 
-# Заменяем устаревшее определение на новое
-target_compile_definitions(game_server PRIVATE BOOST_NO_CXX17_HDR_STRING_VIEW)
+add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
 
-# Диагностика для проверки правильности настроек
-message(STATUS "CONAN_CURRENT_INCLUDE_DIRS: ${CONAN_CURRENT_INCLUDE_DIRS}")
-message(STATUS "CONAN_CURRENT_LIBS: ${CONAN_CURRENT_LIBS}")
-message(STATUS "Boost include dirs found: ")
-foreach(dir ${CONAN_CURRENT_INCLUDE_DIRS})
-    if(dir MATCHES ".*boost.*")
-        message(STATUS "  ${dir}")
-    endif()
-endforeach()
-message(STATUS "Output directory: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+# Диагностика
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "CONAN_INCLUDE_DIRS_${CMAKE_BUILD_TYPE}: ${CONAN_INCLUDE_DIRS_${CMAKE_BUILD_TYPE}}")
+message(STATUS "CONAN_LIBS_${CMAKE_BUILD_TYPE}: ${CONAN_LIBS_${CMAKE_BUILD_TYPE}}")
