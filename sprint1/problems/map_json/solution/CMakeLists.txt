@@ -4,27 +4,13 @@ project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
+#include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+include(${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
+
+conan_basic_setup(TARGETS)
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-
-# Подключаем правильный файл для cmake_multi
-if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
-    message(STATUS "Using conanbuildinfo_multi.cmake")
-    include(${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
-elseif(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-    message(STATUS "Using conanbuildinfo.cmake")
-    include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-else()
-    message(FATAL_ERROR "conanbuildinfo.cmake not found! Run Conan first")
-endif()
-
-# Используем режим NO_OUTPUT_DIRS чтобы получить переменные с путями
-conan_basic_setup(NO_OUTPUT_DIRS)
-
-# НЕ ИСПОЛЬЗУЕМ find_package(Boost) - Conan уже предоставляет все нужные переменные
-# Просто проверяем что CONAN_INCLUDE_DIRS содержит пути к Boost
-message(STATUS "CONAN_INCLUDE_DIRS: ${CONAN_INCLUDE_DIRS}")
-message(STATUS "CONAN_LIBS: ${CONAN_LIBS}")
 
 add_executable(game_server
     src/main.cpp
@@ -42,15 +28,10 @@ add_executable(game_server
     src/json_converter.cpp
     src/json_converter.h
 )
+target_link_libraries(collision_detection_lib PUBLIC CONAN_PKG::boost Threads::Threads)
 
-# Добавляем директории с заголовками из Conan (включая Boost)
-target_include_directories(game_server PRIVATE ${CONAN_INCLUDE_DIRS})
-
-# Линкуем библиотеки из Conan
-target_link_libraries(game_server 
-    PRIVATE 
-    Threads::Threads 
-    ${CONAN_LIBS}
+add_executable(collision_detection_tests
+	tests/collision-detector-tests.cpp
 )
 
-add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
+target_link_libraries(collision_detection_tests CONAN_PKG::catch2 collision_detection_lib)
