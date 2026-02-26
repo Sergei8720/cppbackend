@@ -21,10 +21,10 @@ endif()
 # Используем режим NO_OUTPUT_DIRS чтобы получить переменные с путями
 conan_basic_setup(NO_OUTPUT_DIRS)
 
-find_package(Boost 1.78.0 REQUIRED)
-if(Boost_FOUND)
-    include_directories(${Boost_INCLUDE_DIRS})
-endif()
+# НЕ ИСПОЛЬЗУЕМ find_package(Boost) - Conan уже предоставляет все нужные переменные
+# Просто проверяем что CONAN_INCLUDE_DIRS содержит пути к Boost
+message(STATUS "CONAN_INCLUDE_DIRS: ${CONAN_INCLUDE_DIRS}")
+message(STATUS "CONAN_LIBS: ${CONAN_LIBS}")
 
 add_executable(game_server
     src/main.cpp
@@ -43,10 +43,10 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# Добавляем директории с заголовками из Conan
+# Добавляем директории с заголовками из Conan (включая Boost)
 target_include_directories(game_server PRIVATE ${CONAN_INCLUDE_DIRS})
 
-# Линкуем библиотеки
+# Линкуем библиотеки из Conan
 target_link_libraries(game_server 
     PRIVATE 
     Threads::Threads 
@@ -54,7 +54,3 @@ target_link_libraries(game_server
 )
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
-
-# Диагностика
-message(STATUS "CONAN_INCLUDE_DIRS: ${CONAN_INCLUDE_DIRS}")
-message(STATUS "CONAN_LIBS: ${CONAN_LIBS}")
