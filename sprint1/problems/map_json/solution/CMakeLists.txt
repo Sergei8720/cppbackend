@@ -4,31 +4,27 @@ project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
-
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup()
-
-find_package(Boost 1.78.0 REQUIRED)
-if(Boost_FOUND)
-  include_directories(${Boost_INCLUDE_DIRS})
-endif()
-
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
+
 # Подключаем правильный файл для cmake_multi
 if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
     message(STATUS "Using conanbuildinfo_multi.cmake")
     include(${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
-else()
+elseif(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
     message(STATUS "Using conanbuildinfo.cmake")
     include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+else()
+    message(FATAL_ERROR "conanbuildinfo.cmake not found! Run Conan first")
 endif()
 
 # Используем режим NO_OUTPUT_DIRS чтобы получить переменные с путями
 conan_basic_setup(NO_OUTPUT_DIRS)
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
+find_package(Boost 1.78.0 REQUIRED)
+if(Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+endif()
 
 add_executable(game_server
     src/main.cpp
