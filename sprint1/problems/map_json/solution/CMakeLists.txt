@@ -4,18 +4,20 @@ project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
-# Для cmake_multi подключаем правильный файл
+# Подключаем правильный файл для cmake_multi
 if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
+    message(STATUS "Using conanbuildinfo_multi.cmake")
     include(${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
 else()
+    message(STATUS "Using conanbuildinfo.cmake")
     include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 endif()
 
+# Эта функция установит все необходимые переменные и пути
 conan_basic_setup()
 
-# Не используем find_package для Boost - он уже в CONAN_LIBS
-# Просто подключаем директории
-include_directories(${CONAN_INCLUDE_DIRS})
+# Не используем find_package для Boost - Conan уже все настроил
+# Вместо этого используем переменные от Conan
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -37,14 +39,16 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# Линкуем ВСЕ библиотеки из Conan, включая jsoncpp
+# Линкуем ВСЕ библиотеки из Conan
 target_link_libraries(game_server 
     PRIVATE 
     Threads::Threads 
-    ${CONAN_LIBS}  # Вместо jsoncpp
+    ${CONAN_LIBS}
 )
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
 
-# Для отладки - посмотрим, что линкуется
+# Диагностика - выводим пути для отладки
+message(STATUS "CONAN_INCLUDE_DIRS: ${CONAN_INCLUDE_DIRS}")
+message(STATUS "CONAN_LIB_DIRS: ${CONAN_LIB_DIRS}")
 message(STATUS "CONAN_LIBS: ${CONAN_LIBS}")
