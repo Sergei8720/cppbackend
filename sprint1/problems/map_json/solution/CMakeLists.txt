@@ -13,8 +13,8 @@ else()
     include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 endif()
 
-# Режим TARGETS создаст цели для каждой библиотеки
-conan_basic_setup(TARGETS)
+# Используем режим NO_OUTPUT_DIRS чтобы получить переменные с путями
+conan_basic_setup(NO_OUTPUT_DIRS)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -36,26 +36,23 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# Линкуем через цели Conan и явно указываем директории с заголовками
+# Добавляем директории с заголовками из Conan
+target_include_directories(game_server PRIVATE 
+    ${CONAN_INCLUDE_DIRS_BOOST}
+    ${CONAN_INCLUDE_DIRS_JSONCPP}
+)
+
+# Линкуем библиотеки
 target_link_libraries(game_server 
     PRIVATE 
     Threads::Threads 
-    CONAN_PKG::boost
-    CONAN_PKG::jsoncpp
-)
-
-# Получаем пути к заголовочным файлам из целей Conan
-get_target_property(BOOST_INCLUDE_DIRS CONAN_PKG::boost INTERFACE_INCLUDE_DIRECTORIES)
-get_target_property(JSONCPP_INCLUDE_DIRS CONAN_PKG::jsoncpp INTERFACE_INCLUDE_DIRECTORIES)
-
-# Добавляем директории с заголовками
-target_include_directories(game_server PRIVATE 
-    ${BOOST_INCLUDE_DIRS}
-    ${JSONCPP_INCLUDE_DIRS}
+    ${CONAN_LIBS_BOOST}
+    ${CONAN_LIBS_JSONCPP}
 )
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
 
 # Диагностика
-message(STATUS "BOOST_INCLUDE_DIRS: ${BOOST_INCLUDE_DIRS}")
-message(STATUS "JSONCPP_INCLUDE_DIRS: ${JSONCPP_INCLUDE_DIRS}")
+message(STATUS "CONAN_INCLUDE_DIRS_BOOST: ${CONAN_INCLUDE_DIRS_BOOST}")
+message(STATUS "CONAN_INCLUDE_DIRS_JSONCPP: ${CONAN_INCLUDE_DIRS_JSONCPP}")
+message(STATUS "CONAN_LIBS_BOOST: ${CONAN_LIBS_BOOST}")
