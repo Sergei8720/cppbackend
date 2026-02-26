@@ -43,14 +43,18 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# Линкуем библиотеки для текущего типа сборки
+# Добавляем директории с заголовками
+target_include_directories(game_server PRIVATE ${CONAN_INCLUDE_DIRS})
+
+# Линкуем библиотеки
 target_link_libraries(game_server 
     PRIVATE 
     Threads::Threads 
-    ${CONAN_LIBS_${CMAKE_BUILD_TYPE}}
+    ${CONAN_LIBS}
 )
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Output directory: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+message(STATUS "Conan libs: ${CONAN_LIBS}")
