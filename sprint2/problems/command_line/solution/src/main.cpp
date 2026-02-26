@@ -17,22 +17,6 @@ namespace net = boost::asio;
 namespace sys = boost::system;
 namespace fs = std::filesystem;
 
-namespace {
-
-template <typename Fn>
-void RunWorkers(size_t n, const Fn& fn) {
-    n = std::max(static_cast<size_t>(1), n);
-    std::vector<std::jthread> workers;
-    workers.reserve(n - 1);
-    
-    while (--n) {
-        workers.emplace_back(fn);
-    }
-    fn();
-}
-
-}
-
 int main(int argc, const char* argv[]) {
     logware::InitLogger();
     
@@ -51,7 +35,7 @@ int main(int argc, const char* argv[]) {
         signals.async_wait([&ioc](const sys::error_code& ec, int) {
             if (!ec) {
                 BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("server exited"sv,
-                    logware::ExitCodeLogData(0));
+                    logware::ExitCodeLogData{0});
                 ioc.stop();
             }
         });
@@ -68,9 +52,16 @@ int main(int argc, const char* argv[]) {
         BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("server started"sv,
             logware::ServerAddressLogData(address.to_string(), port));
         
-        RunWorkers(std::max(1u, num_threads), [&ioc] {
-            ioc.run();
-        });
+        std::vector<std::jthread> workers;
+        workers.reserve(num_threads - 1);
+        
+        for (unsigned i = 1; i < num_threads; ++i) {
+            workers.emplace_back([&ioc] {
+                ioc.run();
+            });
+        }
+        
+        ioc.run();
         
     } catch (const std::exception& ex) {
         BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error"sv,
