@@ -4,14 +4,6 @@ project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
-# Устанавливаем директорию для выходных файлов
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-# Устанавливаем тип сборки, если он не задан
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
-endif()
-
 # Подключаем правильный файл для cmake_multi
 if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
     message(STATUS "Using conanbuildinfo_multi.cmake")
@@ -21,7 +13,8 @@ else()
     include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 endif()
 
-conan_basic_setup()
+# Используем режим NO_OUTPUT_DIRS чтобы получить переменные с путями
+conan_basic_setup(NO_OUTPUT_DIRS)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -43,7 +36,7 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# Добавляем директории с заголовками
+# Добавляем директории с заголовками из Conan
 target_include_directories(game_server PRIVATE ${CONAN_INCLUDE_DIRS})
 
 # Линкуем библиотеки
@@ -55,6 +48,6 @@ target_link_libraries(game_server
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
 
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "Output directory: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
-message(STATUS "Conan libs: ${CONAN_LIBS}")
+# Диагностика
+message(STATUS "CONAN_INCLUDE_DIRS: ${CONAN_INCLUDE_DIRS}")
+message(STATUS "CONAN_LIBS: ${CONAN_LIBS}")
