@@ -13,11 +13,8 @@ else()
     include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 endif()
 
-# Эта функция установит все необходимые переменные и пути
-conan_basic_setup()
-
-# Не используем find_package для Boost - Conan уже все настроил
-# Вместо этого используем переменные от Conan
+# Режим TARGETS создаст цели для каждой библиотеки
+conan_basic_setup(TARGETS)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -39,16 +36,16 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# Линкуем ВСЕ библиотеки из Conan
+# Линкуем через цели Conan - это самый надежный способ
 target_link_libraries(game_server 
     PRIVATE 
     Threads::Threads 
-    ${CONAN_LIBS}
+    CONAN_PKG::boost
+    CONAN_PKG::jsoncpp
 )
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
 
-# Диагностика - выводим пути для отладки
-message(STATUS "CONAN_INCLUDE_DIRS: ${CONAN_INCLUDE_DIRS}")
-message(STATUS "CONAN_LIB_DIRS: ${CONAN_LIB_DIRS}")
-message(STATUS "CONAN_LIBS: ${CONAN_LIBS}")
+# Диагностика
+get_target_property(BOOST_INCLUDE CONAN_PKG::boost INTERFACE_INCLUDE_DIRECTORIES)
+message(STATUS "BOOST_INCLUDE from target: ${BOOST_INCLUDE}")
