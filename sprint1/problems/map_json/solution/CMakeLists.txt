@@ -4,6 +4,11 @@ project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
+# Устанавливаем тип сборки, если он не задан
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+endif()
+
 # Подключаем правильный файл для cmake_multi
 if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
     message(STATUS "Using conanbuildinfo_multi.cmake")
@@ -36,21 +41,25 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# Добавляем директории с заголовками из Conan для текущей конфигурации
+# Преобразуем тип сборки в верхний регистр для переменных Conan
+string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_UPPER)
+
+# Добавляем директории с заголовками из Conan
 target_include_directories(game_server PRIVATE 
-    ${CONAN_INCLUDE_DIRS_${CMAKE_BUILD_TYPE}}
+    ${CONAN_INCLUDE_DIRS_${BUILD_TYPE_UPPER}}
 )
 
-# Линкуем библиотеки для текущей конфигурации
+# Линкуем библиотеки
 target_link_libraries(game_server 
     PRIVATE 
     Threads::Threads 
-    ${CONAN_LIBS_${CMAKE_BUILD_TYPE}}
+    ${CONAN_LIBS_${BUILD_TYPE_UPPER}}
 )
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
 
 # Диагностика
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "CONAN_INCLUDE_DIRS_${CMAKE_BUILD_TYPE}: ${CONAN_INCLUDE_DIRS_${CMAKE_BUILD_TYPE}}")
-message(STATUS "CONAN_LIBS_${CMAKE_BUILD_TYPE}: ${CONAN_LIBS_${CMAKE_BUILD_TYPE}}")
+message(STATUS "BUILD_TYPE_UPPER: ${BUILD_TYPE_UPPER}")
+message(STATUS "CONAN_INCLUDE_DIRS_${BUILD_TYPE_UPPER}: ${CONAN_INCLUDE_DIRS_${BUILD_TYPE_UPPER}}")
+message(STATUS "CONAN_LIBS_${BUILD_TYPE_UPPER}: ${CONAN_LIBS_${BUILD_TYPE_UPPER}}")
