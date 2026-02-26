@@ -73,6 +73,9 @@ void Session::OnWrite(bool close, beast::error_code ec, std::size_t bytes_writte
 void Session::Close() {
     beast::error_code ec;
     stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
+    if (ec) {
+        ReportError(ec, "shutdown");
+    }
 }
 
 Listener::Listener(net::io_context& ioc, const tcp::endpoint& endpoint, RequestHandler request_handler)

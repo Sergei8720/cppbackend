@@ -93,8 +93,19 @@ void AddOfficesToMap(model::Map& map, const json::value& map_data) {
 }  // namespace
 
 model::Game LoadGame(const std::filesystem::path& json_path) {
-    std::string content = ReadFile(json_path);
-    json::value game_data = json::parse(content);
+    std::string content;
+    try {
+        content = ReadFile(json_path);
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to read file '"s + json_path.string() + "': " + e.what());
+    }
+    
+    json::value game_data;
+    try {
+        game_data = json::parse(content);
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to parse JSON from file '"s + json_path.string() + "': " + e.what());
+    }
     
     model::Game game;
     
