@@ -11,6 +11,7 @@
 namespace json_loader {
 
 using namespace std::literals;
+namespace json = boost::json;
 
 boost::json::value ReadFile(const std::filesystem::path& json_path) {
     std::ifstream file(json_path);
@@ -27,6 +28,7 @@ boost::json::value ReadFile(const std::filesystem::path& json_path) {
     try {
         return boost::json::parse(ss.str());
     } catch (const boost::json::system_error& e) {
+        // Специфичная ошибка парсинга JSON
         BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error"sv,
             logware::ExceptionLogData(EXIT_FAILURE, "JSON syntax error", e.what()));
         throw;
@@ -44,18 +46,19 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
     try {
         boost::json::value jsonVal = ReadFile(json_path);
         
+        // Проверка наличия ключа maps
         if (!jsonVal.as_object().contains(model::MAPS)) {
             throw std::runtime_error("Missing 'maps' key in config file");
         }
         
         try {
-            std::vector<model::Map> maps = boost::json::value_to< std::vector<model::Map> >(
+            std::vector<model::Map> maps = json::value_to< std::vector<model::Map> >(
                 jsonVal.as_object().at(model::MAPS));
             game.AddMaps(maps);
             BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("info"sv,
                 logware::ExceptionLogData(0, "Successfully loaded maps", 
                     "count: " + std::to_string(maps.size())));
-        } catch (const boost::json::system_error& e) {
+        } catch (const json::system_error& e) {
             BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error"sv,
                 logware::ExceptionLogData(EXIT_FAILURE, "Failed to convert maps from JSON", e.what()));
             throw;
@@ -65,6 +68,7 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
             throw;
         }
         
+        // Обработка default_dog_velocity
         try {
             if (jsonVal.as_object().contains(model::DEFAULT_DOG_VELOCITY)) {
                 auto& velocity_val = jsonVal.as_object().at(model::DEFAULT_DOG_VELOCITY);
@@ -87,7 +91,7 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
                             std::to_string(default_dog_velocity)));
                 }
             }
-        } catch (const boost::json::system_error& e) {
+        } catch (const json::system_error& e) {
             BOOST_LOG_TRIVIAL(warning) << logware::CreateLogMessage("warning"sv,
                 logware::ExceptionLogData(0, "Failed to parse defaultDogSpeed", e.what()));
         } catch (const std::exception& e) {
@@ -96,6 +100,7 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
         }
         
     } catch (const OpenConfigFileOfModelException& e) {
+        // Пробрасываем дальше, уже залогировано в ReadFile
         throw;
     } catch (const std::exception& e) {
         BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error"sv,
