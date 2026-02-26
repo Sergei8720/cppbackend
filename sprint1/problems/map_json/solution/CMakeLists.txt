@@ -4,13 +4,18 @@ project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+# Для cmake_multi подключаем правильный файл
+if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
+    include(${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
+else()
+    include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+endif()
+
 conan_basic_setup()
 
-find_package(Boost 1.78.0 REQUIRED)
-if(Boost_FOUND)
-  include_directories(${Boost_INCLUDE_DIRS})
-endif()
+# Не используем find_package для Boost - он уже в CONAN_LIBS
+# Просто подключаем директории
+include_directories(${CONAN_INCLUDE_DIRS})
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -31,5 +36,15 @@ add_executable(game_server
     src/json_converter.cpp
     src/json_converter.h
 )
-target_link_libraries(game_server PRIVATE Threads::Threads jsoncpp)
+
+# Линкуем ВСЕ библиотеки из Conan, включая jsoncpp
+target_link_libraries(game_server 
+    PRIVATE 
+    Threads::Threads 
+    ${CONAN_LIBS}  # Вместо jsoncpp
+)
+
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
+
+# Для отладки - посмотрим, что линкуется
+message(STATUS "CONAN_LIBS: ${CONAN_LIBS}")
