@@ -5,6 +5,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
+# Устанавливаем директорию для выходных файлов
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
 # Подключаем правильный файл для cmake_multi
 if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
     message(STATUS "Using conanbuildinfo_multi.cmake")
@@ -58,8 +63,8 @@ target_link_libraries(game_server
     ${CONAN_CURRENT_LIBS}
 )
 
-# Добавляем определение для Boost.Beast
-target_compile_definitions(game_server PRIVATE BOOST_BEAST_USE_STD_STRING_VIEW)
+# Заменяем устаревшее определение на новое
+target_compile_definitions(game_server PRIVATE BOOST_NO_CXX17_HDR_STRING_VIEW)
 
 # Диагностика для проверки правильности настроек
 message(STATUS "CONAN_CURRENT_INCLUDE_DIRS: ${CONAN_CURRENT_INCLUDE_DIRS}")
@@ -70,3 +75,4 @@ foreach(dir ${CONAN_CURRENT_INCLUDE_DIRS})
         message(STATUS "  ${dir}")
     endif()
 endforeach()
+message(STATUS "Output directory: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
