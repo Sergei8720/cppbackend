@@ -16,6 +16,9 @@ endif()
 # Режим TARGETS создаст цели для каждой библиотеки
 conan_basic_setup(TARGETS)
 
+# Явно добавляем директории с заголовками из Conan
+include_directories(${CONAN_INCLUDE_DIRS})
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
@@ -44,8 +47,12 @@ target_link_libraries(game_server
     CONAN_PKG::jsoncpp
 )
 
+# Добавляем директории с заголовками для нашей цели
+target_include_directories(game_server PRIVATE ${CONAN_INCLUDE_DIRS})
+
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
 
 # Диагностика
 get_target_property(BOOST_INCLUDE CONAN_PKG::boost INTERFACE_INCLUDE_DIRECTORIES)
 message(STATUS "BOOST_INCLUDE from target: ${BOOST_INCLUDE}")
+message(STATUS "CONAN_INCLUDE_DIRS: ${CONAN_INCLUDE_DIRS}")
