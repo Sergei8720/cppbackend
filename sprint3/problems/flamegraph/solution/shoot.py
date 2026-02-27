@@ -4,6 +4,7 @@ import time
 import random
 import shlex
 import signal
+import os
 
 RANDOM_LIMIT = 1000
 SEED = 123456789
@@ -38,7 +39,7 @@ def stop(process, wait=False):
 
 
 def shoot(ammo):
-    hit = run('curl ' + ammo, output=subprocess.DEVNULL)
+    hit = run('curl -s ' + ammo, output=subprocess.DEVNULL)
     time.sleep(COOLDOWN)
     stop(hit, wait=True)
 
@@ -50,63 +51,56 @@ def make_shots():
     print('Shooting complete')
 
 
-def call_perf(pid):
-    # Убрали sudo, добавили -g для записи стеков
-    return run(f'perf record -o {PERF_DATA} -p {pid} -g')
-
-
-def call_flamegraph():
-    # Убрали shell=True, используем пайпы как в теории
+def main():
+    # Запускаем сервер (путь должен быть передан как аргумент)
+    server_cmd = start_server()
+    print(f"Starting server: {server_cmd}")
+    server = run(server_cmd, subprocess.DEVNULL)
+    time.sleep(1)  # Даем серверу больше времени на запуск
+    
+    # Запускаем perf record
+    print(f"Starting perf record for PID {server.pid}")
+    perf = run(f'perf record -o {PERF_DATA} -p {server.pid} -g')
+    time.sleep(0.5)
+    
+    # Обстреливаем сервер
+    make_shots()
+    
+    # Останавливаем perf
+    perf.send_signal(signal.SIGINT)
+    perf.wait()
+    time.sleep(0.5)
+    
+    # Останавливаем сервер
+    stop(server)
+    time.sleep(0.5)
+    
+    # Строим флеймграф
+    print("Generating flamegraph...")
     with open("graph.svg", "w") as graph_file:
         perf_script = subprocess.Popen(
             shlex.split(f"perf script -i {PERF_DATA}"),
-            stdout=subprocess.PIPE
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL
         )
         
         stackcollapse = subprocess.Popen(
             shlex.split("./FlameGraph/stackcollapse-perf.pl"),
             stdin=perf_script.stdout,
-            stdout=subprocess.PIPE
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL
         )
         
         flamegraph = subprocess.Popen(
             shlex.split("./FlameGraph/flamegraph.pl"),
             stdin=stackcollapse.stdout,
-            stdout=graph_file
+            stdout=graph_file,
+            stderr=subprocess.DEVNULL
         )
         
-        # Ждем завершения
-        perf_script.stdout.close()
-        stackcollapse.stdout.close()
         flamegraph.wait()
         stackcollapse.wait()
         perf_script.wait()
-
-
-def main():
-    # Запускаем сервер
-    server = run(start_server())
-    time.sleep(0.1)  # Даем серверу время на запуск
-    
-    # Запускаем perf record
-    perf = call_perf(server.pid)
-    time.sleep(0.1)  # Даем perf время на инициализацию
-    
-    # Обстреливаем сервер
-    make_shots()
-    
-    # Останавливаем perf через SIGINT (как Ctrl+C)
-    perf.send_signal(signal.SIGINT)
-    perf.wait()  # Ждем завершения записи
-    time.sleep(0.1)
-    
-    # Останавливаем сервер
-    stop(server)
-    time.sleep(0.1)
-    
-    # Строим флеймграф
-    call_flamegraph()
-    time.sleep(1)
     
     print('Job done')
     print('Flamegraph saved to graph.svg')
