@@ -62,7 +62,9 @@ target_include_directories(game_server
     ${CONAN_INCLUDE_DIRS}
 )
 
-add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
+# Используем современный способ указания использовать std::string_view
+# Вместо устаревшего BOOST_BEAST_USE_STD_STRING_VIEW
+add_compile_definitions(BOOST_NO_CXX17_HDR_STRING_VIEW=0)
 
 # Диагностика
 message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
