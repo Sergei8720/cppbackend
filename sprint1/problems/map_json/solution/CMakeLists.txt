@@ -5,9 +5,25 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
-# Подключаем Conan
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup(TARGETS)  # Используем TARGETS режим!
+# Определяем тип сборки, если не задан
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
+
+# Подключаем правильный файл Conan в зависимости от типа сборки
+set(CONAN_BUILDINFO_FILE "${CMAKE_BINARY_DIR}/conanbuildinfo_${CMAKE_BUILD_TYPE}.cmake")
+if(EXISTS ${CONAN_BUILDINFO_FILE})
+    message(STATUS "Using ${CONAN_BUILDINFO_FILE}")
+    include(${CONAN_BUILDINFO_FILE})
+elseif(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
+    message(STATUS "Using conanbuildinfo_multi.cmake")
+    include(${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
+else()
+    message(FATAL_ERROR "Conan buildinfo not found! Run Conan first")
+endif()
+
+# Вызываем conan_basic_setup с правильными параметрами
+conan_basic_setup(TARGETS)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
@@ -36,7 +52,7 @@ add_executable(game_server
 target_link_libraries(game_server 
     PRIVATE
     Threads::Threads
-    CONAN_PKG::boost  # Вместо ${CONAN_LIBS}
+    CONAN_PKG::boost
 )
 
 # Добавляем директории с заголовками
@@ -47,3 +63,7 @@ target_include_directories(game_server
 )
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
+
+# Диагностика
+message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+message(STATUS "CONAN_INCLUDE_DIRS: ${CONAN_INCLUDE_DIRS}")
