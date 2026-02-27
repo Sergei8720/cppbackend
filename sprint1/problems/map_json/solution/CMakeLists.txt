@@ -31,5 +31,8 @@ add_executable(game_server
     src/json_converter.cpp
     src/json_converter.h
 )
-target_link_libraries(game_server PRIVATE Threads::Threads jsoncpp)
+
+# ИЗМЕНЕНИЕ: jsoncpp_lib вместо jsoncpp
+target_link_libraries(game_server PRIVATE Threads::Threads jsoncpp_lib)
+
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
