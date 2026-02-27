@@ -1,134 +1,68 @@
 #include "json_converter.h"
-
-#include <json/json.h>
 #include <sstream>
 
-namespace jsonConverter {
+namespace json_converter {
+namespace json = boost::json;
 
-namespace {
-
-const char* const kIdKey = "id";
-const char* const kXKey = "x";
-const char* const kYKey = "y";
-const char* const kWKey = "w";
-const char* const kHKey = "h";
-const char* const kX0Key = "x0";
-const char* const kY0Key = "y0";
-const char* const kX1Key = "x1";
-const char* const kY1Key = "y1";
-const char* const kOffsetXKey = "offsetX";
-const char* const kOffsetYKey = "offsetY";
-const char* const kNameKey = "name";
-const char* const kRoadsKey = "roads";
-const char* const kBuildingsKey = "buildings";
-const char* const kOfficesKey = "offices";
-const char* const kCodeKey = "code";
-const char* const kMessageKey = "message";
-
-Json::Value RoadToJson(const model::Road& road) {
-    Json::Value json_road;
-    json_road[kX0Key] = road.GetStart().x;
-    json_road[kY0Key] = road.GetStart().y;
-    
-    if (road.IsHorizontal()) {
-        json_road[kX1Key] = road.GetEnd().x;
-    } else {
-        json_road[kY1Key] = road.GetEnd().y;
+std::string ConvertMapsToJson(const std::vector<model::Map>& maps) {
+    json::array arr;
+    for (const auto& map : maps) {
+        json::object obj;
+        obj["id"] = *map.GetId();
+        obj["name"] = map.GetName();
+        arr.push_back(obj);
     }
-    
-    return json_road;
-}
-
-Json::Value BuildingToJson(const model::Building& building) {
-    Json::Value json_building;
-    const auto& bounds = building.GetBounds();
-    
-    json_building[kXKey] = bounds.position.x;
-    json_building[kYKey] = bounds.position.y;
-    json_building[kWKey] = bounds.size.width;
-    json_building[kHKey] = bounds.size.height;
-    
-    return json_building;
-}
-
-Json::Value OfficeToJson(const model::Office& office) {
-    Json::Value json_office;
-    
-    json_office[kIdKey] = *office.GetId();
-    json_office[kXKey] = office.GetPosition().x;
-    json_office[kYKey] = office.GetPosition().y;
-    json_office[kOffsetXKey] = office.GetOffset().dx;
-    json_office[kOffsetYKey] = office.GetOffset().dy;
-    
-    return json_office;
-}
-
-std::string CreateErrorResponse(const std::string& code, const std::string& message) {
-    Json::Value root;
-    root[kCodeKey] = code;
-    root[kMessageKey] = message;
-    
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "";
-    return Json::writeString(builder, root);
-}
-
-}  // namespace
-
-std::string ConvertMapListToJson(const model::Game& game) {
-    Json::Value root(Json::arrayValue);
-    
-    for (const auto& map : game.GetMaps()) {
-        Json::Value json_map;
-        json_map[kIdKey] = *map.GetId();
-        json_map[kNameKey] = map.GetName();
-        root.append(json_map);
-    }
-    
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "";
-    return Json::writeString(builder, root);
+    return json::serialize(arr);
 }
 
 std::string ConvertMapToJson(const model::Map& map) {
-    Json::Value root;
+    json::object obj;
+    obj["id"] = *map.GetId();
+    obj["name"] = map.GetName();
     
-    root[kIdKey] = *map.GetId();
-    root[kNameKey] = map.GetName();
-    
-    Json::Value roads(Json::arrayValue);
+    // Добавляем дороги
+    json::array roads;
     for (const auto& road : map.GetRoads()) {
-        roads.append(RoadToJson(road));
+        json::object road_obj;
+        if (road.IsHorizontal()) {
+            road_obj["x0"] = road.GetStart().x;
+            road_obj["y0"] = road.GetStart().y;
+            road_obj["x1"] = road.GetEnd().x;
+        } else {
+            road_obj["x0"] = road.GetStart().x;
+            road_obj["y0"] = road.GetStart().y;
+            road_obj["y1"] = road.GetEnd().y;
+        }
+        roads.push_back(road_obj);
     }
-    root[kRoadsKey] = roads;
+    obj["roads"] = roads;
     
-    Json::Value buildings(Json::arrayValue);
+    // Добавляем здания
+    json::array buildings;
     for (const auto& building : map.GetBuildings()) {
-        buildings.append(BuildingToJson(building));
+        json::object building_obj;
+        building_obj["x"] = building.GetBounds().position.x;
+        building_obj["y"] = building.GetBounds().position.y;
+        building_obj["w"] = building.GetBounds().size.width;
+        building_obj["h"] = building.GetBounds().size.height;
+        buildings.push_back(building_obj);
     }
-    root[kBuildingsKey] = buildings;
+    obj["buildings"] = buildings;
     
-    Json::Value offices(Json::arrayValue);
+    // Добавляем офисы
+    json::array offices;
     for (const auto& office : map.GetOffices()) {
-        offices.append(OfficeToJson(office));
+        json::object office_obj;
+        office_obj["id"] = *office.GetId();
+        office_obj["x"] = office.GetPosition().x;
+        office_obj["y"] = office.GetPosition().y;
+        office_obj["offsetX"] = office.GetOffset().dx;
+        office_obj["offsetY"] = office.GetOffset().dy;
+        offices.push_back(office_obj);
     }
-    root[kOfficesKey] = offices;
+    obj["offices"] = offices;
     
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "";
-    return Json::writeString(builder, root);
+    return json::serialize(obj);
 }
 
-std::string CreateMapNotFoundResponse() {
-    return CreateErrorResponse("mapNotFound", "Map not found");
-}
-
-std::string CreateBadRequestResponse() {
-    return CreateErrorResponse("badRequest", "Bad request");
-}
-
-std::string CreatePageNotFoundResponse() {
-    return CreateErrorResponse("pageNotFound", "Page not found");
-}
-
-}  // namespace jsonConverter
+} // namespace json_converter

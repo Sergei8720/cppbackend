@@ -1,14 +1,12 @@
 #pragma once
-
-#include "model.h"
 #include <string>
+#include <vector>
+#include "model.h"
+#include <boost/json.hpp>
 
-namespace jsonConverter {
+namespace json_converter {
 
-std::string ConvertMapListToJson(const model::Game& game);
+std::string ConvertMapsToJson(const std::vector<model::Map>& maps);
 std::string ConvertMapToJson(const model::Map& map);
-std::string CreateMapNotFoundResponse();
-std::string CreateBadRequestResponse();
-std::string CreatePageNotFoundResponse();
 
-}  // namespace jsonConverter
+} // namespace json_converter

@@ -1,140 +1,108 @@
 #pragma once
-
-#include <functional>
+#include <boost/beast/core/string.hpp>
+#include <boost/beast/http.hpp>
 #include <optional>
-#include <string>
-#include <string_view>
 #include <vector>
-
-#include "http_server.h"
+#include <functional>
 #include "model.h"
 #include "json_converter.h"
+#include "http_server.h"
 
 namespace http_handler {
 
 namespace beast = boost::beast;
 namespace http = beast::http;
-using StringResponse = http::response<http::string_body>;
 
 class RequestHandler {
 public:
-    explicit RequestHandler(const model::Game& game);
-    
-    RequestHandler(const RequestHandler&) = delete;
-    RequestHandler& operator=(const RequestHandler&) = delete;
-    RequestHandler(RequestHandler&&) = delete;
-    RequestHandler& operator=(RequestHandler&&) = delete;
-    
-    ~RequestHandler() = default;
+    using Handler = std::function<void(http::response<http::string_body>&&)>;
+
+    explicit RequestHandler(model::Game& game);
 
     template <typename Body, typename Allocator, typename Send>
     void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
-        if (!IsApiRequest(req.target())) {
-            send(MakePageNotFound(req));
-            return;
-        }
-        
-        if (req.method() != http::verb::get) {
-            send(MakeMethodNotAllowed(req));
-            return;
-        }
-        
-        if (IsMapRequest(req.target())) {
-            auto parts = SplitUrl(req.target());
-            
-            if (parts.size() == 3) {
-                send(MakeMapList(req));
-            } else if (parts.size() == 4) {
-                auto map_id = ExtractMapId(req.target());
-                
-                if (map_id) {
-                    send(MakeMapById(req, *map_id));
-                } else {
-                    send(MakeBadRequest(req));
-                }
-            } else {
-                send(MakeBadRequest(req));
+        try {
+            // Проверяем API запросы
+            if (!IsApiRequest(req.target())) {
+                SendBadResponse(send, http::status::bad_request, "Bad Request");
+                return;
             }
-        } else {
-            send(MakeBadRequest(req));
+
+            // Обрабатываем запросы к картам
+            if (IsMapRequest(req.target())) {
+                auto parts = SplitUrl(req.target());
+                
+                // /api/v1/maps
+                if (parts.size() == 3 && parts[0] == "api" && parts[1] == "v1" && parts[2] == "maps") {
+                    if (req.method() == http::verb::get) {
+                        auto maps = game_.GetMaps();
+                        auto response = json_converter::ConvertMapsToJson(maps);
+                        SendResponse(send, response, http::status::ok);
+                    } else {
+                        SendBadResponse(send, http::status::method_not_allowed, "Method Not Allowed");
+                    }
+                    return;
+                }
+                
+                // /api/v1/maps/{mapId}
+                if (parts.size() == 4 && parts[0] == "api" && parts[1] == "v1" && parts[2] == "maps") {
+                    if (req.method() == http::verb::get) {
+                        auto map_id = ExtractMapId(req.target());
+                        if (map_id.has_value()) {
+                            const auto* map = game_.FindMap(*map_id);
+                            if (map) {
+                                auto response = json_converter::ConvertMapToJson(*map);
+                                SendResponse(send, response, http::status::ok);
+                            } else {
+                                SendBadResponse(send, http::status::not_found, "Map not found");
+                            }
+                        } else {
+                            SendBadResponse(send, http::status::bad_request, "Bad Request");
+                        }
+                    } else {
+                        SendBadResponse(send, http::status::method_not_allowed, "Method Not Allowed");
+                    }
+                    return;
+                }
+            }
+
+            // Если ни один маршрут не подошел
+            SendBadResponse(send, http::status::bad_request, "Bad Request");
+            
+        } catch (const std::exception& e) {
+            SendBadResponse(send, http::status::internal_server_error, "Internal Server Error");
         }
     }
 
 private:
-    const model::Game& game_;
+    model::Game& game_;
 
-    std::vector<std::string_view> SplitUrl(std::string_view url) const;
-    bool IsApiRequest(std::string_view target) const;
-    bool IsMapRequest(std::string_view target) const;
-    std::optional<model::Map::Id> ExtractMapId(std::string_view target) const;
-    
-    template <typename Body, typename Allocator>
-    StringResponse MakeBadRequest(const http::request<Body, http::basic_fields<Allocator>>& req) const {
-        StringResponse response(http::status::bad_request, req.version());
-        response.set(http::field::content_type, "application/json");
-        response.body() = jsonConverter::CreateBadRequestResponse();
-        response.content_length(response.body().size());
-        response.keep_alive(req.keep_alive());
-        return response;
+    bool IsApiRequest(boost::beast::string_view target) const;
+    bool IsMapRequest(boost::beast::string_view target) const;
+    std::vector<boost::beast::string_view> SplitUrl(boost::beast::string_view url) const;
+    std::optional<model::Map::Id> ExtractMapId(boost::beast::string_view target) const;
+
+    template <typename Send>
+    void SendResponse(Send&& send, std::string&& body, http::status status) const {
+        http::response<http::string_body> res{status, 11};
+        res.set(http::field::content_type, "application/json");
+        res.body() = std::move(body);
+        res.prepare_payload();
+        send(std::move(res));
     }
-    
-    template <typename Body, typename Allocator>
-    StringResponse MakeMapList(const http::request<Body, http::basic_fields<Allocator>>& req) const {
-        StringResponse response(http::status::ok, req.version());
-        response.set(http::field::content_type, "application/json");
-        response.body() = jsonConverter::ConvertMapListToJson(game_);
-        response.content_length(response.body().size());
-        response.keep_alive(req.keep_alive());
-        return response;
-    }
-    
-    template <typename Body, typename Allocator>
-    StringResponse MakeMapById(const http::request<Body, http::basic_fields<Allocator>>& req,
-                              const model::Map::Id& map_id) const {
-        const auto* map = game_.FindMap(map_id);
+
+    template <typename Send>
+    void SendBadResponse(Send&& send, http::status status, std::string_view message) const {
+        http::response<http::string_body> res{status, 11};
+        res.set(http::field::content_type, "application/json");
         
-        if (!map) {
-            return MakeMapNotFound(req);
-        }
-        
-        StringResponse response(http::status::ok, req.version());
-        response.set(http::field::content_type, "application/json");
-        response.body() = jsonConverter::ConvertMapToJson(*map);
-        response.content_length(response.body().size());
-        response.keep_alive(req.keep_alive());
-        return response;
-    }
-    
-    template <typename Body, typename Allocator>
-    StringResponse MakeMapNotFound(const http::request<Body, http::basic_fields<Allocator>>& req) const {
-        StringResponse response(http::status::not_found, req.version());
-        response.set(http::field::content_type, "application/json");
-        response.body() = jsonConverter::CreateMapNotFoundResponse();
-        response.content_length(response.body().size());
-        response.keep_alive(req.keep_alive());
-        return response;
-    }
-    
-    template <typename Body, typename Allocator>
-    StringResponse MakePageNotFound(const http::request<Body, http::basic_fields<Allocator>>& req) const {
-        StringResponse response(http::status::not_found, req.version());
-        response.set(http::field::content_type, "application/json");
-        response.body() = jsonConverter::CreatePageNotFoundResponse();
-        response.content_length(response.body().size());
-        response.keep_alive(req.keep_alive());
-        return response;
-    }
-    
-    template <typename Body, typename Allocator>
-    StringResponse MakeMethodNotAllowed(const http::request<Body, http::basic_fields<Allocator>>& req) const {
-        StringResponse response(http::status::method_not_allowed, req.version());
-        response.set(http::field::content_type, "application/json");
-        response.set(http::field::allow, "GET");
-        response.body() = jsonConverter::CreateBadRequestResponse();
-        response.content_length(response.body().size());
-        response.keep_alive(req.keep_alive());
-        return response;
+        // Формируем JSON с ошибкой
+        std::string body = "{\"code\":\"" + std::to_string(static_cast<int>(status)) + 
+                          "\",\"message\":\"" + std::string(message) + "\"}";
+        res.body() = std::move(body);
+        res.prepare_payload();
+        send(std::move(res));
     }
 };
 
-}  // namespace http_handler
+} // namespace http_handler
