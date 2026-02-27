@@ -17,15 +17,14 @@ AMMUNITION = [
 SHOOT_COUNT = 100
 COOLDOWN = 0.1
 
+PERF_DATA = "perf.data"
+
 
 def start_server():
     parser = argparse.ArgumentParser()
     parser.add_argument('server', type=str)
     return parser.parse_args().server
 
-
-def perf_record_of(pid):
-	return "perf record -p " + str(pid) + " -o perf.data -gs"
 
 def run(command, output=None):
     process = subprocess.Popen(shlex.split(command), stdout=output, stderr=subprocess.DEVNULL)
@@ -51,21 +50,64 @@ def make_shots():
     print('Shooting complete')
 
 
-server = run(start_server(), subprocess.DEVNULL)
-time.sleep(0.1)
-perf_record = run(perf_record_of(server.pid))
-time.sleep(0.1)
-make_shots()
-perf_record.send_signal(signal.SIGINT)
-time.sleep(0.1)
-stop(server)
-time.sleep(10)
-with open("graph.svg", "w") as graph_file:
-	perf_script = subprocess.Popen(shlex.split("perf script -i perf.data"), stdout=subprocess.PIPE)
-	flamegraph_stackcollapse = subprocess.Popen(shlex.split("./FlameGraph/stackcollapse-perf.pl"), stdin=perf_script.stdout, stdout=subprocess.PIPE)
-	flamegraph_output = subprocess.Popen(shlex.split("./FlameGraph/flamegraph.pl"), stdin=flamegraph_stackcollapse.stdout, stdout=graph_file)
-	stop(perf_script, True)
-	stop(flamegraph_stackcollapse, True)
-	stop(flamegraph_output, True)
-print('Job done')
-# python3 shoot.py "/test_cpp_backend/sprint1/problems/map_json/solution/build/bin/game_server /test_cpp_backend/sprint1/problems/map_json/solution/data/config.json" || true
+def main():
+    # Запускаем сервер
+    server = run(start_server(), subprocess.DEVNULL)
+    time.sleep(0.1)  # Даем серверу время на запуск
+    
+    # Запускаем perf record для профилирования сервера
+    perf_record = run(f'perf record -o {PERF_DATA} -p {server.pid} -g')
+    time.sleep(0.1)  # Даем perf время на инициализацию
+    
+    # Обстреливаем сервер запросами
+    make_shots()
+    
+    # Корректно завершаем perf record (Ctrl+C = SIGINT)
+    perf_record.send_signal(signal.SIGINT)
+    time.sleep(0.1)  # Даем время на завершение записи
+    
+    # Останавливаем сервер
+    stop(server)
+    
+    # Небольшая пауза, чтобы убедиться, что perf.data полностью записан
+    time.sleep(1)
+    
+    # Строим флеймграф через двойной пайп
+    # perf script | ./FlameGraph/stackcollapse-perf.pl | ./FlameGraph/flamegraph.pl > graph.svg
+    with open("graph.svg", "w") as graph_file:
+        # Первый процесс: perf script читает наши данные
+        perf_script = subprocess.Popen(
+            shlex.split(f"perf script -i {PERF_DATA}"), 
+            stdout=subprocess.PIPE
+        )
+        
+        # Второй процесс: stackcollapse-perf.pl сворачивает стек
+        stackcollapse = subprocess.Popen(
+            shlex.split("./FlameGraph/stackcollapse-perf.pl"),
+            stdin=perf_script.stdout,
+            stdout=subprocess.PIPE
+        )
+        
+        # Третий процесс: flamegraph.pl генерирует SVG
+        flamegraph = subprocess.Popen(
+            shlex.split("./FlameGraph/flamegraph.pl"),
+            stdin=stackcollapse.stdout,
+            stdout=graph_file
+        )
+        
+        # Ждем завершения всех процессов в правильном порядке
+        # (закрываем пайпы, чтобы избежать дедлоков)
+        perf_script.stdout.close()
+        stackcollapse.stdout.close()
+        
+        # Ждем завершения
+        stop(perf_script, True)
+        stop(stackcollapse, True)
+        stop(flamegraph, True)
+    
+    print('Job done')
+    print('Flamegraph saved to graph.svg')
+
+
+if __name__ == "__main__":
+    main()
