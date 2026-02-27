@@ -8,14 +8,14 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-# Подключаем Conan
-if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+# Подключаем Conan - используем правильный файл
+if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
+    message(STATUS "Using conanbuildinfo_multi.cmake")
+    include(${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake)
+    conan_basic_setup()
+elseif(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
     message(STATUS "Using conanbuildinfo.cmake")
     include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-    conan_basic_setup()
-elseif(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo_release.cmake)
-    message(STATUS "Using conanbuildinfo_release.cmake")
-    include(${CMAKE_BINARY_DIR}/conanbuildinfo_release.cmake)
     conan_basic_setup()
 else()
     message(FATAL_ERROR "Conan buildinfo not found! Run Conan first")
@@ -38,6 +38,7 @@ add_executable(game_server
     src/json_converter.h
 )
 
+# Используем CONAN_LIBS и CONAN_INCLUDE_DIRS, которые устанавливает Conan
 target_link_libraries(game_server 
     PRIVATE
     Threads::Threads
@@ -50,3 +51,7 @@ target_include_directories(game_server
 )
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
+
+# Диагностика
+message(STATUS "CONAN_INCLUDE_DIRS: ${CONAN_INCLUDE_DIRS}")
+message(STATUS "CONAN_LIBS: ${CONAN_LIBS}")
