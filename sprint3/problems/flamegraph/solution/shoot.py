@@ -8,8 +8,8 @@ import shlex
 import os
 import signal
 import sys
-import glob
 import shutil
+import glob
 
 RANDOM_LIMIT = 1000
 SEED = 123456789
@@ -24,14 +24,25 @@ SHOOT_COUNT = 100
 COOLDOWN = 0.1
 
 
-def force_rebuild_with_correct_abi():
-    """ПОЛНОСТЬЮ пересобирает сервер с правильным ABI"""
+def nuke_conan_cache():
+    """ПОЛНОСТЬЮ УНИЧТОЖАЕТ кэш Conan"""
     print("=" * 80)
-    print("ПЕРЕСБОРКА СЕРВЕРА С ПРАВИЛЬНЫМ ABI (libstdc++11)")
+    print("🍆 ПОЛНАЯ ЗАЧИСТКА CONAN КЭША")
     print("=" * 80)
     
-    # 1. Устанавливаем Conan 1.81
-    print("1. Установка Conan 1.81.0...")
+    # 1. Удаляем всю директорию .conan
+    conan_dir = os.path.expanduser('~/.conan')
+    if os.path.exists(conan_dir):
+        print(f"Удаление {conan_dir}...")
+        shutil.rmtree(conan_dir, ignore_errors=True)
+    
+    # 2. Удаляем возможные временные директории
+    tmp_conan = '/tmp/conan-home'
+    if os.path.exists(tmp_conan):
+        shutil.rmtree(tmp_conan, ignore_errors=True)
+    
+    # 3. Устанавливаем Conan 1.81
+    print("Установка Conan 1.81.0...")
     subprocess.run(['pip3', 'uninstall', '-y', 'conan'], 
                   stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=False)
     subprocess.run([
@@ -41,14 +52,7 @@ def force_rebuild_with_correct_abi():
     # Обновляем PATH
     os.environ['PATH'] = f"{os.environ['HOME']}/.local/bin:{os.environ['PATH']}"
     
-    # 2. Полностью очищаем Conan кэш
-    print("2. Очистка кэша Conan...")
-    conan_home = os.path.expanduser('~/.conan')
-    if os.path.exists(conan_home):
-        shutil.rmtree(conan_home, ignore_errors=True)
-    
-    # 3. Создаем профиль с libstdc++11
-    print("3. Создание профиля с libstdc++11...")
+    # 4. Создаем профиль с libstdc++11
     subprocess.run(['conan', 'profile', 'new', 'default', '--detect', '--force'], 
                   stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=False)
     subprocess.run([
@@ -56,106 +60,113 @@ def force_rebuild_with_correct_abi():
         'settings.compiler.libcxx=libstdc++11', 'default'
     ], check=False)
     
-    # Проверяем профиль
+    # Проверяем
+    result = subprocess.run(['conan', '--version'], capture_output=True, text=True)
+    print(f"Conan version: {result.stdout.strip()}")
+    
     profile = subprocess.run(['conan', 'profile', 'show', 'default'], 
                             capture_output=True, text=True)
-    print("Профиль Conan:")
     for line in profile.stdout.split('\n'):
         if 'compiler.libcxx' in line:
-            print(f"  {line.strip()}")
+            print(f"Profile: {line.strip()}")
     
-    # 4. Определяем пути к исходникам сервера
+    print("=" * 80)
+    return True
+
+
+def rebuild_server_manually():
+    """Пересобирает сервер вручную с правильным ABI"""
+    print("=" * 80)
+    print("🔨 Ручная пересборка сервера")
+    print("=" * 80)
+    
+    # Пути
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    sprint3_dir = script_dir
     sprint1_dir = os.path.abspath(os.path.join(script_dir, '../../sprint1'))
     solution_dir = os.path.join(sprint1_dir, 'problems/map_json/solution')
     data_dir = os.path.join(sprint1_dir, 'problems/map_json/data')
     
-    print(f"4. Путь к исходникам: {solution_dir}")
+    # Создаем временную директорию для сборки
+    build_dir = os.path.join(solution_dir, 'build_clean')
+    if os.path.exists(build_dir):
+        shutil.rmtree(build_dir, ignore_errors=True)
+    os.makedirs(build_dir)
     
-    # 5. Создаем временную директорию для сборки
-    build_dir = os.path.join(solution_dir, 'build_fixed')
-    os.makedirs(build_dir, exist_ok=True)
+    print(f"Solution dir: {solution_dir}")
+    print(f"Build dir: {build_dir}")
     
-    # 6. Устанавливаем зависимости через Conan
-    print("5. Установка зависимостей через Conan...")
-    conan_result = subprocess.run([
+    # Устанавливаем зависимости
+    print("\n1. Установка зависимостей через Conan...")
+    conan_cmd = [
         'conan', 'install', solution_dir,
         '--build=missing',
         '-s', 'compiler=gcc',
         '-s', 'compiler.version=11',
         '-s', 'compiler.libcxx=libstdc++11',
         '-s', 'build_type=Release'
-    ], cwd=build_dir, capture_output=True, text=True)
+    ]
     
-    if conan_result.returncode != 0:
+    result = subprocess.run(conan_cmd, cwd=build_dir, capture_output=True, text=True)
+    if result.returncode != 0:
         print("ОШИБКА при установке зависимостей:")
-        print(conan_result.stderr)
+        print(result.stderr)
         return None
     
-    # 7. Конфигурируем CMake
-    print("6. Конфигурация CMake...")
-    cmake_result = subprocess.run([
-        'cmake', solution_dir,
-        '-DCMAKE_BUILD_TYPE=Release'
-    ], cwd=build_dir, capture_output=True, text=True)
-    
-    if cmake_result.returncode != 0:
+    # Конфигурируем CMake
+    print("\n2. Конфигурация CMake...")
+    cmake_cmd = ['cmake', solution_dir, '-DCMAKE_BUILD_TYPE=Release']
+    result = subprocess.run(cmake_cmd, cwd=build_dir, capture_output=True, text=True)
+    if result.returncode != 0:
         print("ОШИБКА при конфигурации CMake:")
-        print(cmake_result.stderr)
+        print(result.stderr)
         return None
     
-    # 8. Собираем сервер
-    print("7. Сборка сервера...")
-    build_result = subprocess.run(['cmake', '--build', '.', '-j2'], 
-                                 cwd=build_dir, capture_output=True, text=True)
-    
-    if build_result.returncode != 0:
+    # Собираем
+    print("\n3. Сборка...")
+    build_cmd = ['cmake', '--build', '.', '-j2']
+    result = subprocess.run(build_cmd, cwd=build_dir, capture_output=True, text=True)
+    if result.returncode != 0:
         print("ОШИБКА при сборке:")
-        print(build_result.stderr)
+        print(result.stderr)
         return None
     
-    # 9. Ищем собранный сервер
-    possible_servers = glob.glob(os.path.join(build_dir, 'bin', 'game_server')) + \
-                       glob.glob(os.path.join(build_dir, 'game_server'))
+    # Ищем сервер
+    server_candidates = glob.glob(os.path.join(build_dir, 'bin', 'game_server')) + \
+                        glob.glob(os.path.join(build_dir, 'game_server'))
     
-    if possible_servers:
-        new_server = possible_servers[0]
-        print(f"8. Сервер успешно собран: {new_server}")
+    if server_candidates:
+        server_path = server_candidates[0]
+        print(f"\n✅ Сервер собран: {server_path}")
         
-        # Копируем данные рядом с сервером
-        server_dir = os.path.dirname(new_server)
+        # Копируем данные
+        server_dir = os.path.dirname(server_path)
         dest_data = os.path.join(server_dir, 'data')
         if os.path.exists(dest_data):
             shutil.rmtree(dest_data, ignore_errors=True)
         if os.path.exists(data_dir):
             shutil.copytree(data_dir, dest_data)
-            print(f"9. Данные скопированы в {dest_data}")
+            print(f"✅ Данные скопированы в {dest_data}")
         
-        return new_server
+        return server_path
     
-    print("НЕ УДАЛОСЬ найти собранный сервер")
+    print("❌ Сервер не найден после сборки")
     return None
 
 
-def start_server():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('original_server', type=str, nargs='?', default=None)
-    return parser.parse_args().original_server
-
-
 def run_server(server_path):
-    """Запускает сервер и возвращает процесс"""
+    """Запускает сервер"""
     if not os.path.exists(server_path):
-        print(f"ОШИБКА: Сервер не найден: {server_path}")
-        sys.exit(1)
+        print(f"❌ Сервер не найден: {server_path}")
+        return None
     
-    print(f"Запуск сервера: {server_path}")
+    print(f"\n🚀 Запуск сервера: {server_path}")
     return subprocess.Popen([server_path, 'data/config.json'])
 
 
 def stop_server(process):
+    """Останавливает сервер"""
     if process and process.poll() is None:
+        print("\n🛑 Остановка сервера...")
         process.terminate()
         try:
             process.wait(timeout=5)
@@ -164,9 +175,11 @@ def stop_server(process):
 
 
 def make_shots():
+    """Делает запросы к серверу"""
+    print("\n🎯 Начало стрельбы...")
     for i in range(SHOOT_COUNT):
         ammo_number = random.randrange(RANDOM_LIMIT) % len(AMMUNITION)
-        url = AMMUNITION[ammo_number]
+        url = f"http://{AMMUNITION[ammo_number]}"
         
         try:
             subprocess.run(['curl', '-s', '-o', '/dev/null', url], 
@@ -177,16 +190,18 @@ def make_shots():
         time.sleep(COOLDOWN)
         
         if (i + 1) % 10 == 0:
-            print(f"Прогресс: {i + 1}/{SHOOT_COUNT}")
+            print(f"  Прогресс: {i + 1}/{SHOOT_COUNT}")
     
-    print('Стрельба завершена')
+    print("✅ Стрельба завершена")
 
 
 def build_flamegraph():
+    """Строит flamegraph"""
+    print("\n🔥 Построение flamegraph...")
+    
     flamegraph_dir = os.path.join(os.path.dirname(__file__), 'FlameGraph')
     
     if not os.path.exists(flamegraph_dir):
-        print("Клонирование FlameGraph...")
         subprocess.run([
             'git', 'clone', 
             'https://github.com/brendangregg/FlameGraph.git',
@@ -226,38 +241,44 @@ def build_flamegraph():
     
     if os.path.exists('graph.svg'):
         size = os.path.getsize('graph.svg')
-        print(f"Flamegraph создан: graph.svg ({size} байт)")
+        print(f"✅ Flamegraph создан: graph.svg ({size} байт)")
     else:
-        print("Ошибка создания flamegraph")
+        print("❌ Ошибка создания flamegraph")
 
 
 def main():
-    # Шаг 1: Полностью пересобираем сервер с правильным ABI
-    server_path = force_rebuild_with_correct_abi()
-    
-    if not server_path or not os.path.exists(server_path):
-        print("КРИТИЧЕСКАЯ ОШИБКА: Не удалось собрать сервер")
+    # Шаг 1: ЯДЕРНАЯ БОМБА - уничтожаем кэш Conan
+    if not nuke_conan_cache():
+        print("❌ Не удалось очистить кэш Conan")
         sys.exit(1)
     
-    # Шаг 2: Запускаем сервер
+    # Шаг 2: Пересобираем сервер с нуля
+    server_path = rebuild_server_manually()
+    if not server_path:
+        print("❌ Не удалось собрать сервер")
+        sys.exit(1)
+    
+    # Шаг 3: Запускаем сервер
     server_process = run_server(server_path)
+    if not server_process:
+        sys.exit(1)
     
     # Ждем запуска
-    print("Ожидание запуска сервера...")
+    print("⏳ Ожидание запуска сервера...")
     time.sleep(3)
     
     # Проверяем доступность
     try:
-        result = subprocess.run(['curl', '-f', 'http://localhost:8080/api/v1/maps'],
-                               capture_output=True, timeout=3)
-        print("Сервер отвечает на запросы")
+        subprocess.run(['curl', '-f', 'http://localhost:8080/api/v1/maps'],
+                      capture_output=True, timeout=3)
+        print("✅ Сервер отвечает на запросы")
     except Exception as e:
-        print(f"Сервер не отвечает: {e}")
+        print(f"❌ Сервер не отвечает: {e}")
         stop_server(server_process)
         sys.exit(1)
     
-    # Шаг 3: Запускаем perf
-    print("Запуск perf record...")
+    # Шаг 4: Запускаем perf
+    print("\n📊 Запуск perf record...")
     perf = subprocess.Popen(
         [
             'perf', 'record',
@@ -270,24 +291,24 @@ def main():
         stderr=subprocess.DEVNULL
     )
     
-    # Шаг 4: Делаем запросы
+    # Шаг 5: Делаем запросы
     make_shots()
     
-    # Шаг 5: Останавливаем perf
+    # Шаг 6: Останавливаем perf
     perf.send_signal(signal.SIGINT)
     try:
         perf.wait(timeout=5)
     except:
         perf.kill()
     
-    # Шаг 6: Останавливаем сервер
+    # Шаг 7: Останавливаем сервер
     stop_server(server_process)
     
-    # Шаг 7: Генерируем flamegraph
+    # Шаг 8: Строим flamegraph
     build_flamegraph()
     
-    print("=" * 80)
-    print("ЗАДАНИЕ ВЫПОЛНЕНО УСПЕШНО!")
+    print("\n" + "=" * 80)
+    print("✅ ЗАДАНИЕ ВЫПОЛНЕНО УСПЕШНО!")
     print("=" * 80)
 
 
