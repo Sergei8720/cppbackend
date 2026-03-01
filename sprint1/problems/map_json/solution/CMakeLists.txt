@@ -35,9 +35,10 @@ add_executable(game_server
     src/json_converter.h
 )
 
-target_link_libraries(game_server PRIVATE 
+target_link_libraries(game_server PRIVATE
     ${CONAN_LIBS}
     Threads::Threads
+    JsonCpp::JsonCpp
 )
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
