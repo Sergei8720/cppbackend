@@ -4,8 +4,12 @@ project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
+# Подключаем Conan
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
+
+# Добавляем директорию с нашими заголовками
+include_directories(src)
 
 add_executable(game_server
     src/main.cpp
@@ -24,10 +28,7 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# CONAN_LIBS уже содержит все библиотеки
-target_link_libraries(game_server
-    PRIVATE
-        ${CONAN_LIBS}
-)
+# Используем CONAN_LIBS который содержит все зависимости
+target_link_libraries(game_server PRIVATE ${CONAN_LIBS})
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
