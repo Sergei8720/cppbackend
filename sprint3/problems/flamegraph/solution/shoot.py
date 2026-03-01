@@ -5,6 +5,7 @@ import random
 import shlex
 import os
 import signal
+import sys
 
 RANDOM_LIMIT = 1000
 SEED = 123456789
@@ -17,6 +18,27 @@ AMMUNITION = [
 
 SHOOT_COUNT = 100
 COOLDOWN = 0.1
+
+
+def setup_conan_profile():
+    """Настраивает Conan profile с правильным ABI перед сборкой"""
+    print("Setting up Conan profile with libstdc++11...")
+    
+    # Создаем профиль если его нет
+    subprocess.run(
+        ['conan', 'profile', 'new', 'default', '--detect', '--force'],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    
+    # Обновляем ABI
+    subprocess.run(
+        ['conan', 'profile', 'update', 'settings.compiler.libcxx=libstdc++11', 'default'],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    
+    print("Conan profile configured")
 
 
 def start_server():
@@ -90,7 +112,23 @@ def build_flamegraph():
 
 # --- main logic ---
 
-server = run(start_server())
+# Добавляем настройку Conan перед всем остальным
+if os.path.exists('/home/runner/.conan/profiles/default'):
+    print("Conan profile exists, checking configuration...")
+    # Можно прочитать текущий профиль, но проще просто обновить
+    setup_conan_profile()
+else:
+    print("No Conan profile found, creating...")
+    setup_conan_profile()
+
+# Даем время на применение настроек
+time.sleep(1)
+
+server_path = start_server()
+print(f"Starting server from: {server_path}")
+
+# Запускаем сервер
+server = run(server_path)
 
 # даём серверу немного времени подняться
 time.sleep(1)
