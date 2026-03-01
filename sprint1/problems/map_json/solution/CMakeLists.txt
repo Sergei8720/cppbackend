@@ -4,9 +4,13 @@ project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
-# Подключаем Conan
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup(TARGETS)  # используем target-based подход
+# Проверяем, что conanbuildinfo.cmake существует
+if(EXISTS "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
+    include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+    conan_basic_setup(TARGETS)
+else()
+    message(WARNING "Conan: conanbuildinfo.cmake not found. Skipping Conan setup.")
+endif()
 
 add_executable(game_server
     src/main.cpp
@@ -25,7 +29,7 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# Явно линкуем с библиотеками через Conan-targets
+# Явно линкуем с Conan-целями
 target_link_libraries(game_server
     CONAN_PKG::boost
     CONAN_PKG::jsoncpp
