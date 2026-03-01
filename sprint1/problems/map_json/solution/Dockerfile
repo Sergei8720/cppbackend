@@ -10,26 +10,30 @@ RUN apt update && \
     && \
     pip3 install conan==1.*
 
-# Создать профиль default
+# Создать профиль default с настройками как в спринте 3
 RUN conan profile new default --detect --force
 
-# Настраиваем compiler.libcxx=libstdc++ (как в спринте 3)
+# ВАЖНО: Устанавливаем старый ABI как в спринте 3
 RUN conan profile update settings.compiler.libcxx=libstdc++ default
 
-# Принудительно очищаем кэш и устанавливаем jsoncpp
+# Принудительно очищаем кэш
 RUN conan remove jsoncpp/1.9.5 -f || true
+RUN conan remove boost/1.78.0 -f || true
+RUN conan remove zlib/1.2.13 -f || true
 
 COPY conanfile.txt /app/
 RUN mkdir -p /app/build && cd /app/build && \
-    # Явно указываем настройки при установке
+    # Явно указываем все настройки как в спринте 3
     conan install .. \
         --build=missing \
         -s compiler=gcc \
         -s compiler.version=11 \
-        -s compiler.libcxx=libstdc++
+        -s compiler.libcxx=libstdc++ \
+        -s build_type=Release
 
-# Проверяем какой jsoncpp установился
+# Проверяем хеш jsoncpp
 RUN cd /app/build && \
+    echo "JSONCPP HASH:" && \
     conan info . | grep jsoncpp
 
 # только после этого копируем остальные исходники
@@ -49,7 +53,6 @@ RUN groupadd -r www && useradd -r -g www www
 USER www
 
 # Скопируем приложение со сборочного контейнера в директорию /app.
-# Не забываем также папку data, она пригодится.
 COPY --from=build /app/build/bin/game_server /app/
 COPY ./data /app/data
 
