@@ -33,9 +33,9 @@ add_executable(game_server
 )
 
 # ИСПРАВЛЕНО: используем правильное имя библиотеки от Conan
-target_link_libraries(game_server PRIVATE 
-    Threads::Threads 
-    CONAN_PKG::jsoncpp 
-    CONAN_PKG::boost
+target_link_libraries(game_server
+    PRIVATE
+    Boost::boost
+    jsoncpp_lib
 )
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
