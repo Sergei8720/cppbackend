@@ -4,7 +4,6 @@ jsoncpp/1.9.5
 
 [generators]
 cmake
-cmake_find_package_multi
 
 [options]
 boost:shared=False
