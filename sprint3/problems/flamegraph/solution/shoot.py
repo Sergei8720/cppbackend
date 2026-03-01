@@ -111,7 +111,6 @@ def find_flamegraph_tools():
         Path("FlameGraph"),                    # ./FlameGraph
         Path("../FlameGraph"),                  # ../FlameGraph
         Path("../../../FlameGraph"),            # на уровень выше
-        Path("/home/runner/work/FlameGraph"),   # возможный путь в CI
     ]
     
     for path in search_paths:
@@ -123,29 +122,13 @@ def find_flamegraph_tools():
                 print(f"Found FlameGraph tools in {path}")
                 return stackcollapse, flamegraph
     
-    # Если не нашли, пробуем найти через git clone (как в build.sh)
-    if not Path("FlameGraph").exists():
-        print("Cloning FlameGraph repository...")
-        subprocess.run(
-            "git clone https://github.com/brendangregg/FlameGraph",
-            shell=True,
-            check=True
-        )
-        stackcollapse = Path("FlameGraph") / "stackcollapse-perf.pl"
-        flamegraph = Path("FlameGraph") / "flamegraph.pl"
-        if stackcollapse.exists() and flamegraph.exists():
-            return stackcollapse, flamegraph
-    
-    return None, None
+    # Если не нашли, используем пути из build.sh
+    return Path("FlameGraph/stackcollapse-perf.pl"), Path("FlameGraph/flamegraph.pl")
 
 
 def generate_flamegraph():
     """Генерация flamegraph с проверкой наличия RequestHandler"""
     stackcollapse, flamegraph_pl = find_flamegraph_tools()
-    
-    if not stackcollapse or not flamegraph_pl:
-        print("Error: FlameGraph tools not found")
-        return False
     
     # Проверяем perf.data
     if not Path("perf.data").exists():
@@ -201,13 +184,9 @@ def generate_flamegraph():
             
             stackcollapse_proc.stdout.close()
             
-            # Ждем завершения и проверяем ошибки
-            flamegraph_stdout, flamegraph_stderr = flamegraph_proc.communicate()
-            stackcollapse_stdout, stackcollapse_stderr = stackcollapse_proc.communicate()
-            
-            if flamegraph_proc.returncode != 0:
-                print(f"flamegraph.pl error: {flamegraph_stderr}")
-                return False
+            # Ждем завершения
+            flamegraph_proc.wait()
+            stackcollapse_proc.wait()
         
         # Финальная проверка
         if Path("graph.svg").exists() and Path("graph.svg").stat().st_size > 0:
@@ -217,28 +196,10 @@ def generate_flamegraph():
                 # Проверяем наличие методов RequestHandler (как требует тест)
                 if "http_handler::RequestHandler" in svg_content:
                     print("✓ SUCCESS: http_handler::RequestHandler found in flamegraph")
-                    
-                    # Дополнительно ищем конкретные методы
-                    methods = [
-                        "operator()",
-                        "IsMapRequest",
-                        "SplitUrl",
-                        "MakeMapList",
-                        "MakeMapById"
-                    ]
-                    
-                    found_methods = [m for m in methods if m in svg_content]
-                    if found_methods:
-                        print(f"  Found methods: {', '.join(found_methods)}")
-                    
                     return True
                 else:
                     print("✗ FAILURE: http_handler::RequestHandler NOT found in flamegraph")
                     print("  This is required by the test")
-                    
-                    # Показываем первые несколько строк для отладки
-                    print("\nFirst 20 lines of graph.svg:")
-                    print("\n".join(svg_content.split("\n")[:20]))
                     return False
         else:
             print("Error: graph.svg is empty or not created")
@@ -268,18 +229,11 @@ def wait_for_server():
                 timeout=1
             )
             
-            if result.returncode == 0:
-                if result.stdout.strip() == '200':
-                    print(f"Server is ready (attempt {attempt + 1}/10)")
-                    return True
-                else:
-                    print(f"  Server returned HTTP {result.stdout.strip()}")
-            else:
-                print(f"  Curl error: {result.stderr}")
-        except subprocess.TimeoutExpired:
-            print("  Connection timeout")
-        except Exception as e:
-            print(f"  Error: {e}")
+            if result.returncode == 0 and result.stdout.strip() == '200':
+                print(f"Server is ready (attempt {attempt + 1}/10)")
+                return True
+        except:
+            pass
         
         time.sleep(1)
     
@@ -288,11 +242,6 @@ def wait_for_server():
 
 def main():
     """Основная функция"""
-    # Проверяем, что запущены с sudo (нужно для perf)
-    if os.geteuid() != 0:
-        print("Warning: perf record requires root privileges")
-        print("Run with: sudo python3 shoot.py '...'")
-    
     # Получаем команду для запуска сервера
     server_cmd = start_server()
     
