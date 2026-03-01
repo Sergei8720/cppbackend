@@ -12,3 +12,6 @@ cmake
 boost:shared=False
 jsoncpp:shared=False
 zlib:shared=False
+
+[settings]
+compiler.libcxx=libstdc++11
