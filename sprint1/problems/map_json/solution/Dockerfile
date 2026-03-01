@@ -1,6 +1,6 @@
 # Создать образ на основе базового слоя gcc (там будет ОС и сам компилятор).
-# 11.4 — используемая версия gcc в спринте 3.
-FROM gcc:11.4 as build
+# 11.3 — используемая версия gcc.
+FROM gcc:11.3 as build
 
 # Выполнить установку зависимостей внутри контейнера.
 RUN apt update && \
@@ -10,34 +10,19 @@ RUN apt update && \
     && \
     pip3 install conan==1.*
 
-# Создать профиль default с настройками как в спринте 3
+# Создать профиль default вручную перед обновлением
 RUN conan profile new default --detect --force
 
-# ВАЖНО: Устанавливаем старый ABI как в спринте 3
-RUN conan profile update settings.compiler.libcxx=libstdc++ default
-
-# Принудительно очищаем кэш
-RUN conan remove jsoncpp/1.9.5 -f || true
-RUN conan remove boost/1.78.0 -f || true
-RUN conan remove zlib/1.2.13 -f || true
+# Теперь можно обновить профиль
+RUN conan profile update settings.compiler.libcxx=libstdc++11 default
 
 COPY conanfile.txt /app/
 RUN mkdir -p /app/build && cd /app/build && \
-    # Явно указываем все настройки как в спринте 3
-    conan install .. \
-        --build=missing \
-        -s compiler=gcc \
-        -s compiler.version=11 \
-        -s compiler.libcxx=libstdc++ \
-        -s build_type=Release
+    conan install .. --build=missing
 
-# Проверяем хеш jsoncpp
-RUN cd /app/build && \
-    echo "JSONCPP HASH:" && \
-    conan info . | grep jsoncpp
-
-# только после этого копируем остальные исходники
+# только после этого копируем остальные иходники
 COPY ./src /app/src
+#COPY ./data /app/data
 COPY CMakeLists.txt /app/
 
 RUN cd /app/build && \
@@ -53,8 +38,9 @@ RUN groupadd -r www && useradd -r -g www www
 USER www
 
 # Скопируем приложение со сборочного контейнера в директорию /app.
+# Не забываем также папку data, она пригодится.
 COPY --from=build /app/build/bin/game_server /app/
 COPY ./data /app/data
 
 # Запускаем игровой сервер
-ENTRYPOINT ["/app/game_server", "/app/data/config.json"]
+ENTRYPOINT ["/app/game_server", "/app/data/config.json"] 
