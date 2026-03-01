@@ -167,13 +167,13 @@ jobs:
           cd cpp-backend-tests-practicum/scripts/sprint3
           ./instrumentation/run.sh
 
-      - name: Load map_json binary
-        uses: actions/download-artifact@v3
-        with:
-          name: game_server
-          path: ${{ github.workspace }}/sprint1/problems/map_json/solution/build/bin
-
-      - run: chmod +x ${GITHUB_WORKSPACE}/sprint1/problems/map_json/solution/build/bin/game_server
+#     - name: Load map_json binary
+#       uses: actions/download-artifact@v3
+#       with:
+#         name: game_server
+#          path: ${{ github.workspace }}/sprint1/problems/map_json/solution/build/bin
+#
+#      - run: chmod +x ${GITHUB_WORKSPACE}/sprint1/problems/map_json/solution/build/bin/game_server
 
 
       - name: Load FlameGraph
