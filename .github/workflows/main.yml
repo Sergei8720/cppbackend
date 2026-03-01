@@ -11,7 +11,6 @@ permissions:
   pull-requests: write
   issues: read
 
-
 jobs:
   sprint_1_map_json:
     if: github.repository_owner != 'cpppracticum'
@@ -27,6 +26,24 @@ jobs:
         run: |
           pip uninstall conan -y
           pip install -U conan==1.59.0
+
+      - name: Configure Conan profile for C++11 ABI
+        run: |
+          conan profile detect --force
+          conan profile update settings.compiler.libcxx=libstdc++11 default
+
+      - name: Build map_json binary with Conan
+        run: |
+          cd cpp-backend-tests-practicum/scripts/sprint1/map_json
+          # Очищаем старую сборку
+          rm -rf build
+          mkdir build && cd build
+          # Устанавливаем зависимости через Conan
+          conan install .. --output-folder=. --build=missing
+          # Конфигурируем проект
+          cmake ..
+          # Собираем проект
+          make
 
       - name: run tests sprint1 map_json
         run: |
