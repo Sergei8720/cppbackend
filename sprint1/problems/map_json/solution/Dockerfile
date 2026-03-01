@@ -1,59 +1,57 @@
-# Берем базовый образ из спринта 1
-FROM gcc:11.3 as build
+# Создать образ на основе базового слоя gcc (там будет ОС и сам компилятор).
+# 11.4 — используемая версия gcc в спринте 3.
+FROM gcc:11.4 as build
 
-# Устанавливаем зависимости как в спринте 1
+# Выполнить установку зависимостей внутри контейнера.
 RUN apt update && \
     apt install -y \
       python3-pip \
       cmake \
-      linux-tools-common \
-      linux-tools-generic \
-      linux-tools-$(uname -r) \
-      curl \
     && \
     pip3 install conan==1.*
 
-# Настраиваем Conan profile с правильным ABI (как в спринте 1)
-RUN conan profile new default --detect --force && \
-    conan profile update settings.compiler.libcxx=libstdc++11 default
+# Создать профиль default
+RUN conan profile new default --detect --force
 
-# Копируем исходники сервера из спринта 1
-COPY ../sprint1/map_json/solution /app/solution
-COPY ../sprint1/map_json/data /app/data
-COPY ../sprint1/map_json/conanfile.txt /app/
+# Настраиваем compiler.libcxx=libstdc++ (как в спринте 3)
+RUN conan profile update settings.compiler.libcxx=libstdc++ default
 
-# Собираем сервер
-WORKDIR /app/build
-RUN conan install .. --build=missing && \
+# Принудительно очищаем кэш и устанавливаем jsoncpp
+RUN conan remove jsoncpp/1.9.5 -f || true
+
+COPY conanfile.txt /app/
+RUN mkdir -p /app/build && cd /app/build && \
+    # Явно указываем настройки при установке
+    conan install .. \
+        --build=missing \
+        -s compiler=gcc \
+        -s compiler.version=11 \
+        -s compiler.libcxx=libstdc++
+
+# Проверяем какой jsoncpp установился
+RUN cd /app/build && \
+    conan info . | grep jsoncpp
+
+# только после этого копируем остальные исходники
+COPY ./src /app/src
+COPY CMakeLists.txt /app/
+
+RUN cd /app/build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
     cmake --build .
+    
+    
+# Второй контейнер в том же докерфайле
+FROM ubuntu:22.04 as run
 
-# Копируем скрипты для флеймграфа
-COPY FlameGraph /app/FlameGraph
-COPY shoot.py /app/
+# Создадим пользователя www
+RUN groupadd -r www && useradd -r -g www www
+USER www
 
-# Финальный образ
-FROM ubuntu:22.04
-
-# Устанавливаем необходимые пакеты для perf и curl
-RUN apt update && \
-    apt install -y \
-      linux-tools-common \
-      linux-tools-generic \
-      curl \
-      perl \
-    && \
-    rm -rf /var/lib/apt/lists/*
-
-# Копируем собранный сервер и скрипты
+# Скопируем приложение со сборочного контейнера в директорию /app.
+# Не забываем также папку data, она пригодится.
 COPY --from=build /app/build/bin/game_server /app/
-COPY --from=build /app/data /app/data
-COPY --from=build /app/FlameGraph /app/FlameGraph
-COPY --from=build /app/shoot.py /app/
+COPY ./data /app/data
 
-WORKDIR /app
-
-# Запускаем сервер и скрипт
-CMD ./game_server /app/data/config.json & \
-    sleep 2 && \
-    python3 shoot.py
+# Запускаем игровой сервер
+ENTRYPOINT ["/app/game_server", "/app/data/config.json"]
