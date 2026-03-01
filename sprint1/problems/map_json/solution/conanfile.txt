@@ -1,6 +1,9 @@
 [requires]
 boost/1.78.0
 jsoncpp/1.9.5
+zlib/1.2.13
+bzip2/1.0.8
+libbacktrace/cci.20210118
 
 [generators]
 cmake
@@ -8,3 +11,4 @@ cmake
 [options]
 boost:shared=False
 jsoncpp:shared=False
+zlib:shared=False

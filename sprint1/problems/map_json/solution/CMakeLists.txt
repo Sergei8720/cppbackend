@@ -32,6 +32,6 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# ИСПРАВЛЕНО: используем правильное имя библиотеки от Conan
+
 target_link_libraries(game_server PRIVATE ${CONAN_LIBS_JSONCPP})
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
