@@ -11,10 +11,10 @@ RUN apt update && \
     pip3 install conan==1.*
 
 # Создать профиль default вручную перед обновлением
-RUN conan profile new default --detect --force
+#RUN conan profile new default --detect --force
 
 # Теперь можно обновить профиль
-RUN conan profile update settings.compiler.libcxx=libstdc++11 default
+#RUN conan profile update settings.compiler.libcxx=libstdc++11 default
 
 COPY conanfile.txt /app/
 RUN mkdir -p /app/build && cd /app/build && \
