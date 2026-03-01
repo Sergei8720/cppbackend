@@ -18,24 +18,34 @@ AMMUNITION = [
 SHOOT_COUNT = 100
 COOLDOWN = 0.1
 
+
 def start_server():
     parser = argparse.ArgumentParser()
     parser.add_argument('server', type=str)
     return parser.parse_args().server
 
+
 def run(command, output=None):
-    process = subprocess.Popen(shlex.split(command), stdout=output, stderr=subprocess.DEVNULL)
+    process = subprocess.Popen(
+        shlex.split(command),
+        stdout=output,
+        stderr=subprocess.DEVNULL
+    )
     return process
 
+
 def stop(process, wait=False):
-    if process.poll() is None and wait:
-        process.wait()
-    process.terminate()
+    if process.poll() is None:
+        process.terminate()
+        if wait:
+            process.wait()
+
 
 def shoot(ammo):
     hit = run('curl ' + ammo, output=subprocess.DEVNULL)
     time.sleep(COOLDOWN)
     stop(hit, wait=True)
+
 
 def make_shots():
     for _ in range(SHOOT_COUNT):
@@ -43,77 +53,70 @@ def make_shots():
         shoot(AMMUNITION[ammo_number])
     print('Shooting complete')
 
-def get_server_pid(server_process):
-    """Получаем PID запущенного сервера"""
-    return server_process.pid
 
-def record_perf(server_pid):
-    """Запускаем perf record для сбора трассировки"""
-    perf_command = [
-        'perf', 'record',
-        '-o', 'perf.data',
-        '-p', str(server_pid),
-        '-g'  # включение записи стека вызовов
-    ]
-    return subprocess.Popen(perf_command)
+def build_flamegraph():
+    flamegraph_dir = os.path.join(os.path.dirname(__file__), 'FlameGraph')
+    stackcollapse = os.path.join(flamegraph_dir, 'stackcollapse-perf.pl')
+    flamegraph = os.path.join(flamegraph_dir, 'flamegraph.pl')
 
-def generate_flamegraph():
-    """Генерируем флеймграф из собранных данных"""
-    # Получаем данные из perf.data
-    perf_script = subprocess.run(
+    # perf script
+    perf_script = subprocess.Popen(
         ['perf', 'script', '-i', 'perf.data'],
-        capture_output=True,
-        text=True
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL
     )
 
-    # Пропускаем через stackcollapse-perf.pl
-    stackcollapse = subprocess.run(
-        ['./FlameGraph/stackcollapse-perf.pl'],
-        input=perf_script.stdout,
-        capture_output=True,
-        text=True
+    # stackcollapse-perf.pl
+    stackcollapse_proc = subprocess.Popen(
+        [stackcollapse],
+        stdin=perf_script.stdout,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL
     )
 
-    # Генерируем SVG через flamegraph.pl
-    with open('graph.svg', 'w') as f:
-        subprocess.run(
-            ['./FlameGraph/flamegraph.pl'],
-            input=stackcollapse.stdout,
-            stdout=f,
-            text=True
+    # flamegraph.pl -> graph.svg
+    with open('graph.svg', 'w') as svg:
+        flamegraph_proc = subprocess.Popen(
+            [flamegraph],
+            stdin=stackcollapse_proc.stdout,
+            stdout=svg,
+            stderr=subprocess.DEVNULL
         )
+        flamegraph_proc.wait()
 
-# Основной поток выполнения
-if __name__ == '__main__':
-    # Запускаем сервер
-    server_cmd = start_server()
-    server_process = run(server_cmd)
+    perf_script.wait()
+    stackcollapse_proc.wait()
 
-    # Ждём немного, чтобы сервер успел запуститься
-    time.sleep(2)
 
-    try:
-        # Получаем PID сервера
-        server_pid = get_server_pid(server_process)
+# --- main logic ---
 
-        # Запускаем сбор данных perf
-        perf_process = record_perf(server_pid)
+server = run(start_server())
 
-        # Выполняем обстрелы запросами
-        make_shots()
+# даём серверу немного времени подняться
+time.sleep(1)
 
-        # Останавливаем сбор данных perf (отправляем SIGINT)
-        perf_process.send_signal(signal.SIGINT)
-        perf_process.wait(timeout=10)  # ждём завершения записи perf.data
+# запускаем perf record с привязкой к PID сервера
+perf = subprocess.Popen(
+    [
+        'perf', 'record',
+        '-F', '99',
+        '-g',
+        '-p', str(server.pid),
+        '-o', 'perf.data'
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL
+)
 
-        # Генерируем флеймграф
-        generate_flamegraph()
-        print('Flamegraph generated: graph.svg')
+make_shots()
 
-    except Exception as e:
-        print(f'Error during profiling: {e}')
-    finally:
-        # Всегда останавливаем сервер
-        stop(server_process, wait=True)
-        time.sleep(1)
-        print('Job done')
+# корректно останавливаем perf (SIGINT как при Ctrl+C)
+perf.send_signal(signal.SIGINT)
+perf.wait()
+
+stop(server, wait=True)
+time.sleep(1)
+
+build_flamegraph()
+
+print('Job done')
