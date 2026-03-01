@@ -6,7 +6,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
 # Подключаем Conan
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup()
+conan_basic_setup(TARGETS)  # используем target-based подход
 
 add_executable(game_server
     src/main.cpp
@@ -25,7 +25,10 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# Линкуем все библиотеки из Conan
-target_link_libraries(game_server ${CONAN_LIBS})
+# Явно линкуем с библиотеками через Conan-targets
+target_link_libraries(game_server
+    CONAN_PKG::boost
+    CONAN_PKG::jsoncpp
+)
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
