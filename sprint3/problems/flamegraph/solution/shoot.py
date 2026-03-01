@@ -6,7 +6,6 @@ import shlex
 import os
 import signal
 import sys
-import tempfile
 
 RANDOM_LIMIT = 1000
 SEED = 123456789
@@ -21,219 +20,136 @@ SHOOT_COUNT = 100
 COOLDOWN = 0.1
 
 
-def create_dockerfile():
-    """Создаем Dockerfile на лету"""
-    dockerfile_content = """
-FROM gcc:11.3 as build
-
-RUN apt update && \\
-    apt install -y \\
-      python3-pip \\
-      cmake \\
-      linux-tools-common \\
-      linux-tools-generic \\
-      curl \\
-    && \\
-    pip3 install conan==1.*
-
-# Настраиваем Conan profile с правильным ABI
-RUN conan profile new default --detect --force && \\
-    conan profile update settings.compiler.libcxx=libstdc++11 default
-
-# Копируем исходники сервера
-COPY ../sprint1/map_json/solution /app/solution
-COPY ../sprint1/map_json/data /app/data
-COPY ../sprint1/map_json/conanfile.txt /app/
-
-# Собираем сервер
-WORKDIR /app/build
-RUN conan install .. --build=missing && \\
-    cmake -DCMAKE_BUILD_TYPE=Release .. && \\
-    cmake --build .
-
-# Финальный образ
-FROM ubuntu:22.04
-
-RUN apt update && \\
-    apt install -y \\
-      linux-tools-common \\
-      linux-tools-generic \\
-      curl \\
-      perl \\
-      procps \\
-    && \\
-    rm -rf /var/lib/apt/lists/*
-
-COPY --from=build /app/build/bin/game_server /app/
-COPY --from=build /app/data /app/data
-COPY FlameGraph /app/FlameGraph
-
-WORKDIR /app
-
-CMD /app/game_server /app/data/config.json
-"""
+def setup_conan():
+    """Настраивает Conan перед сборкой сервера"""
+    print("Setting up Conan with correct ABI...")
     
-    with open('Dockerfile.server', 'w') as f:
-        f.write(dockerfile_content)
-    return 'Dockerfile.server'
-
-
-def build_and_run_server():
-    """Собирает Docker образ и запускает сервер"""
-    print("Building Docker image with server...")
+    # Устанавливаем переменные окружения
+    os.environ['CONAN_USER_HOME'] = '/tmp/conan-home'
     
-    # Создаем Dockerfile
-    dockerfile = create_dockerfile()
-    
-    # Собираем образ
+    # Создаем профиль с правильным ABI
     subprocess.run([
-        'docker', 'build',
-        '-f', dockerfile,
-        '-t', 'game-server-flamegraph',
-        '.'  # Запускаем из текущей директории (sprint3)
-    ], check=True)
+        'conan', 'profile', 'new', 'default', '--detect', '--force'
+    ], check=False)
     
-    # Запускаем контейнер с сервером в фоне
-    container = subprocess.run([
-        'docker', 'run',
-        '-d',
-        '--name', 'game-server-flamegraph',
-        '-p', '8080:8080',
-        '--privileged',  # Нужно для perf
-        'game-server-flamegraph'
-    ], capture_output=True, text=True, check=True)
+    subprocess.run([
+        'conan', 'profile', 'update', 
+        'settings.compiler.libcxx=libstdc++11', 'default'
+    ], check=False)
     
-    container_id = container.stdout.strip()
-    print(f"Container started: {container_id}")
+    # Удаляем jsoncpp из кэша, чтобы переустановить с правильным ABI
+    subprocess.run([
+        'conan', 'remove', 'jsoncpp/1.9.5', '-f'
+    ], check=False)
     
-    # Ждем запуска сервера
-    time.sleep(3)
-    
-    # Проверяем, что сервер работает
-    try:
-        subprocess.run(['curl', '-f', 'http://localhost:8080/api/v1/maps'], 
-                      capture_output=True, check=True)
-        print("Server is healthy")
-    except:
-        print("Server failed to start")
-        docker_logs = subprocess.run(['docker', 'logs', container_id], 
-                                    capture_output=True, text=True)
-        print(docker_logs.stderr)
-        subprocess.run(['docker', 'rm', '-f', container_id])
-        sys.exit(1)
-    
-    return container_id
+    print("Conan setup complete")
 
 
-def run_perf_in_container(container_id):
-    """Запускает perf record внутри контейнера"""
-    print("Starting perf record...")
-    
-    # Получаем PID сервера внутри контейнера
-    pid_result = subprocess.run([
-        'docker', 'exec', container_id, 'pgrep', 'game_server'
-    ], capture_output=True, text=True, check=True)
-    
-    server_pid = pid_result.stdout.strip()
-    print(f"Server PID in container: {server_pid}")
-    
-    # Запускаем perf record в контейнере
-    perf = subprocess.Popen([
-        'docker', 'exec', container_id,
-        'perf', 'record',
-        '-F', '99',
-        '-g',
-        '-p', server_pid,
-        '-o', '/tmp/perf.data'
-    ])
-    
-    return perf
+def start_server():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('server', type=str)
+    return parser.parse_args().server
+
+
+def run(command, output=None):
+    process = subprocess.Popen(
+        shlex.split(command),
+        stdout=output,
+        stderr=subprocess.DEVNULL
+    )
+    return process
+
+
+def stop(process, wait=False):
+    if process.poll() is None:
+        process.terminate()
+        if wait:
+            process.wait()
+
+
+def shoot(ammo):
+    hit = run('curl ' + ammo, output=subprocess.DEVNULL)
+    time.sleep(COOLDOWN)
+    stop(hit, wait=True)
 
 
 def make_shots():
-    """Выполняет запросы к серверу"""
-    print(f"Making {SHOOT_COUNT} requests...")
-    for i in range(SHOOT_COUNT):
+    for _ in range(SHOOT_COUNT):
         ammo_number = random.randrange(RANDOM_LIMIT) % len(AMMUNITION)
-        url = AMMUNITION[ammo_number]
-        
-        try:
-            subprocess.run(['curl', '-s', url], 
-                         capture_output=True, timeout=1)
-        except:
-            pass
-        
-        time.sleep(COOLDOWN)
-        
-        if (i + 1) % 10 == 0:
-            print(f"Completed {i + 1}/{SHOOT_COUNT} requests")
-    
+        shoot(AMMUNITION[ammo_number])
     print('Shooting complete')
 
 
-def get_flamegraph_from_container(container_id):
-    """Извлекает flamegraph из контейнера"""
-    print("Generating flamegraph...")
-    
-    # Выполняем perf script и генерируем flamegraph внутри контейнера
-    subprocess.run([
-        'docker', 'exec', container_id,
-        'bash', '-c',
-        'cd /app && perf script -i /tmp/perf.data | ./FlameGraph/stackcollapse-perf.pl | ./FlameGraph/flamegraph.pl > /tmp/graph.svg'
-    ], check=True)
-    
-    # Копируем результат из контейнера
-    subprocess.run([
-        'docker', 'cp',
-        f'{container_id}:/tmp/graph.svg',
-        './graph.svg'
-    ], check=True)
-    
-    print("Flamegraph saved to graph.svg")
+def build_flamegraph():
+    flamegraph_dir = os.path.join(os.path.dirname(__file__), 'FlameGraph')
+    stackcollapse = os.path.join(flamegraph_dir, 'stackcollapse-perf.pl')
+    flamegraph = os.path.join(flamegraph_dir, 'flamegraph.pl')
 
+    # perf script
+    perf_script = subprocess.Popen(
+        ['perf', 'script', '-i', 'perf.data'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL
+    )
 
-def cleanup(container_id):
-    """Очищает ресурсы"""
-    print("Cleaning up...")
-    subprocess.run(['docker', 'stop', container_id], capture_output=True)
-    subprocess.run(['docker', 'rm', container_id], capture_output=True)
-    if os.path.exists('Dockerfile.server'):
-        os.remove('Dockerfile.server')
+    # stackcollapse-perf.pl
+    stackcollapse_proc = subprocess.Popen(
+        [stackcollapse],
+        stdin=perf_script.stdout,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL
+    )
+
+    # flamegraph.pl -> graph.svg
+    with open('graph.svg', 'w') as svg:
+        flamegraph_proc = subprocess.Popen(
+            [flamegraph],
+            stdin=stackcollapse_proc.stdout,
+            stdout=svg,
+            stderr=subprocess.DEVNULL
+        )
+        flamegraph_proc.wait()
+
+    perf_script.wait()
+    stackcollapse_proc.wait()
 
 
 # --- main logic ---
-def main():
-    container_id = None
-    try:
-        # Собираем и запускаем сервер
-        container_id = build_and_run_server()
-        
-        # Запускаем perf
-        perf_process = run_perf_in_container(container_id)
-        
-        # Даем perf время начать запись
-        time.sleep(1)
-        
-        # Выполняем запросы
-        make_shots()
-        
-        # Останавливаем perf
-        perf_process.terminate()
-        perf_process.wait()
-        
-        # Генерируем flamegraph
-        get_flamegraph_from_container(container_id)
-        
-        print('Job done successfully!')
-        
-    except Exception as e:
-        print(f"Error: {e}")
-        sys.exit(1)
-        
-    finally:
-        if container_id:
-            cleanup(container_id)
 
+# Настраиваем Conan перед всем остальным
+setup_conan()
 
-if __name__ == '__main__':
-    main()
+server_path = start_server()
+print(f"Starting server from: {server_path}")
+
+# Запускаем сервер
+server = run(server_path)
+
+# даём серверу немного времени подняться
+time.sleep(1)
+
+# запускаем perf record с привязкой к PID сервера
+perf = subprocess.Popen(
+    [
+        'perf', 'record',
+        '-F', '99',
+        '-g',
+        '-p', str(server.pid),
+        '-o', 'perf.data'
+    ],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL
+)
+
+make_shots()
+
+# корректно останавливаем perf (SIGINT как при Ctrl+C)
+perf.send_signal(signal.SIGINT)
+perf.wait()
+
+stop(server, wait=True)
+time.sleep(1)
+
+build_flamegraph()
+
+print('Job done')
