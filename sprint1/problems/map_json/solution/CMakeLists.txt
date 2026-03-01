@@ -33,9 +33,6 @@ add_executable(game_server
 )
 
 # ИСПРАВЛЕНО: используем правильное имя библиотеки от Conan
-target_link_libraries(game_server PRIVATE 
-    Threads::Threads 
-    ${CONAN_LIBS}  # или конкретно jsoncpp::jsoncpp
-)
+target_link_libraries(game_server PRIVATE Threads::Threads ${CONAN_LIBS})
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
