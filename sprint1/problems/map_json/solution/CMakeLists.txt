@@ -7,11 +7,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
-# Явно находим jsoncpp через Conan
-find_package(jsoncpp REQUIRED)
-find_package(Boost 1.78.0 REQUIRED)
-find_package(Threads REQUIRED)
-
 add_executable(game_server
     src/main.cpp
     src/http_server.cpp
@@ -29,12 +24,10 @@ add_executable(game_server
     src/json_converter.h
 )
 
-# Линкуем библиотеки
+# CONAN_LIBS уже содержит все библиотеки
 target_link_libraries(game_server
     PRIVATE
-        Threads::Threads
-        ${Boost_LIBRARIES}
-        jsoncpp_lib  # или jsoncpp_static в зависимости от конфигурации
+        ${CONAN_LIBS}
 )
 
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
