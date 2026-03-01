@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup()
+conan_basic_setup(TARGETS)  # ВАЖНО: используем TARGETS
 
 find_package(Boost 1.78.0 REQUIRED)
 if(Boost_FOUND)
@@ -31,5 +31,12 @@ add_executable(game_server
     src/json_converter.cpp
     src/json_converter.h
 )
-target_link_libraries(game_server PRIVATE Threads::Threads jsoncpp)
+
+target_link_libraries(game_server
+    PRIVATE
+    Threads::Threads
+    CONAN_PKG::jsoncpp  # Подключаем через Conan TARGET
+    ${CONAN_LIBS}      # Все библиотеки от Conan
+)
+
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)

@@ -4,6 +4,7 @@ jsoncpp/1.9.5
 
 [generators]
 cmake
+cmake_find_package_multi  # Добавляет поддержку CMake‑таргетов
 
 [options]
 boost:shared=False
