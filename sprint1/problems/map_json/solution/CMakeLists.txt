@@ -4,13 +4,8 @@ project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 
-# Проверяем, что conanbuildinfo.cmake существует
-if(EXISTS "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
-    include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-    conan_basic_setup(TARGETS)
-else()
-    message(WARNING "Conan: conanbuildinfo.cmake not found. Skipping Conan setup.")
-endif()
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup(TARGETS)
 
 add_executable(game_server
     src/main.cpp
