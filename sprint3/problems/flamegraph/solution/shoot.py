@@ -38,6 +38,7 @@ def stop(process, wait=False):
     process.terminate()
 
 
+
 def shoot(ammo):
     hit = run('curl ' + ammo, output=subprocess.DEVNULL)
     time.sleep(COOLDOWN)
