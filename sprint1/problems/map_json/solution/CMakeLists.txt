@@ -7,7 +7,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g")
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
-find_package(Boost 1.76.0 REQUIRED)
+find_package(Boost 1.81.0 REQUIRED)
 if(Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
 endif()
@@ -37,9 +37,4 @@ add_executable(game_server
     src/json_converter.h
 )
 target_link_libraries(game_server PRIVATE Threads::Threads jsoncpp)
-target_link_libraries(flamegraph PRIVATE 
-    Threads::Threads 
-    jsoncpp  # ВАЖНО: добавляем jsoncpp
-    ${Boost_LIBRARIES}
-)
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
