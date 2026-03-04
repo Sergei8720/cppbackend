@@ -8,7 +8,7 @@ conan_basic_setup(TARGETS)
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-find_package(Boost 1.81.0 REQUIRED)
+find_package(Boost 1.78.0 REQUIRED)
 if(Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
 endif()
@@ -70,7 +70,7 @@ target_link_libraries(game_server PRIVATE
     CONAN_PKG::boost
 )
 
-# Тесты
+# ==================== ТЕСТЫ ====================
 add_executable(catch_tests
     tests/loot_generator_tests.cpp
     src/model/loot_generator.cpp
@@ -81,10 +81,25 @@ target_include_directories(catch_tests PRIVATE
     src/model
 )
 
-target_link_libraries(catch_tests PRIVATE 
-    Threads::Threads 
+# Правильная линковка для Catch2 (требует обе библиотеки: Catch2 и Catch2Main)
+target_link_libraries(catch_tests PRIVATE
+    Threads::Threads
     CONAN_PKG::jsoncpp
-    CONAN_PKG::catch2
+    ${CONAN_LIBS_CATCH2}  # Это автоматически включает все библиотеки Catch2
 )
 
-add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
+# Альтернативный вариант, если ${CONAN_LIBS_CATCH2} не работает:
+# target_link_libraries(catch_tests PRIVATE
+#     Threads::Threads
+#     CONAN_PKG::jsoncpp
+#     Catch2::Catch2
+#     Catch2::Catch2Main
+# )
+
+# Явно указываем, что тесты используют Catch2
+target_compile_definitions(catch_tests PRIVATE
+    BOOST_BEAST_USE_STD_STRING_VIEW
+    CATCH_CONFIG_MAIN  # Это гарантирует, что Catch2 предоставит main()
+)
+
+# ==================== КОНЕЦ ТЕСТОВ ====================
