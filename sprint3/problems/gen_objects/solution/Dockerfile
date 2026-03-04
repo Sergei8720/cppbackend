@@ -22,8 +22,10 @@ RUN mkdir -p /app/build && cd /app/build && \
 
 # только после этого копируем остальные иходники
 COPY ./src /app/src
+COPY ./tests /app/tests
 #COPY ./data /app/data
 COPY CMakeLists.txt /app/
+
 
 RUN cd /app/build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \

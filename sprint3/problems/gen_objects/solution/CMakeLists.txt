@@ -8,7 +8,7 @@ conan_basic_setup(TARGETS)
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-find_package(Boost 1.78.0 REQUIRED)
+find_package(Boost 1.81.0 REQUIRED)
 if(Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
 endif()
@@ -70,5 +70,5 @@ add_executable(catch_tests
 	src/model/loot_generator.cpp
 	src/model/loot_generator.h
 )
-target_link_libraries(game_server PRIVATE Threads::Threads jsoncpp)
+target_link_libraries(catch_tests PRIVATE Threads::Threads jsoncpp CONAN_PKG::catch2)
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
