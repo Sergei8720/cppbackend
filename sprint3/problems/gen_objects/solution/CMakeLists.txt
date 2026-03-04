@@ -16,6 +16,11 @@ endif()
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+add_compile_definitions(
+    BOOST_BEAST_USE_STD_STRING_VIEW
+    BOOST_JSON_STANDALONE
+)
+
 add_executable(game_server
 	src/main.cpp
 	src/model/map.cpp
@@ -65,8 +70,5 @@ add_executable(catch_tests
 	src/model/loot_generator.cpp
 	src/model/loot_generator.h
 )
-target_link_libraries(catch_tests PRIVATE CONAN_PKG::catch2)
-
-
-# Boost.Beast будет использовать std::string_view вместо boost::string_view
+target_link_libraries(game_server PRIVATE Threads::Threads jsoncpp)
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
