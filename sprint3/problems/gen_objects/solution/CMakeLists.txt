@@ -70,5 +70,5 @@ add_executable(catch_tests
 	src/model/loot_generator.cpp
 	src/model/loot_generator.h
 )
-target_link_libraries(catch_tests PRIVATE Threads::Threads jsoncpp CONAN_PKG::catch2)
+target_link_libraries(catch_tests PRIVATE CONAN_PKG::catch2)
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
