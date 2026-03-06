@@ -27,13 +27,13 @@ if(NOT CONAN_BUILDINFO_FOUND)
     message(FATAL_ERROR "❌ conanbuildinfo.cmake not found! Searched in: ${CONAN_BUILDINFO_PATHS}")
 endif()
 
-# Применяем настройки Conan - это установит все пути и флаги
+# Применяем настройки Conan
 conan_basic_setup(TARGETS)
 # ============= КОНЕЦ ПОИСКА CONAN =============
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-find_package(Boost 1.78.0 REQUIRED)
+find_package(Boost 1.78.0 REQUIRED COMPONENTS system filesystem)
 if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
 endif()
@@ -92,7 +92,6 @@ target_include_directories(game_server PRIVATE
     ${CONAN_INCLUDE_DIRS}
 )
 
-# ВАЖНО: Добавляем пути к библиотекам
 target_link_directories(game_server PRIVATE ${CONAN_LIB_DIRS})
 
 target_link_libraries(game_server PRIVATE 
@@ -113,23 +112,23 @@ target_include_directories(catch_tests PRIVATE
     ${CONAN_INCLUDE_DIRS}
 )
 
-# ВАЖНО: Добавляем пути к библиотекам для тестов
 target_link_directories(catch_tests PRIVATE ${CONAN_LIB_DIRS})
+
+# Явно находим пакет Catch2
+find_package(Catch2 REQUIRED)
 
 target_link_libraries(catch_tests PRIVATE
     Threads::Threads
-    ${CONAN_LIBS}
+    Catch2::Catch2
+    Catch2::Catch2WithMain  # Это правильное имя таргета для Catch2 с main
     m
 )
 
-# Явно указываем стандарт C++ для тестов
 target_compile_features(catch_tests PRIVATE cxx_std_20)
 
-# Для отладки - выводим пути к библиотекам
+# Для отладки
 add_custom_command(TARGET catch_tests POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "🔧 Library directories: ${CONAN_LIB_DIRS}"
-    COMMAND ${CMAKE_COMMAND} -E echo "🔧 Libraries: ${CONAN_LIBS}"
-    COMMAND ${CMAKE_COMMAND} -E echo "🚀 Test executable built successfully!"
+    COMMAND ${CMAKE_COMMAND} -E echo "🔧 Test executable built successfully!"
 )
 
 # Добавляем цель для запуска тестов
@@ -141,7 +140,6 @@ add_custom_target(run_tests
 )
 # ============= КОНЕЦ ТЕСТОВ =============
 
-# Выводим информацию о найденных библиотеках
-message(STATUS "📚 Conan libraries: ${CONAN_LIBS}")
-message(STATUS "📁 Conan include dirs: ${CONAN_INCLUDE_DIRS}")
-message(STATUS "📂 Conan lib dirs: ${CONAN_LIB_DIRS}")
+# Выводим информацию
+message(STATUS "📚 Game server will link all Conan libraries")
+message(STATUS "📚 Tests will link only Catch2 libraries")
