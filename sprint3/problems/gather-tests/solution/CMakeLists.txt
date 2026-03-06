@@ -27,7 +27,7 @@ if(NOT CONAN_BUILDINFO_FOUND)
     message(FATAL_ERROR "❌ conanbuildinfo.cmake not found! Searched in: ${CONAN_BUILDINFO_PATHS}")
 endif()
 
-# Применяем настройки Conan
+# Применяем настройки Conan - ЭТО ВАЖНО!
 conan_basic_setup(TARGETS)
 
 # Добавляем пути к модулям CMake от Conan
@@ -50,9 +50,8 @@ target_include_directories(collision_detection_lib PUBLIC
     ${CONAN_INCLUDE_DIRS}
 )
 
-target_link_libraries(collision_detection_lib PRIVATE
+target_link_libraries(collision_detection_lib PUBLIC
     Threads::Threads
-    ${CONAN_LIBS}
 )
 # ============= КОНЕЦ БИБЛИОТЕКИ =============
 
@@ -66,10 +65,11 @@ target_include_directories(collision_detection_tests PRIVATE
     ${CONAN_INCLUDE_DIRS}
 )
 
+# ИСПРАВЛЕНО: используем CONAN_PKG::catch2 target
 target_link_libraries(collision_detection_tests PRIVATE
     collision_detection_lib
     Threads::Threads
-    CONAN_PKG::catch2
+    CONAN_PKG::catch2  # Conan автоматически добавит и Catch2Main, и Catch2
     m
 )
 
@@ -84,6 +84,7 @@ add_custom_target(run_tests
 )
 # ============= КОНЕЦ ТЕСТОВ =============
 
-# Выводим информацию
+# Выводим информацию для отладки
 message(STATUS "📚 Conan libraries: ${CONAN_LIBS}")
 message(STATUS "📁 Conan include dirs: ${CONAN_INCLUDE_DIRS}")
+message(STATUS "📂 Conan lib dirs: ${CONAN_LIB_DIRS}")
