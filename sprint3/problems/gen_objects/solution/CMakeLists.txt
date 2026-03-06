@@ -89,12 +89,12 @@ target_include_directories(game_server PRIVATE
     src/program_options
     src/time_management
     src/error_handling
-    ${CONAN_INCLUDE_DIRS}  # Добавляем пути от Conan
+    ${CONAN_INCLUDE_DIRS}
 )
 
 target_link_libraries(game_server PRIVATE 
     Threads::Threads 
-    ${CONAN_LIBS}  # Линкуем все библиотеки от Conan
+    ${CONAN_LIBS}
 )
 # ============= КОНЕЦ ОСНОВНОГО ФАЙЛА =============
 
@@ -107,21 +107,25 @@ add_executable(catch_tests
 target_include_directories(catch_tests PRIVATE
     src
     src/model
-    ${CONAN_INCLUDE_DIRS}  # Критически важно для Catch2!
+    ${CONAN_INCLUDE_DIRS}
 )
 
 target_link_libraries(catch_tests PRIVATE
     Threads::Threads
-    ${CONAN_LIBS}  # Линкуем ВСЕ библиотеки от Conan (включая Catch2!)
-    m  # Математическая библиотека для функций из <cmath>
+    ${CONAN_LIBS}
+    m
 )
 
-# Явно указываем, что тесты используют математические функции
-target_compile_options(catch_tests PRIVATE -std=c++20)
+# Явно указываем стандарт C++ для тестов
+target_compile_features(catch_tests PRIVATE cxx_std_20)
 
-# Для отладки - выводим информацию о линковке (можно удалить после отладки)
+# ИСПРАВЛЕНО: правильный генератор выражения для отладки
 add_custom_command(TARGET catch_tests POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "🔧 catch_tests linked with: $<TARGET_LINK_LIBRARIES:catch_tests>"
+    COMMAND ${CMAKE_COMMAND} -E echo "🔧 catch_tests linked libraries:"
+    COMMAND ${CMAKE_COMMAND} -E echo "$<TARGET_PROPERTY:catch_tests,LINK_LIBRARIES>"
+    COMMAND ${CMAKE_COMMAND} -E echo "🔧 catch_tests include directories:"
+    COMMAND ${CMAKE_COMMAND} -E echo "$<TARGET_PROPERTY:catch_tests,INCLUDE_DIRECTORIES>"
+    COMMAND ${CMAKE_COMMAND} -E echo "🚀 Test executable built successfully!"
 )
 
 # Добавляем цель для запуска тестов
