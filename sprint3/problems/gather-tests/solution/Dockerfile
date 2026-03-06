@@ -46,7 +46,10 @@ USER www
 
 # Скопируем приложение со сборочного контейнера
 COPY --from=build /app/build/bin/game_server /app/
-COPY ./data /app/data
+# Временно закомментировано, так как директория data отсутствует
+# COPY ./data /app/data
 
 # Запускаем игровой сервер
-ENTRYPOINT ["/app/game_server", "/app/data/config.json"]
+# Временно закомментировано, так как требуется файл config.json
+# ENTRYPOINT ["/app/game_server", "/app/data/config.json"]
+ENTRYPOINT ["/app/game_server"]
