@@ -2,15 +2,40 @@ cmake_minimum_required(VERSION 3.11)
 
 project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+# ============= УНИВЕРСАЛЬНЫЙ ПОИСК CONAN =============
+set(CONAN_BUILDINFO_PATHS
+    "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake"
+    "${CMAKE_SOURCE_DIR}/build/conanbuildinfo.cmake"
+    "/app/build/conanbuildinfo.cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/build/conanbuildinfo.cmake"
+    "${CMAKE_BINARY_DIR}/conan/build/conanbuildinfo.cmake"
+)
+
+set(CONAN_BUILDINFO_FOUND FALSE)
+foreach(PATH ${CONAN_BUILDINFO_PATHS})
+    if(EXISTS ${PATH})
+        message(STATUS "✅ Found conanbuildinfo.cmake at: ${PATH}")
+        include(${PATH})
+        set(CONAN_BUILDINFO_FOUND TRUE)
+        break()
+    endif()
+endforeach()
+
+if(NOT CONAN_BUILDINFO_FOUND)
+    message(FATAL_ERROR "❌ conanbuildinfo.cmake not found! Searched in: ${CONAN_BUILDINFO_PATHS}")
+endif()
+
+# Применяем настройки Conan с поддержкой таргетов
 conan_basic_setup(TARGETS)
+# ============= КОНЕЦ ПОИСКА CONAN =============
 
-set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(Boost 1.78.0 REQUIRED)
 if(Boost_FOUND)
-  include_directories(${Boost_INCLUDE_DIRS})
+    include_directories(${Boost_INCLUDE_DIRS})
 endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -21,6 +46,7 @@ add_compile_definitions(
     BOOST_JSON_STANDALONE
 )
 
+# ============= ОСНОВНОЙ ИСПОЛНЯЕМЫЙ ФАЙЛ =============
 add_executable(game_server
     src/main.cpp
     src/model/map.cpp
@@ -63,14 +89,16 @@ target_include_directories(game_server PRIVATE
     src/program_options
     src/time_management
     src/error_handling
+    ${CONAN_INCLUDE_DIRS}  # Добавляем пути от Conan
 )
 
 target_link_libraries(game_server PRIVATE 
     Threads::Threads 
-    CONAN_PKG::boost
+    ${CONAN_LIBS}  # Линкуем все библиотеки от Conan
 )
+# ============= КОНЕЦ ОСНОВНОГО ФАЙЛА =============
 
-# ==================== ТЕСТЫ ====================
+# ============= ТЕСТЫ =============
 add_executable(catch_tests
     tests/loot_generator_tests.cpp
     src/model/loot_generator.cpp
@@ -79,27 +107,32 @@ add_executable(catch_tests
 target_include_directories(catch_tests PRIVATE
     src
     src/model
+    ${CONAN_INCLUDE_DIRS}  # Критически важно для Catch2!
 )
 
-# Правильная линковка для Catch2 (требует обе библиотеки: Catch2 и Catch2Main)
 target_link_libraries(catch_tests PRIVATE
     Threads::Threads
-    CONAN_PKG::jsoncpp
-    ${CONAN_LIBS_CATCH2}  # Это автоматически включает все библиотеки Catch2
+    ${CONAN_LIBS}  # Линкуем ВСЕ библиотеки от Conan (включая Catch2!)
+    m  # Математическая библиотека для функций из <cmath>
 )
 
-# Альтернативный вариант, если ${CONAN_LIBS_CATCH2} не работает:
-# target_link_libraries(catch_tests PRIVATE
-#     Threads::Threads
-#     CONAN_PKG::jsoncpp
-#     Catch2::Catch2
-#     Catch2::Catch2Main
-# )
+# Явно указываем, что тесты используют математические функции
+target_compile_options(catch_tests PRIVATE -std=c++20)
 
-# Явно указываем, что тесты используют Catch2
-target_compile_definitions(catch_tests PRIVATE
-    BOOST_BEAST_USE_STD_STRING_VIEW
-    CATCH_CONFIG_MAIN  # Это гарантирует, что Catch2 предоставит main()
+# Для отладки - выводим информацию о линковке (можно удалить после отладки)
+add_custom_command(TARGET catch_tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E echo "🔧 catch_tests linked with: $<TARGET_LINK_LIBRARIES:catch_tests>"
 )
 
-# ==================== КОНЕЦ ТЕСТОВ ====================
+# Добавляем цель для запуска тестов
+add_custom_target(run_tests
+    COMMAND catch_tests
+    DEPENDS catch_tests
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "🚀 Running Catch2 tests..."
+)
+# ============= КОНЕЦ ТЕСТОВ =============
+
+# Выводим информацию о найденных библиотеках
+message(STATUS "📚 Conan libraries: ${CONAN_LIBS}")
+message(STATUS "📁 Conan include dirs: ${CONAN_INCLUDE_DIRS}")
