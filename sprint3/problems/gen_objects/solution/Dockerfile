@@ -10,10 +10,10 @@ RUN apt update && \
     && \
     pip3 install conan==1.*
 
-# СОЗДАЕМ И НАСТРАИВАЕМ ПРОФИЛЬ CONAN (РАСКОММЕНТИРОВАНО!)
+# СОЗДАЕМ И НАСТРАИВАЕМ ПРОФИЛЬ CONAN
 RUN conan profile new default --detect --force
 RUN conan profile update settings.compiler.libcxx=libstdc++11 default
-RUN conan profile show default  # Для отладки
+RUN conan profile show default
 
 # Копируем conanfile.txt до установки зависимостей
 COPY conanfile.txt /app/
@@ -25,14 +25,14 @@ COPY ./src /app/src
 COPY ./tests /app/tests
 COPY CMakeLists.txt /app/
 
-# Компилируем проект
+# Компилируем проект - ИСПРАВЛЕНО!
 RUN cd /app/build && \
     cmake -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_PREFIX_PATH=/root/.conan  \  # Явно указываем путь к Conan
+          -DCMAKE_PREFIX_PATH=/root/.conan \
           .. && \
     cmake --build .
 
-# Второй контейнер в том же докерфайле
+# Второй контейнер
 FROM ubuntu:22.04 as run
 
 # Устанавливаем необходимые библиотеки для запуска
@@ -44,7 +44,7 @@ RUN apt update && apt install -y \
 RUN groupadd -r www && useradd -r -g www www
 USER www
 
-# Скопируем приложение со сборочного контейнера в директорию /app.
+# Скопируем приложение со сборочного контейнера
 COPY --from=build /app/build/bin/game_server /app/
 COPY ./data /app/data
 
