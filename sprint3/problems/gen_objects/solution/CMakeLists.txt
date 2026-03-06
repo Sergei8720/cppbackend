@@ -29,6 +29,10 @@ endif()
 
 # Применяем настройки Conan
 conan_basic_setup(TARGETS)
+
+# Добавляем пути к модулям CMake от Conan
+list(APPEND CMAKE_MODULE_PATH ${CONAN_CMAKE_MODULE_PATH})
+list(APPEND CMAKE_PREFIX_PATH ${CONAN_CMAKE_MODULE_PATH})
 # ============= КОНЕЦ ПОИСКА CONAN =============
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -114,21 +118,27 @@ target_include_directories(catch_tests PRIVATE
 
 target_link_directories(catch_tests PRIVATE ${CONAN_LIB_DIRS})
 
-# Явно находим пакет Catch2
-find_package(Catch2 REQUIRED)
-
+# Явно указываем, что Catch2 уже установлен через Conan
+# и используем CONAN_PKG::catch2 таргет вместо find_package
 target_link_libraries(catch_tests PRIVATE
     Threads::Threads
-    Catch2::Catch2
-    Catch2::Catch2WithMain  # Это правильное имя таргета для Catch2 с main
+    CONAN_PKG::catch2  # Это таргет, созданный Conan
     m
 )
+
+# Альтернативно, если CONAN_PKG::catch2 не работает, используем:
+# target_link_libraries(catch_tests PRIVATE
+#     Threads::Threads
+#     ${CONAN_LIBS_CATCH2}
+#     ${CONAN_LIBS_CATCH2_MAIN}
+#     m
+# )
 
 target_compile_features(catch_tests PRIVATE cxx_std_20)
 
 # Для отладки
 add_custom_command(TARGET catch_tests POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "🔧 Test executable built successfully!"
+    COMMAND ${CMAKE_COMMAND} -E echo "🔧 Test executable built with CONAN_PKG::catch2"
 )
 
 # Добавляем цель для запуска тестов
@@ -141,5 +151,7 @@ add_custom_target(run_tests
 # ============= КОНЕЦ ТЕСТОВ =============
 
 # Выводим информацию
-message(STATUS "📚 Game server will link all Conan libraries")
-message(STATUS "📚 Tests will link only Catch2 libraries")
+message(STATUS "📚 Conan libraries: ${CONAN_LIBS}")
+message(STATUS "📁 Conan include dirs: ${CONAN_INCLUDE_DIRS}")
+message(STATUS "📂 Conan lib dirs: ${CONAN_LIB_DIRS}")
+message(STATUS "📂 Conan module path: ${CONAN_CMAKE_MODULE_PATH}")
