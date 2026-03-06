@@ -27,7 +27,7 @@ if(NOT CONAN_BUILDINFO_FOUND)
     message(FATAL_ERROR "❌ conanbuildinfo.cmake not found! Searched in: ${CONAN_BUILDINFO_PATHS}")
 endif()
 
-# Применяем настройки Conan с поддержкой таргетов
+# Применяем настройки Conan - это установит все пути и флаги
 conan_basic_setup(TARGETS)
 # ============= КОНЕЦ ПОИСКА CONAN =============
 
@@ -92,6 +92,9 @@ target_include_directories(game_server PRIVATE
     ${CONAN_INCLUDE_DIRS}
 )
 
+# ВАЖНО: Добавляем пути к библиотекам
+target_link_directories(game_server PRIVATE ${CONAN_LIB_DIRS})
+
 target_link_libraries(game_server PRIVATE 
     Threads::Threads 
     ${CONAN_LIBS}
@@ -110,6 +113,9 @@ target_include_directories(catch_tests PRIVATE
     ${CONAN_INCLUDE_DIRS}
 )
 
+# ВАЖНО: Добавляем пути к библиотекам для тестов
+target_link_directories(catch_tests PRIVATE ${CONAN_LIB_DIRS})
+
 target_link_libraries(catch_tests PRIVATE
     Threads::Threads
     ${CONAN_LIBS}
@@ -119,12 +125,10 @@ target_link_libraries(catch_tests PRIVATE
 # Явно указываем стандарт C++ для тестов
 target_compile_features(catch_tests PRIVATE cxx_std_20)
 
-# ИСПРАВЛЕНО: правильный генератор выражения для отладки
+# Для отладки - выводим пути к библиотекам
 add_custom_command(TARGET catch_tests POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "🔧 catch_tests linked libraries:"
-    COMMAND ${CMAKE_COMMAND} -E echo "$<TARGET_PROPERTY:catch_tests,LINK_LIBRARIES>"
-    COMMAND ${CMAKE_COMMAND} -E echo "🔧 catch_tests include directories:"
-    COMMAND ${CMAKE_COMMAND} -E echo "$<TARGET_PROPERTY:catch_tests,INCLUDE_DIRECTORIES>"
+    COMMAND ${CMAKE_COMMAND} -E echo "🔧 Library directories: ${CONAN_LIB_DIRS}"
+    COMMAND ${CMAKE_COMMAND} -E echo "🔧 Libraries: ${CONAN_LIBS}"
     COMMAND ${CMAKE_COMMAND} -E echo "🚀 Test executable built successfully!"
 )
 
@@ -140,3 +144,4 @@ add_custom_target(run_tests
 # Выводим информацию о найденных библиотеках
 message(STATUS "📚 Conan libraries: ${CONAN_LIBS}")
 message(STATUS "📁 Conan include dirs: ${CONAN_INCLUDE_DIRS}")
+message(STATUS "📂 Conan lib dirs: ${CONAN_LIB_DIRS}")
