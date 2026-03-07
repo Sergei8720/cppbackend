@@ -68,10 +68,8 @@ message(STATUS "========================")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-find_package(Boost 1.78.0 REQUIRED COMPONENTS system filesystem)
-if(Boost_FOUND)
-    include_directories(${Boost_INCLUDE_DIRS})
-endif()
+# !!! УДАЛЯЕМ find_package(Boost) - он больше не нужен !!!
+# Boost уже включен в ${CONAN_LIBS} и ${CONAN_INCLUDE_DIRS}
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -88,10 +86,12 @@ add_library(collision_detection_lib STATIC
 
 target_include_directories(collision_detection_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CONAN_INCLUDE_DIRS}  # Добавляем include пути от Conan
 )
 
 target_link_libraries(collision_detection_lib PUBLIC
     Threads::Threads
+    ${CONAN_LIBS}  # Добавляем библиотеки от Conan (включая Boost)
 )
 # ============= КОНЕЦ БИБЛИОТЕКИ =============
 
@@ -146,7 +146,7 @@ target_link_directories(game_server PRIVATE ${CONAN_LIB_DIRS})
 target_link_libraries(game_server PRIVATE 
     collision_detection_lib  # Подключаем библиотеку коллизий
     Threads::Threads 
-    ${CONAN_LIBS}
+    ${CONAN_LIBS}  # Все библиотеки от Conan
 )
 # ============= КОНЕЦ ОСНОВНОГО ФАЙЛА =============
 
@@ -169,6 +169,7 @@ target_link_directories(game_tests PRIVATE ${CONAN_LIB_DIRS})
 target_link_libraries(game_tests PRIVATE
     Threads::Threads
     CONAN_PKG::catch2
+    ${CONAN_LIBS}  # Добавляем для доступа к Boost, если нужно в тестах
     m
 )
 
@@ -189,6 +190,7 @@ target_link_libraries(collision_tests PRIVATE
     collision_detection_lib
     Threads::Threads
     CONAN_PKG::catch2
+    ${CONAN_LIBS}  # Добавляем для доступа к Boost, если нужно в тестах
     m
 )
 
