@@ -5,18 +5,24 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ============= УНИВЕРСАЛЬНЫЙ ПОИСК CONAN =============
+# Для cmake_multi генератора ищем оба варианта
 set(CONAN_BUILDINFO_PATHS
+    "${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake"
     "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake"
+    "${CMAKE_SOURCE_DIR}/build/conanbuildinfo_multi.cmake"
     "${CMAKE_SOURCE_DIR}/build/conanbuildinfo.cmake"
+    "/app/build/conanbuildinfo_multi.cmake"
     "/app/build/conanbuildinfo.cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/build/conanbuildinfo_multi.cmake"
     "${CMAKE_CURRENT_SOURCE_DIR}/build/conanbuildinfo.cmake"
+    "${CMAKE_BINARY_DIR}/conan/build/conanbuildinfo_multi.cmake"
     "${CMAKE_BINARY_DIR}/conan/build/conanbuildinfo.cmake"
 )
 
 set(CONAN_BUILDINFO_FOUND FALSE)
 foreach(PATH ${CONAN_BUILDINFO_PATHS})
     if(EXISTS ${PATH})
-        message(STATUS "✅ Found conanbuildinfo.cmake at: ${PATH}")
+        message(STATUS "✅ Found conanbuildinfo at: ${PATH}")
         include(${PATH})
         set(CONAN_BUILDINFO_FOUND TRUE)
         break()
@@ -24,15 +30,21 @@ foreach(PATH ${CONAN_BUILDINFO_PATHS})
 endforeach()
 
 if(NOT CONAN_BUILDINFO_FOUND)
-    message(FATAL_ERROR "❌ conanbuildinfo.cmake not found! Searched in: ${CONAN_BUILDINFO_PATHS}")
+    message(FATAL_ERROR "❌ conanbuildinfo file not found! Searched in: ${CONAN_BUILDINFO_PATHS}")
 endif()
 
-# Применяем настройки Conan - ЭТО ВАЖНО!
-conan_basic_setup(TARGETS)
+# Применяем настройки Conan - для multi используем TARGETS
+if(EXISTS "${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake")
+    conan_basic_setup(TARGETS)
+else()
+    conan_basic_setup()
+endif()
 
 # Добавляем пути к модулям CMake от Conan
-list(APPEND CMAKE_MODULE_PATH ${CONAN_CMAKE_MODULE_PATH})
-list(APPEND CMAKE_PREFIX_PATH ${CONAN_CMAKE_MODULE_PATH})
+if(DEFINED CONAN_CMAKE_MODULE_PATH)
+    list(APPEND CMAKE_MODULE_PATH ${CONAN_CMAKE_MODULE_PATH})
+    list(APPEND CMAKE_PREFIX_PATH ${CONAN_CMAKE_MODULE_PATH})
+endif()
 # ============= КОНЕЦ ПОИСКА CONAN =============
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -65,11 +77,10 @@ target_include_directories(collision_detection_tests PRIVATE
     ${CONAN_INCLUDE_DIRS}
 )
 
-# ИСПРАВЛЕНО: используем CONAN_PKG::catch2 target
 target_link_libraries(collision_detection_tests PRIVATE
     collision_detection_lib
     Threads::Threads
-    CONAN_PKG::catch2  # Conan автоматически добавит и Catch2Main, и Catch2
+    ${CONAN_LIBS}  # Используем переменную CONAN_LIBS вместо CONAN_PKG
     m
 )
 
@@ -82,9 +93,26 @@ add_custom_target(run_tests
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "🚀 Running collision detection tests..."
 )
+
+# Для multi генератора добавляем цель для каждого типа сборки
+if(CMAKE_CONFIGURATION_TYPES)
+    foreach(config ${CMAKE_CONFIGURATION_TYPES})
+        add_custom_target(run_tests_${config}
+            COMMAND ${CMAKE_BINARY_DIR}/${config}/bin/collision_detection_tests
+            DEPENDS collision_detection_tests
+            COMMENT "🚀 Running tests (${config})..."
+        )
+    endforeach()
+endif()
 # ============= КОНЕЦ ТЕСТОВ =============
 
 # Выводим информацию для отладки
-message(STATUS "📚 Conan libraries: ${CONAN_LIBS}")
-message(STATUS "📁 Conan include dirs: ${CONAN_INCLUDE_DIRS}")
-message(STATUS "📂 Conan lib dirs: ${CONAN_LIB_DIRS}")
+if(CONAN_LIBS)
+    message(STATUS "📚 Conan libraries: ${CONAN_LIBS}")
+endif()
+if(CONAN_INCLUDE_DIRS)
+    message(STATUS "📁 Conan include dirs: ${CONAN_INCLUDE_DIRS}")
+endif()
+if(CONAN_LIB_DIRS)
+    message(STATUS "📂 Conan lib dirs: ${CONAN_LIB_DIRS}")
+endif()
