@@ -40,12 +40,27 @@ else()
     conan_basic_setup()
 endif()
 
+# ============= ВАЖНО: ЯВНО ДОБАВЛЯЕМ ПУТИ К ЗАГОЛОВОЧНЫМ ФАЙЛАМ =============
 # Добавляем пути к модулям CMake от Conan
 if(DEFINED CONAN_CMAKE_MODULE_PATH)
     list(APPEND CMAKE_MODULE_PATH ${CONAN_CMAKE_MODULE_PATH})
     list(APPEND CMAKE_PREFIX_PATH ${CONAN_CMAKE_MODULE_PATH})
 endif()
-# ============= КОНЕЦ ПОИСКА CONAN =============
+
+# Явно добавляем include директории от Conan в глобальные пути
+if(CONAN_INCLUDE_DIRS)
+    include_directories(${CONAN_INCLUDE_DIRS})
+    message(STATUS "📁 Added Conan include dirs: ${CONAN_INCLUDE_DIRS}")
+endif()
+
+# Для отладки выводим все переменные Conan
+message(STATUS "=== CONAN VARIABLES ===")
+message(STATUS "CONAN_INCLUDE_DIRS: ${CONAN_INCLUDE_DIRS}")
+message(STATUS "CONAN_LIBS: ${CONAN_LIBS}")
+message(STATUS "CONAN_LIB_DIRS: ${CONAN_LIB_DIRS}")
+message(STATUS "CONAN_CXX_FLAGS: ${CONAN_CXX_FLAGS}")
+message(STATUS "========================")
+# ============= КОНЕЦ ДОБАВЛЕНИЯ ПУТЕЙ =============
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
@@ -59,7 +74,7 @@ add_library(collision_detection_lib STATIC
 
 target_include_directories(collision_detection_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CONAN_INCLUDE_DIRS}
+    $<TARGET_PROPERTY:CONAN_PKG::catch2,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(collision_detection_lib PUBLIC
@@ -74,13 +89,13 @@ add_executable(collision_detection_tests
 
 target_include_directories(collision_detection_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CONAN_INCLUDE_DIRS}
+    $<TARGET_PROPERTY:CONAN_PKG::catch2,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(collision_detection_tests PRIVATE
     collision_detection_lib
     Threads::Threads
-    ${CONAN_LIBS}  # Используем переменную CONAN_LIBS вместо CONAN_PKG
+    CONAN_PKG::catch2  # Используем таргет Catch2
     m
 )
 
@@ -105,14 +120,3 @@ if(CMAKE_CONFIGURATION_TYPES)
     endforeach()
 endif()
 # ============= КОНЕЦ ТЕСТОВ =============
-
-# Выводим информацию для отладки
-if(CONAN_LIBS)
-    message(STATUS "📚 Conan libraries: ${CONAN_LIBS}")
-endif()
-if(CONAN_INCLUDE_DIRS)
-    message(STATUS "📁 Conan include dirs: ${CONAN_INCLUDE_DIRS}")
-endif()
-if(CONAN_LIB_DIRS)
-    message(STATUS "📂 Conan lib dirs: ${CONAN_LIB_DIRS}")
-endif()
