@@ -15,14 +15,16 @@ COPY ./tests /app/tests
 COPY ./CMakeLists.txt /app/
 COPY ./conanfile.txt /app/
 
-RUN mkdir -p /app/build && cd /app/build && \
-    conan install .. --build=missing
+# Создаем директорию для сборки
+RUN mkdir -p /app/build
 
-RUN cd /app/build && \
-    cmake -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_PREFIX_PATH=/root/.conan \
-          .. && \
-    cmake --build . --target collision_detection_tests
+# Устанавливаем зависимости через Conan
+WORKDIR /app/build
+RUN conan install .. --build=missing -s build_type=Release
+
+# Собираем проект
+RUN cmake .. -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build . --target collision_detection_tests -j$(nproc)
 
 FROM ubuntu:22.04 AS run
 
@@ -33,14 +35,15 @@ RUN apt update && apt install -y \
 
 RUN groupadd -r www && useradd -r -g www www
 
-RUN mkdir -p /app/build
-COPY --from=build /app/build/bin/collision_detection_tests /app/build/
+RUN mkdir -p /app
+COPY --from=build /app/build/bin/collision_detection_tests /app/collision_detection_tests
 
-# ✅ Исправление: устанавливаем права ДО переключения на пользователя www
-RUN chmod +x /app/build/collision_detection_tests && \
-    ls -la /app/build/
+# Устанавливаем права ДО переключения на пользователя www
+RUN chmod +x /app/collision_detection_tests && \
+    ls -la /app/
 
 # Теперь переключаемся на непривилегированного пользователя
 USER www
 
-ENTRYPOINT ["/app/build/collision_detection_tests"]
+WORKDIR /app
+ENTRYPOINT ["/app/collision_detection_tests"]
