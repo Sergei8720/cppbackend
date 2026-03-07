@@ -35,18 +35,18 @@ RUN apt update && apt install -y \
 
 RUN groupadd -r www && useradd -r -g www www
 
-# Создаем директорию /app
-RUN mkdir -p /app
+# Создаем директорию /app/build (важно для совместимости с run.sh)
+RUN mkdir -p /app/build
 
-# Копируем исполняемый файл в /app/ (простой путь)
-COPY --from=build /app/build/bin/collision_detection_tests /app/collision_detection_tests
+# Копируем исполняемый файл в /app/build/ (как ожидает run.sh)
+COPY --from=build /app/build/bin/collision_detection_tests /app/build/collision_detection_tests
 
 # Устанавливаем права
-RUN chmod +x /app/collision_detection_tests && \
-    ls -la /app/
+RUN chmod +x /app/build/collision_detection_tests && \
+    ls -la /app/build/
 
 # Теперь переключаемся на непривилегированного пользователя
 USER www
 
 WORKDIR /app
-ENTRYPOINT ["/app/collision_detection_tests"]
+ENTRYPOINT ["/app/build/collision_detection_tests"]
