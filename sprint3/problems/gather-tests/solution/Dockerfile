@@ -1,7 +1,5 @@
-# Создать образ на основе базового слоя gcc
 FROM gcc:11.3 AS build
 
-# Выполнить установку зависимостей внутри контейнера.
 RUN apt update && \
     apt install -y \
       python3-pip \
@@ -9,7 +7,6 @@ RUN apt update && \
     && \
     pip3 install conan==1.*
 
-# СОЗДАЕМ И НАСТРАИВАЕМ ПРОФИЛЬ CONAN
 RUN conan profile new default --detect --force
 RUN conan profile update settings.compiler.libcxx=libstdc++11 default
 RUN conan profile show default
@@ -20,7 +17,7 @@ COPY ./tests /app/tests
 COPY ./CMakeLists.txt /app/
 COPY ./conanfile.txt /app/
 
-# Проверяем структуру (для отладки)
+# Проверяем структуру
 RUN echo "=== SRC directory ===" && ls -la /app/src/ && \
     echo "=== TESTS directory ===" && ls -la /app/tests/
 
@@ -35,21 +32,25 @@ RUN cd /app/build && \
           .. && \
     cmake --build . --target collision_detection_tests
 
-# Второй контейнер для запуска тестов
+# Проверяем, где создался исполняемый файл (для отладки)
+RUN echo "=== Build output ===" && ls -la /app/build/bin/ || echo "bin dir not found" && \
+    echo "=== Build root ===" && ls -la /app/build/
+
 FROM ubuntu:22.04 AS run
 
-# Устанавливаем необходимые библиотеки для запуска
 RUN apt update && apt install -y \
     libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
-# Создадим пользователя www
 RUN groupadd -r www && useradd -r -g www www
 
-# Копируем тесты со сборочного контейнера
-COPY --from=build /app/build/bin/collision_detection_tests /app/
+# Копируем тесты со сборочного контейнера - ИСПРАВЛЕНО!
+COPY --from=build /app/build/bin/collision_detection_tests /app/collision_detection_tests
 
 USER www
 
-# Запускаем тесты
+# Проверяем, что файл скопировался
+RUN test -f /app/collision_detection_tests || echo "File not copied!"
+
+# Запускаем тесты - ИСПРАВЛЕНО!
 ENTRYPOINT ["/app/collision_detection_tests"]
