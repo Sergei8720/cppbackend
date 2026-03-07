@@ -38,38 +38,18 @@ if(NOT CONAN_BUILDINFO_FOUND)
     message(FATAL_ERROR "❌ conanbuildinfo file not found! Searched in: ${CONAN_BUILDINFO_PATHS}")
 endif()
 
-# Применяем настройки Conan
+# Применяем настройки Conan с TARGETS режимом
 if(CONAN_IS_MULTI)
     conan_basic_setup(TARGETS)
 else()
-    conan_basic_setup(TARGETS)  # TARGETS предпочтительнее для обоих случаев
+    conan_basic_setup(TARGETS)
 endif()
 
-# Добавляем пути к модулям CMake от Conan
-if(DEFINED CONAN_CMAKE_MODULE_PATH)
-    list(APPEND CMAKE_MODULE_PATH ${CONAN_CMAKE_MODULE_PATH})
-    list(APPEND CMAKE_PREFIX_PATH ${CONAN_CMAKE_MODULE_PATH})
-endif()
-
-# Явно добавляем include директории от Conan в глобальные пути
-if(CONAN_INCLUDE_DIRS)
-    include_directories(${CONAN_INCLUDE_DIRS})
-    message(STATUS "📁 Added Conan include dirs: ${CONAN_INCLUDE_DIRS}")
-endif()
-
-# Выводим информацию о Conan
-message(STATUS "=== CONAN VARIABLES ===")
-message(STATUS "CONAN_INCLUDE_DIRS: ${CONAN_INCLUDE_DIRS}")
-message(STATUS "CONAN_LIBS: ${CONAN_LIBS}")
-message(STATUS "CONAN_LIB_DIRS: ${CONAN_LIB_DIRS}")
-message(STATUS "CONAN_CXX_FLAGS: ${CONAN_CXX_FLAGS}")
-message(STATUS "========================")
+# В режиме TARGETS создаются цели CONAN_PKG::*
+# Переменные CONAN_INCLUDE_DIRS и CONAN_LIBS могут быть пустыми - это нормально
 # ============= КОНЕЦ ПОИСКА CONAN =============
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-# !!! УДАЛЯЕМ find_package(Boost) - он больше не нужен !!!
-# Boost уже включен в ${CONAN_LIBS} и ${CONAN_INCLUDE_DIRS}
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -79,6 +59,15 @@ add_compile_definitions(
     BOOST_JSON_STANDALONE
 )
 
+# ============= ПРОВЕРКА НАЛИЧИЯ ФАЙЛОВ =============
+# Проверяем существование файла collision_detector.cpp
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/collision_detector.cpp")
+    message(FATAL_ERROR "❌ File not found: ${CMAKE_CURRENT_SOURCE_DIR}/src/collision_detector.cpp")
+else()
+    message(STATUS "✅ Found collision_detector.cpp")
+endif()
+# ============= КОНЕЦ ПРОВЕРКИ =============
+
 # ============= БИБЛИОТЕКА COLLISION DETECTION =============
 add_library(collision_detection_lib STATIC
     src/collision_detector.cpp
@@ -86,12 +75,12 @@ add_library(collision_detection_lib STATIC
 
 target_include_directories(collision_detection_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CONAN_INCLUDE_DIRS}  # Добавляем include пути от Conan
 )
 
+# Линкуем с Boost из Conan (используем target)
 target_link_libraries(collision_detection_lib PUBLIC
     Threads::Threads
-    ${CONAN_LIBS}  # Добавляем библиотеки от Conan (включая Boost)
+    CONAN_PKG::boost  # Линкуемся с Boost через Conan target
 )
 # ============= КОНЕЦ БИБЛИОТЕКИ =============
 
@@ -138,15 +127,12 @@ target_include_directories(game_server PRIVATE
     src/program_options
     src/time_management
     src/error_handling
-    ${CONAN_INCLUDE_DIRS}
 )
 
-target_link_directories(game_server PRIVATE ${CONAN_LIB_DIRS})
-
 target_link_libraries(game_server PRIVATE 
-    collision_detection_lib  # Подключаем библиотеку коллизий
+    collision_detection_lib
     Threads::Threads 
-    ${CONAN_LIBS}  # Все библиотеки от Conan
+    CONAN_PKG::boost  # Используем Boost target
 )
 # ============= КОНЕЦ ОСНОВНОГО ФАЙЛА =============
 
@@ -160,16 +146,12 @@ add_executable(game_tests
 target_include_directories(game_tests PRIVATE
     src
     src/model
-    ${CONAN_INCLUDE_DIRS}
-    $<TARGET_PROPERTY:CONAN_PKG::catch2,INTERFACE_INCLUDE_DIRECTORIES>
 )
-
-target_link_directories(game_tests PRIVATE ${CONAN_LIB_DIRS})
 
 target_link_libraries(game_tests PRIVATE
     Threads::Threads
     CONAN_PKG::catch2
-    ${CONAN_LIBS}  # Добавляем для доступа к Boost, если нужно в тестах
+    CONAN_PKG::boost  # Добавляем Boost для тестов, если нужно
     m
 )
 
@@ -182,15 +164,13 @@ add_executable(collision_tests
 
 target_include_directories(collision_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CONAN_INCLUDE_DIRS}
-    $<TARGET_PROPERTY:CONAN_PKG::catch2,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(collision_tests PRIVATE
     collision_detection_lib
     Threads::Threads
     CONAN_PKG::catch2
-    ${CONAN_LIBS}  # Добавляем для доступа к Boost, если нужно в тестах
+    CONAN_PKG::boost  # Добавляем Boost для тестов коллизий
     m
 )
 
@@ -232,10 +212,6 @@ endif()
 # ============= КОНЕЦ ТЕСТОВ =============
 
 # Выводим итоговую информацию
-message(STATUS "📚 Conan libraries: ${CONAN_LIBS}")
-message(STATUS "📁 Conan include dirs: ${CONAN_INCLUDE_DIRS}")
-message(STATUS "📂 Conan lib dirs: ${CONAN_LIB_DIRS}")
-message(STATUS "📂 Conan module path: ${CONAN_CMAKE_MODULE_PATH}")
 message(STATUS "🎮 Build targets:")
 message(STATUS "   - game_server (main executable)")
 message(STATUS "   - collision_detection_lib (static library)")
