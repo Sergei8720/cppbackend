@@ -26,19 +26,20 @@ RUN cd /app/build && \
 
 FROM ubuntu:22.04 AS run
 
+# Устанавливаем минимально необходимые пакеты
 RUN apt update && apt install -y \
     libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r www && useradd -r -g www www
 
-# ИЗМЕНЕНО: создаем структуру /app/build/ и копируем туда
 RUN mkdir -p /app/build
 COPY --from=build /app/build/bin/collision_detection_tests /app/build/
 
 USER www
 
-# Проверяем
-RUN ls -la /app/build/ && file /app/build/collision_detection_tests
+# Проверяем права на выполнение
+RUN chmod +x /app/build/collision_detection_tests && \
+    ls -la /app/build/
 
 ENTRYPOINT ["/app/build/collision_detection_tests"]
