@@ -36,10 +36,11 @@ RUN groupadd -r www && useradd -r -g www www
 RUN mkdir -p /app/build
 COPY --from=build /app/build/bin/collision_detection_tests /app/build/
 
-USER www
-
-# Проверяем права на выполнение
+# ✅ Исправление: устанавливаем права ДО переключения на пользователя www
 RUN chmod +x /app/build/collision_detection_tests && \
     ls -la /app/build/
+
+# Теперь переключаемся на непривилегированного пользователя
+USER www
 
 ENTRYPOINT ["/app/build/collision_detection_tests"]
