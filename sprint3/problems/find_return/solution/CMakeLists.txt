@@ -78,9 +78,10 @@ target_include_directories(collision_detection_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/physics
 )
 
-target_link_libraries(collision_detection_lib PUBLIC
-    Threads::Threads
-    CONAN_PKG::boost  # Boost нужен для реализации библиотеки
+target_link_libraries(collision_detection_lib 
+    PRIVATE  # МЕНЯЕМ С PUBLIC НА PRIVATE!
+        Threads::Threads
+        CONAN_PKG::boost
 )
 # ============= КОНЕЦ БИБЛИОТЕКИ =============
 
@@ -133,7 +134,7 @@ target_include_directories(game_server PRIVATE
 target_link_libraries(game_server PRIVATE 
     collision_detection_lib
     Threads::Threads 
-    CONAN_PKG::boost  # Boost нужен для основного приложения
+    CONAN_PKG::boost  # Boost все еще нужен для основного приложения
 )
 # ============= КОНЕЦ ОСНОВНОГО ФАЙЛА =============
 
@@ -152,7 +153,7 @@ target_include_directories(game_tests PRIVATE
 
 target_link_libraries(game_tests PRIVATE
     Threads::Threads
-    CONAN_PKG::catch2  # Только Catch2, без Boost!
+    CONAN_PKG::catch2
     m
 )
 
@@ -169,9 +170,9 @@ target_include_directories(collision_tests PRIVATE
 )
 
 target_link_libraries(collision_tests PRIVATE
-    collision_detection_lib  # Библиотека коллизий уже включает Boost
+    collision_detection_lib  # Теперь библиотека НЕ передает Boost транзитивно
     Threads::Threads
-    CONAN_PKG::catch2  # Только Catch2, без Boost!
+    CONAN_PKG::catch2  # Только Catch2
     m
 )
 
