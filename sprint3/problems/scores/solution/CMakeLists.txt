@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ============= УНИВЕРСАЛЬНЫЙ ПОИСК CONAN =============
-# Ищем все возможные варианты conanbuildinfo (включая multi)
 set(CONAN_BUILDINFO_PATHS
     "${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake"
     "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake"
@@ -35,22 +34,17 @@ foreach(PATH ${CONAN_BUILDINFO_PATHS})
 endforeach()
 
 if(NOT CONAN_BUILDINFO_FOUND)
-    message(FATAL_ERROR "❌ conanbuildinfo file not found! Searched in: ${CONAN_BUILDINFO_PATHS}")
+    message(FATAL_ERROR "❌ conanbuildinfo file not found!")
 endif()
 
-# Применяем настройки Conan с TARGETS режимом
 if(CONAN_IS_MULTI)
     conan_basic_setup(TARGETS)
 else()
     conan_basic_setup(TARGETS)
 endif()
 
-# Добавляем пути от Conan в CMAKE_PREFIX_PATH для поиска пакетов
 set(CMAKE_PREFIX_PATH ${CONAN_BOOST_ROOT} ${CMAKE_PREFIX_PATH})
-# Явно указываем где искать Catch2
 set(Catch2_DIR ${CONAN_CATCH2_ROOT}/lib/cmake/Catch2)
-
-# ============= КОНЕЦ ПОИСКА CONAN =============
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
@@ -70,9 +64,7 @@ add_library(collision_detection_lib STATIC
 )
 target_link_libraries(collision_detection_lib PUBLIC CONAN_PKG::boost Threads::Threads)
 
-# ============= КОНЕЦ БИБЛИОТЕКИ =============
-
-# ============= ОСНОВНОЙ ИСПОЛНЯЕМЫЙ ФАЙЛ =============
+# ============= БИБЛИОТЕКА МОДЕЛИ ИГРЫ =============
 add_library(game_model_lib STATIC
     src/model/map.cpp
     src/model/game.cpp
@@ -95,6 +87,7 @@ target_include_directories(game_model_lib PUBLIC
 
 target_link_libraries(game_model_lib PUBLIC collision_detection_lib CONAN_PKG::boost)
 
+# ============= ОСНОВНОЙ ИСПОЛНЯЕМЫЙ ФАЙЛ =============
 add_executable(game_server
     src/main.cpp
     src/middleware/json/json_loader.cpp
@@ -132,11 +125,8 @@ target_include_directories(game_server PRIVATE
 target_link_libraries(game_server PRIVATE Threads::Threads CONAN_PKG::boost game_model_lib)
 
 # ============= ТЕСТЫ =============
-# Включаем CTest
 include(CTest)
 
-# Используем CONAN_PKG::catch2 для линковки
-# Тесты для основного приложения
 add_executable(game_tests
     tests/loot_generator_tests.cpp
     tests/collision-detector-tests.cpp
@@ -150,7 +140,7 @@ target_include_directories(game_tests PRIVATE
 )
 
 target_link_libraries(game_tests PRIVATE
-    game_model_lib  # Добавляем линковку с библиотекой модели игры
+    game_model_lib
     collision_detection_lib
     Threads::Threads
     CONAN_PKG::catch2
@@ -159,7 +149,6 @@ target_link_libraries(game_tests PRIVATE
 
 target_compile_features(game_tests PRIVATE cxx_std_20)
 
-# Тесты для библиотеки коллизий (отдельный исполняемый файл)
 add_executable(collision_tests
     tests/collision-detector-tests.cpp
 )
@@ -171,7 +160,7 @@ target_include_directories(collision_tests PRIVATE
 )
 
 target_link_libraries(collision_tests PRIVATE
-    game_model_lib  # Добавляем линковку с библиотекой модели игры
+    game_model_lib
     collision_detection_lib
     Threads::Threads
     CONAN_PKG::catch2
@@ -180,17 +169,15 @@ target_link_libraries(collision_tests PRIVATE
 
 target_compile_features(collision_tests PRIVATE cxx_std_20)
 
-# Регистрируем тесты в CTest
 if(BUILD_TESTING)
     add_test(NAME game_tests COMMAND game_tests)
     add_test(NAME collision_tests COMMAND collision_tests)
 endif()
 
-# Boost.Beast будет использовать std::string_view вместо boost::string_view
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
 add_compile_definitions(BOOST_THREAD_PROVIDES_FUTURE)
 
-# Общая цель для запуска всех тестов
+# Цели для запуска тестов
 add_custom_target(run_all_tests
     COMMAND game_tests && collision_tests
     DEPENDS game_tests collision_tests
@@ -198,7 +185,6 @@ add_custom_target(run_all_tests
     COMMENT "🚀 Running all tests..."
 )
 
-# Отдельные цели для каждого набора тестов
 add_custom_target(run_game_tests
     COMMAND game_tests
     DEPENDS game_tests
@@ -212,18 +198,6 @@ add_custom_target(run_collision_tests
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     COMMENT "🚀 Running collision detection tests..."
 )
-
-# Для multi генератора добавляем цель для каждого типа сборки
-if(CMAKE_CONFIGURATION_TYPES)
-    foreach(config ${CMAKE_CONFIGURATION_TYPES})
-        add_custom_target(run_tests_${config}
-            COMMAND ${CMAKE_BINARY_DIR}/${config}/bin/game_tests && ${CMAKE_BINARY_DIR}/${config}/bin/collision_tests
-            DEPENDS game_tests collision_tests
-            COMMENT "🚀 Running all tests (${config})..."
-        )
-    endforeach()
-endif()
-# ============= КОНЕЦ ТЕСТОВ =============
 
 message(STATUS "🎮 Build targets:")
 message(STATUS "   - game_server (main executable)")
