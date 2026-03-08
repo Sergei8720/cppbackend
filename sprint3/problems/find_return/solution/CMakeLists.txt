@@ -167,7 +167,6 @@ target_include_directories(collision_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/physics
 )
 
-# Явно линкуем только нужные компоненты
 target_link_libraries(collision_tests PRIVATE
     collision_detection_lib
     Threads::Threads
@@ -175,9 +174,9 @@ target_link_libraries(collision_tests PRIVATE
     m
 )
 
-# Запрещаем транзитивную линковку с Boost.Test
-set_target_properties(collision_tests PROPERTIES
-    LINK_FLAGS "-Wl,--as-needed"
+# Добавляем флаг для оптимизации линковки
+target_link_options(collision_tests PRIVATE
+    -Wl,--as-needed
 )
 
 target_compile_features(collision_tests PRIVATE cxx_std_20)

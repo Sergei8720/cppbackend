@@ -8,5 +8,5 @@ cmake_find_package
 txt
 
 [options]
-boost:without_test_exec_monitor=True
+boost:without_test=True
 boost:without_unit_test_framework=True
