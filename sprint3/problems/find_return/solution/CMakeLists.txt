@@ -61,23 +61,23 @@ add_compile_definitions(
 
 # ============= ПРОВЕРКА НАЛИЧИЯ ФАЙЛОВ =============
 # Проверяем существование файла collision_detector.cpp
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/collision_detector.cpp")
-    message(FATAL_ERROR "❌ File not found: ${CMAKE_CURRENT_SOURCE_DIR}/src/collision_detector.cpp")
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/physics/collision_detector.cpp")
+    message(FATAL_ERROR "❌ File not found: ${CMAKE_CURRENT_SOURCE_DIR}/src/physics/collision_detector.cpp")
 else()
-    message(STATUS "✅ Found collision_detector.cpp")
+    message(STATUS "✅ Found collision_detector.cpp in src/physics/")
 endif()
 # ============= КОНЕЦ ПРОВЕРКИ =============
 
 # ============= БИБЛИОТЕКА COLLISION DETECTION =============
 add_library(collision_detection_lib STATIC
-    src/collision_detector.cpp
+    src/physics/collision_detector.cpp  # ИСПРАВЛЕНО: добавлен путь physics/
 )
 
 target_include_directories(collision_detection_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/physics  # ДОБАВЛЕНО для доступа к заголовкам
 )
 
-# Линкуем с Boost из Conan (используем target)
 target_link_libraries(collision_detection_lib PUBLIC
     Threads::Threads
     CONAN_PKG::boost  # Линкуемся с Boost через Conan target
@@ -127,6 +127,7 @@ target_include_directories(game_server PRIVATE
     src/program_options
     src/time_management
     src/error_handling
+    src/physics  # ДОБАВЛЕНО для доступа к collision_detector.h
 )
 
 target_link_libraries(game_server PRIVATE 
@@ -146,6 +147,7 @@ add_executable(game_tests
 target_include_directories(game_tests PRIVATE
     src
     src/model
+    src/physics  # ДОБАВЛЕНО
 )
 
 target_link_libraries(game_tests PRIVATE
@@ -164,6 +166,7 @@ add_executable(collision_tests
 
 target_include_directories(collision_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/physics  # ДОБАВЛЕНО для доступа к заголовкам
 )
 
 target_link_libraries(collision_tests PRIVATE
