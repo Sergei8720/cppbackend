@@ -26,9 +26,9 @@ WORKDIR /app/build
 # Устанавливаем зависимости через Conan
 RUN conan install .. --build=missing -s build_type=Release
 
-# Собираем проект - ИСПРАВЛЕНО: collision_tests вместо collision_detection_tests
+# Собираем все цели проекта (game_server и все тесты)
 RUN cmake .. -DCMAKE_BUILD_TYPE=Release \
-    && cmake --build . --target collision_tests -j$(nproc)
+    && cmake --build . -j$(nproc)
 
 # Финальный образ для запуска тестов
 FROM ubuntu:22.04 as run
@@ -45,5 +45,5 @@ COPY --from=build /app/tests /app/tests
 
 WORKDIR /app
 
-# Запускаем тесты
+# Запускаем тесты (можно запустить любой или оба)
 CMD ["./collision_tests"]

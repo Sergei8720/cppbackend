@@ -45,7 +45,6 @@ else()
     conan_basic_setup(TARGETS)
 endif()
 
-# В режиме TARGETS создаются цели CONAN_PKG::*
 # ============= КОНЕЦ ПОИСКА CONAN =============
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -172,11 +171,6 @@ target_link_libraries(collision_tests PRIVATE
     Threads::Threads
     CONAN_PKG::catch2
     m
-)
-
-# Добавляем флаг для оптимизации линковки
-target_link_options(collision_tests PRIVATE
-    -Wl,--as-needed
 )
 
 target_compile_features(collision_tests PRIVATE cxx_std_20)
