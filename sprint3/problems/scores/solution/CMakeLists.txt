@@ -57,12 +57,11 @@ add_compile_definitions(
     BOOST_JSON_STANDALONE
 )
 
-
 # ============= БИБЛИОТЕКА COLLISION DETECTION =============
 add_library(collision_detection_lib STATIC
-	src/model/physics/collision_detector.h
-	src/model/physics/collision_detector.cpp
-	src/model/physics/geom.h
+    src/model/physics/collision_detector.h
+    src/model/physics/collision_detector.cpp
+    src/model/physics/geom.h
 )
 target_link_libraries(collision_detection_lib PUBLIC CONAN_PKG::boost Threads::Threads)
 
@@ -70,79 +69,82 @@ target_link_libraries(collision_detection_lib PUBLIC CONAN_PKG::boost Threads::T
 
 # ============= ОСНОВНОЙ ИСПОЛНЯЕМЫЙ ФАЙЛ =============
 add_library(game_model_lib STATIC
-	src/model/map.cpp
-	src/model/game.cpp
-	src/model/dog.cpp
-	src/model/roadmap.cpp
-	src/model/support_types.cpp
-	src/model/loot_generator.cpp
-	src/model/lost_object.cpp
-	src/model/item_dog_provider.cpp
-	src/middleware/utils/request_handlers_utils.cpp
-	src/middleware/utils/filesystem_utils.cpp
-	src/middleware/utils/random_generators.cpp
+    src/model/map.cpp
+    src/model/game.cpp
+    src/model/dog.cpp
+    src/model/roadmap.cpp
+    src/model/support_types.cpp
+    src/model/loot_generator.cpp
+    src/model/lost_object.cpp
+    src/model/item_dog_provider.cpp
+    src/middleware/utils/request_handlers_utils.cpp
+    src/middleware/utils/filesystem_utils.cpp
+    src/middleware/utils/random_generators.cpp
 )
 
 target_include_directories(game_model_lib PUBLIC 
-	${ZLIB_INCLUDES}
-	src/model
-	src/model/physics
-	src/middleware/utils
+    ${ZLIB_INCLUDES}
+    src/model
+    src/model/physics
+    src/middleware/utils
 )
 
 target_link_libraries(game_model_lib PUBLIC ${BOOST_LIB} ${ZLIB_LIB} collision_detection_lib)
 
-
 add_executable(game_server
-	src/main.cpp
-	src/middleware/json/json_loader.cpp
-	src/middleware/json/json_converter.cpp
-	src/middleware/json/json_model_converter.cpp
-	src/middleware/json/boost_json.cpp
-	src/web/request_handlers/request_handler.cpp
-	src/middleware/logging/logging_data_storage.cpp
-	src/middleware/logging/logger.cpp
-	src/app/authentication/player_tokens.cpp
-	src/app/application.cpp
-	src/app/game_session.cpp
-	src/app/player.cpp
-	src/web/server/http_server.cpp
-	src/middleware/program_options/program_options.cpp
-	src/middleware/time_management/ticker.cpp
-	src/middleware/error_handling/error_report.cpp
+    src/main.cpp
+    src/middleware/json/json_loader.cpp
+    src/middleware/json/json_converter.cpp
+    src/middleware/json/json_model_converter.cpp
+    src/middleware/json/boost_json.cpp
+    src/web/request_handlers/request_handler.cpp
+    src/middleware/logging/logging_data_storage.cpp
+    src/middleware/logging/logger.cpp
+    src/app/authentication/player_tokens.cpp
+    src/app/application.cpp
+    src/app/game_session.cpp
+    src/app/player.cpp
+    src/web/server/http_server.cpp
+    src/middleware/program_options/program_options.cpp
+    src/middleware/time_management/ticker.cpp
+    src/middleware/error_handling/error_report.cpp
 )
+
 target_include_directories(game_server PRIVATE
-	src
-	src/app
-	src/web
-	src/middleware
-	src/middleware/json
-	src/web/request_handlers
-	src/middleware/logging
-	src/app/authentication
-	src/web/server
-	src/middleware/program_options
-	src/middleware/time_management
-	src/middleware/error_handling
+    src
+    src/app
+    src/web
+    src/middleware
+    src/middleware/json
+    src/web/request_handlers
+    src/middleware/logging
+    src/app/authentication
+    src/web/server
+    src/middleware/program_options
+    src/middleware/time_management
+    src/middleware/error_handling
 )
+
 target_link_libraries(game_server PRIVATE Threads::Threads CONAN_PKG::boost game_model_lib)
 
 include(CTest)
 include(${CONAN_BUILD_DIRS_CATCH2}/Catch.cmake)
 
-
+# ============= ТЕСТЫ =============
 # Тесты для основного приложения
-add_executable(game_server_tests
-	tests/loot_generator_tests.cpp
+add_executable(game_tests
+    tests/loot_generator_tests.cpp
+    tests/collision-detector-tests.cpp
 )
 
 target_include_directories(game_tests PRIVATE
     src
     src/model
-    src/physics
+    src/model/physics
 )
 
 target_link_libraries(game_tests PRIVATE
+    collision_detection_lib
     Threads::Threads
     CONAN_PKG::catch2
     m
@@ -150,14 +152,14 @@ target_link_libraries(game_tests PRIVATE
 
 target_compile_features(game_tests PRIVATE cxx_std_20)
 
-# Тесты для библиотеки коллизий
+# Тесты для библиотеки коллизий (отдельный исполняемый файл)
 add_executable(collision_tests
     tests/collision-detector-tests.cpp
 )
 
 target_include_directories(collision_tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/physics
+    src
+    src/model/physics
 )
 
 target_link_libraries(collision_tests PRIVATE
@@ -167,22 +169,21 @@ target_link_libraries(collision_tests PRIVATE
     m
 )
 
+target_compile_features(collision_tests PRIVATE cxx_std_20)
 
-add_executable(collision_detection_tests
-	tests/collision-detector-tests.cpp
-)
-target_link_libraries(collision_detection_tests CONAN_PKG::catch2 collision_detection_lib)
-catch_discover_tests(collision_detection_tests)
+# Обнаружение тестов для Catch2
+catch_discover_tests(game_tests)
+catch_discover_tests(collision_tests)
+
 # Boost.Beast будет использовать std::string_view вместо boost::string_view
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
 add_compile_definitions(BOOST_THREAD_PROVIDES_FUTURE)
-target_compile_features(collision_tests PRIVATE cxx_std_20)
 
 # Общая цель для запуска всех тестов
 add_custom_target(run_all_tests
     COMMAND game_tests && collision_tests
     DEPENDS game_tests collision_tests
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     COMMENT "🚀 Running all tests..."
 )
 
@@ -190,14 +191,14 @@ add_custom_target(run_all_tests
 add_custom_target(run_game_tests
     COMMAND game_tests
     DEPENDS game_tests
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     COMMENT "🚀 Running game tests..."
 )
 
 add_custom_target(run_collision_tests
     COMMAND collision_tests
     DEPENDS collision_tests
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     COMMENT "🚀 Running collision detection tests..."
 )
 
@@ -216,7 +217,7 @@ endif()
 message(STATUS "🎮 Build targets:")
 message(STATUS "   - game_server (main executable)")
 message(STATUS "   - collision_detection_lib (static library)")
-message(STATUS "   - game_tests (game tests)")
+message(STATUS "   - game_tests (unified game tests)")
 message(STATUS "   - collision_tests (collision tests)")
 message(STATUS "   - run_all_tests (run all tests)")
 message(STATUS "   - run_game_tests (run game tests)")
