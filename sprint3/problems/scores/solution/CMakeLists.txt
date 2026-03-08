@@ -19,9 +19,10 @@ conan_basic_setup(TARGETS)
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-find_package(Boost 1.78.0 REQUIRED)
-if(Boost_FOUND)
-  include_directories(${Boost_INCLUDE_DIRS})
+# НЕ используем find_package для Boost - используем цели Conan
+# Просто проверяем, что Boost доступен через Conan
+if(NOT CONAN_PKG::boost)
+    message(FATAL_ERROR "Boost not found via Conan")
 endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -53,7 +54,7 @@ target_include_directories(game_model_lib PUBLIC
     src/model/physics
     src/middleware/utils
 )
-target_link_libraries(game_model_lib PUBLIC ${BOOST_LIB} ${ZLIB_LIB} collision_detection_lib)
+target_link_libraries(game_model_lib PUBLIC CONAN_PKG::boost collision_detection_lib)
 
 add_executable(game_server
     src/main.cpp
@@ -110,7 +111,7 @@ endif()
 add_executable(collision_detection_tests
     tests/collision-detector-tests.cpp
 )
-target_link_libraries(collision_detection_tests CONAN_PKG::catch2 collision_detection_lib)
+target_link_libraries(collision_detection_tests PRIVATE CONAN_PKG::catch2 collision_detection_lib)
 if(COMMAND catch_discover_tests)
     catch_discover_tests(collision_detection_tests)
 endif()
