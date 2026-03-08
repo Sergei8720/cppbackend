@@ -83,13 +83,12 @@ add_library(game_model_lib STATIC
 )
 
 target_include_directories(game_model_lib PUBLIC 
-    ${ZLIB_INCLUDES}
     src/model
     src/model/physics
     src/middleware/utils
 )
 
-target_link_libraries(game_model_lib PUBLIC ${BOOST_LIB} ${ZLIB_LIB} collision_detection_lib)
+target_link_libraries(game_model_lib PUBLIC collision_detection_lib CONAN_PKG::boost)
 
 add_executable(game_server
     src/main.cpp
@@ -127,10 +126,13 @@ target_include_directories(game_server PRIVATE
 
 target_link_libraries(game_server PRIVATE Threads::Threads CONAN_PKG::boost game_model_lib)
 
-include(CTest)
-include(${CONAN_BUILD_DIRS_CATCH2}/Catch.cmake)
-
 # ============= ТЕСТЫ =============
+# Включаем CTest
+include(CTest)
+
+# Подключаем Catch2 через стандартный find_package
+find_package(Catch2 REQUIRED)
+
 # Тесты для основного приложения
 add_executable(game_tests
     tests/loot_generator_tests.cpp
@@ -146,7 +148,8 @@ target_include_directories(game_tests PRIVATE
 target_link_libraries(game_tests PRIVATE
     collision_detection_lib
     Threads::Threads
-    CONAN_PKG::catch2
+    Catch2::Catch2
+    Catch2::Catch2WithMain
     m
 )
 
@@ -165,15 +168,18 @@ target_include_directories(collision_tests PRIVATE
 target_link_libraries(collision_tests PRIVATE
     collision_detection_lib
     Threads::Threads
-    CONAN_PKG::catch2
+    Catch2::Catch2
+    Catch2::Catch2WithMain
     m
 )
 
 target_compile_features(collision_tests PRIVATE cxx_std_20)
 
-# Обнаружение тестов для Catch2
-catch_discover_tests(game_tests)
-catch_discover_tests(collision_tests)
+# Регистрируем тесты в CTest
+if(BUILD_TESTING)
+    add_test(NAME game_tests COMMAND game_tests)
+    add_test(NAME collision_tests COMMAND collision_tests)
+endif()
 
 # Boost.Beast будет использовать std::string_view вместо boost::string_view
 add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
