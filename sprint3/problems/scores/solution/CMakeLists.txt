@@ -150,6 +150,7 @@ target_include_directories(game_tests PRIVATE
 )
 
 target_link_libraries(game_tests PRIVATE
+    game_model_lib  # Добавляем линковку с библиотекой модели игры
     collision_detection_lib
     Threads::Threads
     CONAN_PKG::catch2
@@ -170,6 +171,7 @@ target_include_directories(collision_tests PRIVATE
 )
 
 target_link_libraries(collision_tests PRIVATE
+    game_model_lib  # Добавляем линковку с библиотекой модели игры
     collision_detection_lib
     Threads::Threads
     CONAN_PKG::catch2
@@ -226,6 +228,7 @@ endif()
 message(STATUS "🎮 Build targets:")
 message(STATUS "   - game_server (main executable)")
 message(STATUS "   - collision_detection_lib (static library)")
+message(STATUS "   - game_model_lib (game model library)")
 message(STATUS "   - game_tests (unified game tests)")
 message(STATUS "   - collision_tests (collision tests)")
 message(STATUS "   - run_all_tests (run all tests)")
