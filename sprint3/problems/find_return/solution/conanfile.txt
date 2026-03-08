@@ -4,6 +4,9 @@ boost/1.82.0
 
 [generators]
 cmake_multi
+cmake_find_package
+txt
 
 [options]
-boost:shared=False
+boost:without_test_exec_monitor=True
+boost:without_unit_test_framework=True

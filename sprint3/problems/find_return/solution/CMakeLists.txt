@@ -46,7 +46,6 @@ else()
 endif()
 
 # В режиме TARGETS создаются цели CONAN_PKG::*
-# Переменные CONAN_INCLUDE_DIRS и CONAN_LIBS могут быть пустыми - это нормально
 # ============= КОНЕЦ ПОИСКА CONAN =============
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -60,7 +59,6 @@ add_compile_definitions(
 )
 
 # ============= ПРОВЕРКА НАЛИЧИЯ ФАЙЛОВ =============
-# Проверяем существование файла collision_detector.cpp
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/physics/collision_detector.cpp")
     message(FATAL_ERROR "❌ File not found: ${CMAKE_CURRENT_SOURCE_DIR}/src/physics/collision_detector.cpp")
 else()
@@ -79,7 +77,7 @@ target_include_directories(collision_detection_lib PUBLIC
 )
 
 target_link_libraries(collision_detection_lib 
-    PRIVATE  # МЕНЯЕМ С PUBLIC НА PRIVATE!
+    PRIVATE
         Threads::Threads
         CONAN_PKG::boost
 )
@@ -134,7 +132,7 @@ target_include_directories(game_server PRIVATE
 target_link_libraries(game_server PRIVATE 
     collision_detection_lib
     Threads::Threads 
-    CONAN_PKG::boost  # Boost все еще нужен для основного приложения
+    CONAN_PKG::boost
 )
 # ============= КОНЕЦ ОСНОВНОГО ФАЙЛА =============
 
@@ -169,11 +167,17 @@ target_include_directories(collision_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/physics
 )
 
+# Явно линкуем только нужные компоненты
 target_link_libraries(collision_tests PRIVATE
-    collision_detection_lib  # Теперь библиотека НЕ передает Boost транзитивно
+    collision_detection_lib
     Threads::Threads
-    CONAN_PKG::catch2  # Только Catch2
+    CONAN_PKG::catch2
     m
+)
+
+# Запрещаем транзитивную линковку с Boost.Test
+set_target_properties(collision_tests PROPERTIES
+    LINK_FLAGS "-Wl,--as-needed"
 )
 
 target_compile_features(collision_tests PRIVATE cxx_std_20)
@@ -213,7 +217,6 @@ if(CMAKE_CONFIGURATION_TYPES)
 endif()
 # ============= КОНЕЦ ТЕСТОВ =============
 
-# Выводим итоговую информацию
 message(STATUS "🎮 Build targets:")
 message(STATUS "   - game_server (main executable)")
 message(STATUS "   - collision_detection_lib (static library)")
