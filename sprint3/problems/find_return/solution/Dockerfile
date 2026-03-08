@@ -1,5 +1,7 @@
-FROM gcc:11.3 AS build
+# Используем многоступенчатую сборку
+FROM gcc:11.3 as build
 
+# Устанавливаем необходимые пакеты
 RUN apt update && \
     apt install -y \
       python3-pip \
@@ -7,9 +9,11 @@ RUN apt update && \
     && \
     pip3 install conan==1.*
 
+# Настраиваем Conan
 RUN conan profile new default --detect --force
 RUN conan profile update settings.compiler.libcxx=libstdc++11 default
 
+# Копируем исходный код
 COPY ./src /app/src
 COPY ./tests /app/tests
 COPY ./CMakeLists.txt /app/
@@ -17,36 +21,29 @@ COPY ./conanfile.txt /app/
 
 # Создаем директорию для сборки
 RUN mkdir -p /app/build
+WORKDIR /app/build
 
 # Устанавливаем зависимости через Conan
-WORKDIR /app/build
 RUN conan install .. --build=missing -s build_type=Release
 
-# Собираем проект
+# Собираем проект - ИСПРАВЛЕНО: collision_tests вместо collision_detection_tests
 RUN cmake .. -DCMAKE_BUILD_TYPE=Release \
-    && cmake --build . --target collision_detection_tests -j$(nproc)
+    && cmake --build . --target collision_tests -j$(nproc)
 
-FROM ubuntu:22.04 AS run
+# Финальный образ для запуска тестов
+FROM ubuntu:22.04 as run
 
-# Устанавливаем минимально необходимые пакеты
+# Устанавливаем необходимые библиотеки для запуска
 RUN apt update && apt install -y \
     libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -r www && useradd -r -g www www
-
-# Создаем директорию /app/build (важно для совместимости с run.sh)
-RUN mkdir -p /app/build
-
-# Копируем исполняемый файл в /app/build/ (как ожидает run.sh)
-COPY --from=build /app/build/bin/collision_detection_tests /app/build/collision_detection_tests
-
-# Устанавливаем права
-RUN chmod +x /app/build/collision_detection_tests && \
-    ls -la /app/build/
-
-# Теперь переключаемся на непривилегированного пользователя
-USER www
+# Копируем собранные тесты из build stage
+COPY --from=build /app/build/bin/collision_tests /app/collision_tests
+COPY --from=build /app/build/bin/game_tests /app/game_tests
+COPY --from=build /app/tests /app/tests
 
 WORKDIR /app
-ENTRYPOINT ["/app/build/collision_detection_tests"]
+
+# Запускаем тесты
+CMD ["./collision_tests"]
