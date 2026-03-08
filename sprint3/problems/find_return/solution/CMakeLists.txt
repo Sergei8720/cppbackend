@@ -70,17 +70,17 @@ endif()
 
 # ============= БИБЛИОТЕКА COLLISION DETECTION =============
 add_library(collision_detection_lib STATIC
-    src/physics/collision_detector.cpp  # ИСПРАВЛЕНО: добавлен путь physics/
+    src/physics/collision_detector.cpp
 )
 
 target_include_directories(collision_detection_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/physics  # ДОБАВЛЕНО для доступа к заголовкам
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/physics
 )
 
 target_link_libraries(collision_detection_lib PUBLIC
     Threads::Threads
-    CONAN_PKG::boost  # Линкуемся с Boost через Conan target
+    CONAN_PKG::boost  # Boost нужен для реализации библиотеки
 )
 # ============= КОНЕЦ БИБЛИОТЕКИ =============
 
@@ -127,13 +127,13 @@ target_include_directories(game_server PRIVATE
     src/program_options
     src/time_management
     src/error_handling
-    src/physics  # ДОБАВЛЕНО для доступа к collision_detector.h
+    src/physics
 )
 
 target_link_libraries(game_server PRIVATE 
     collision_detection_lib
     Threads::Threads 
-    CONAN_PKG::boost  # Используем Boost target
+    CONAN_PKG::boost  # Boost нужен для основного приложения
 )
 # ============= КОНЕЦ ОСНОВНОГО ФАЙЛА =============
 
@@ -147,13 +147,12 @@ add_executable(game_tests
 target_include_directories(game_tests PRIVATE
     src
     src/model
-    src/physics  # ДОБАВЛЕНО
+    src/physics
 )
 
 target_link_libraries(game_tests PRIVATE
     Threads::Threads
-    CONAN_PKG::catch2
-    CONAN_PKG::boost  # Добавляем Boost для тестов, если нужно
+    CONAN_PKG::catch2  # Только Catch2, без Boost!
     m
 )
 
@@ -166,14 +165,13 @@ add_executable(collision_tests
 
 target_include_directories(collision_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/physics  # ДОБАВЛЕНО для доступа к заголовкам
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/physics
 )
 
 target_link_libraries(collision_tests PRIVATE
-    collision_detection_lib
+    collision_detection_lib  # Библиотека коллизий уже включает Boost
     Threads::Threads
-    CONAN_PKG::catch2
-    CONAN_PKG::boost  # Добавляем Boost для тестов коллизий
+    CONAN_PKG::catch2  # Только Catch2, без Boost!
     m
 )
 
