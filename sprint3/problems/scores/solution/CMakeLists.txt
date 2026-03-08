@@ -15,14 +15,15 @@ else()
     message(FATAL_ERROR "conanbuildinfo file not found in ${CMAKE_BINARY_DIR}")
 endif()
 
+# Эта функция создает все необходимые цели и переменные
 conan_basic_setup(TARGETS)
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# НЕ используем find_package для Boost - используем цели Conan
-# Просто проверяем, что Boost доступен через Conan
-if(NOT CONAN_PKG::boost)
-    message(FATAL_ERROR "Boost not found via Conan")
+# НЕ используем find_package для Boost - Conan уже предоставляет цели
+# Просто проверим, что переменные Conan установлены
+if(NOT CONAN_BOOST_ROOT)
+    message(FATAL_ERROR "Conan Boost variables not found!")
 endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -33,7 +34,7 @@ add_library(collision_detection_lib STATIC
     src/model/physics/collision_detector.cpp
     src/model/physics/geom.h
 )
-target_link_libraries(collision_detection_lib PUBLIC CONAN_PKG::boost Threads::Threads)
+target_link_libraries(collision_detection_lib PUBLIC ${CONAN_LIBS} Threads::Threads)
 
 add_library(game_model_lib STATIC
     src/model/map.cpp
@@ -49,12 +50,12 @@ add_library(game_model_lib STATIC
     src/middleware/utils/random_generators.cpp
 )
 target_include_directories(game_model_lib PUBLIC 
-    ${ZLIB_INCLUDES}
+    ${CONAN_INCLUDE_DIRS}
     src/model
     src/model/physics
     src/middleware/utils
 )
-target_link_libraries(game_model_lib PUBLIC CONAN_PKG::boost collision_detection_lib)
+target_link_libraries(game_model_lib PUBLIC ${CONAN_LIBS} collision_detection_lib)
 
 add_executable(game_server
     src/main.cpp
@@ -87,8 +88,9 @@ target_include_directories(game_server PRIVATE
     src/middleware/program_options
     src/middleware/time_management
     src/middleware/error_handling
+    ${CONAN_INCLUDE_DIRS}
 )
-target_link_libraries(game_server PRIVATE Threads::Threads CONAN_PKG::boost game_model_lib)
+target_link_libraries(game_server PRIVATE Threads::Threads ${CONAN_LIBS} game_model_lib)
 
 include(CTest)
 
@@ -103,7 +105,8 @@ endif()
 add_executable(game_server_tests
     tests/loot_generator_tests.cpp
 )
-target_link_libraries(game_server_tests PRIVATE CONAN_PKG::catch2 game_model_lib)
+target_include_directories(game_server_tests PRIVATE ${CONAN_INCLUDE_DIRS})
+target_link_libraries(game_server_tests PRIVATE ${CONAN_LIBS} game_model_lib)
 if(COMMAND catch_discover_tests)
     catch_discover_tests(game_server_tests)
 endif()
@@ -111,7 +114,8 @@ endif()
 add_executable(collision_detection_tests
     tests/collision-detector-tests.cpp
 )
-target_link_libraries(collision_detection_tests PRIVATE CONAN_PKG::catch2 collision_detection_lib)
+target_include_directories(collision_detection_tests PRIVATE ${CONAN_INCLUDE_DIRS})
+target_link_libraries(collision_detection_tests PRIVATE ${CONAN_LIBS} collision_detection_lib)
 if(COMMAND catch_discover_tests)
     catch_discover_tests(collision_detection_tests)
 endif()
