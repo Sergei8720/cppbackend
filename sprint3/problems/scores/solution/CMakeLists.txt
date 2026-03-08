@@ -45,6 +45,11 @@ else()
     conan_basic_setup(TARGETS)
 endif()
 
+# Добавляем пути от Conan в CMAKE_PREFIX_PATH
+set(CMAKE_PREFIX_PATH ${CONAN_BOOST_ROOT} ${CMAKE_PREFIX_PATH})
+set(CMAKE_PREFIX_PATH ${CONAN_CATCH2_ROOT} ${CMAKE_PREFIX_PATH})
+set(CMAKE_MODULE_PATH ${CONAN_CATCH2_ROOT}/lib/cmake/Catch2 ${CMAKE_MODULE_PATH})
+
 # ============= КОНЕЦ ПОИСКА CONAN =============
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -130,8 +135,8 @@ target_link_libraries(game_server PRIVATE Threads::Threads CONAN_PKG::boost game
 # Включаем CTest
 include(CTest)
 
-# Подключаем Catch2 через стандартный find_package
-find_package(Catch2 REQUIRED)
+# Явно указываем где искать Catch2
+find_package(Catch2 REQUIRED CONFIG PATHS ${CONAN_CATCH2_ROOT})
 
 # Тесты для основного приложения
 add_executable(game_tests
@@ -143,6 +148,7 @@ target_include_directories(game_tests PRIVATE
     src
     src/model
     src/model/physics
+    ${CONAN_CATCH2_ROOT}/include
 )
 
 target_link_libraries(game_tests PRIVATE
@@ -163,6 +169,7 @@ add_executable(collision_tests
 target_include_directories(collision_tests PRIVATE
     src
     src/model/physics
+    ${CONAN_CATCH2_ROOT}/include
 )
 
 target_link_libraries(collision_tests PRIVATE
