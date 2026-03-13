@@ -1,6 +1,6 @@
 #pragma once
 #include "filesystem_utils.h" 
-#include "logger.h"
+#include "middleware/logging/logger.h"
 
 #include <vector>
 #include <boost/beast/http.hpp>

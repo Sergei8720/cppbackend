@@ -1,5 +1,5 @@
 #include "application.h"
-#include "logger.h"
+#include "middleware/logging/logger.h"
 
 namespace app {
 

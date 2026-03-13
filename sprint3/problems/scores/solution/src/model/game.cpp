@@ -1,6 +1,6 @@
 #include "game.h"
 #include "model_invariants.h"
-#include "logger.h"
+#include "middleware/logging/logger.h"
 
 #include <cmath>
 #include <string>

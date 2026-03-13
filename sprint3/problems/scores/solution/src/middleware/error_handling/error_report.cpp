@@ -1,5 +1,5 @@
 #include "error_report.h"
-#include "logger.h"
+#include "middleware/logging/logger.h"
 
 namespace error_report {
 

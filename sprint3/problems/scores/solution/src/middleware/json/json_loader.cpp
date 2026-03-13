@@ -1,5 +1,5 @@
 #include "json_loader.h"
-#include "logger.h"
+#include "middleware/logging/logger.h"
 #include "json_key_storage.h"
 #include "model_key_storage.h"
 #include "loot_generator_config.h"
