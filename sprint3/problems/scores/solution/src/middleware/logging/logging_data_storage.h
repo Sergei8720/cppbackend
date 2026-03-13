@@ -2,6 +2,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <cstdint>
 #include <boost/beast/http.hpp>
 #include <boost/json.hpp>
 #include <boost/date_time.hpp>
@@ -44,14 +45,14 @@ void tag_invoke(boost::json::value_from_tag, boost::json::value& jv, const Reque
 
 template <typename Body, typename Fields>
 struct ResponseLogData {
-    ResponseLogData(std::string ip_addr, long res_time, const http::response<Body, Fields>& res):
+    ResponseLogData(std::string ip_addr, int64_t res_time, const http::response<Body, Fields>& res):
             ip(ip_addr),
             response_time(res_time),
             code(res.result_int()),
             content_type(res[http::field::content_type]) {};
 
     std::string ip;
-    long response_time;
+    int64_t response_time;
     int code;
     std::string content_type;
 };

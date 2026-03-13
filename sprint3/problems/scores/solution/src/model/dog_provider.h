@@ -41,7 +41,7 @@ public:
     };
 
     collision_detector::Item GetItem(size_t idx) const override {
-        return items_[idx]->AsItem();
+        return items_.at(idx)->AsItem();
     };
     
     size_t GatherersCount() const override {
@@ -49,15 +49,15 @@ public:
     };
 
     collision_detector::Gatherer GetGatherer(size_t idx) const override {
-        return dogs_[idx]->AsGatherer();
+        return dogs_.at(idx)->AsGatherer();
     };
 
     const Id& GetItemId(size_t idx) const {
-        return items_[idx]->GetId();
+        return items_.at(idx)->GetId();
     };
 
     const Dog::Id& GetDogId(size_t idx) const {
-        return dogs_[idx]->GetId();
+        return dogs_.at(idx)->GetId();
     };
 
 private:

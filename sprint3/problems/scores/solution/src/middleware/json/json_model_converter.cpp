@@ -1,13 +1,22 @@
 #include "json_model_converter.h"
 #include "model_key_storage.h"
+#include "logger.h"
 
 namespace model {
 
 LootGeneratorConfig tag_invoke(json::value_to_tag<LootGeneratorConfig>, const json::value& jv) {
-    LootGeneratorConfig config;
-    config.period = json::value_to<double>(jv.as_object().at(LOOT_GENERATOR_PERIOD));
-    config.probability = json::value_to<double>(jv.as_object().at(LOOT_GENERATOR_PROBABILITY));
-    return config;
+    try {
+        LootGeneratorConfig config;
+        config.period = json::value_to<double>(jv.as_object().at(LOOT_GENERATOR_PERIOD));
+        config.probability = json::value_to<double>(jv.as_object().at(LOOT_GENERATOR_PROBABILITY));
+        return config;
+    } catch(const std::out_of_range& e) {
+        BOOST_LOG_TRIVIAL(error) << "Missing loot generator config field: " << e.what();
+        throw;
+    } catch(const boost::json::system_error& e) {
+        BOOST_LOG_TRIVIAL(error) << "JSON parsing error in loot generator config: " << e.what();
+        throw;
+    }
 };
 
 
@@ -29,19 +38,34 @@ void tag_invoke(json::value_from_tag, json::value& jv, const LootType& loot_type
 };
 
 LootType tag_invoke(json::value_to_tag<LootType>, const json::value& jv) {
-    LootType loot_type;
-    loot_type.name = json::value_to<std::string>(jv.as_object().at(LOOT_TYPES_NAME));
-    loot_type.file = json::value_to<std::string>(jv.as_object().at(LOOT_TYPES_FILE));
-    loot_type.type = json::value_to<std::string>(jv.as_object().at(LOOT_TYPES_TYPE));
-    loot_type.value = json::value_to<size_t>(jv.as_object().at(LOOT_TYPES_VALUE));
     try {
-        loot_type.rotation = json::value_to<int>(jv.as_object().at(LOOT_TYPES_ROTATION));
-    } catch (boost::wrapexcept<std::out_of_range>& e) {};
-    try {
-        loot_type.color = json::value_to<std::string>(jv.as_object().at(LOOT_TYPES_COLOR));
-    } catch (boost::wrapexcept<std::out_of_range>& e) {};
-    loot_type.scale = json::value_to<double>(jv.as_object().at(LOOT_TYPES_SCALE));
-    return loot_type;
+        LootType loot_type;
+        loot_type.name = json::value_to<std::string>(jv.as_object().at(LOOT_TYPES_NAME));
+        loot_type.file = json::value_to<std::string>(jv.as_object().at(LOOT_TYPES_FILE));
+        loot_type.type = json::value_to<std::string>(jv.as_object().at(LOOT_TYPES_TYPE));
+        loot_type.value = json::value_to<size_t>(jv.as_object().at(LOOT_TYPES_VALUE));
+        
+        try {
+            loot_type.rotation = json::value_to<int>(jv.as_object().at(LOOT_TYPES_ROTATION));
+        } catch (const std::out_of_range& e) {
+           
+        }
+        
+        try {
+            loot_type.color = json::value_to<std::string>(jv.as_object().at(LOOT_TYPES_COLOR));
+        } catch (const std::out_of_range& e) {
+           
+        }
+        
+        loot_type.scale = json::value_to<double>(jv.as_object().at(LOOT_TYPES_SCALE));
+        return loot_type;
+    } catch(const std::out_of_range& e) {
+        BOOST_LOG_TRIVIAL(error) << "Missing loot type field: " << e.what();
+        throw;
+    } catch(const boost::json::system_error& e) {
+        BOOST_LOG_TRIVIAL(error) << "JSON parsing error in loot type: " << e.what();
+        throw;
+    }
 };
 
 void tag_invoke(json::value_from_tag, json::value& jv, const Building& building) {
@@ -52,13 +76,21 @@ void tag_invoke(json::value_from_tag, json::value& jv, const Building& building)
 };
 
 Building tag_invoke(json::value_to_tag<Building>, const json::value& jv) {
-    Point point;
-    point.x = json::value_to<int>(jv.as_object().at(BUILDING_X));
-    point.y = json::value_to<int>(jv.as_object().at(BUILDING_Y));
-    Size size;
-    size.width = json::value_to<int>(jv.as_object().at(BUILDING_WIDTH));
-    size.height = json::value_to<int>(jv.as_object().at(BUILDING_HEIGHT));
-    return Building(Rectangle(point, size));
+    try {
+        Point point;
+        point.x = json::value_to<int>(jv.as_object().at(BUILDING_X));
+        point.y = json::value_to<int>(jv.as_object().at(BUILDING_Y));
+        Size size;
+        size.width = json::value_to<int>(jv.as_object().at(BUILDING_WIDTH));
+        size.height = json::value_to<int>(jv.as_object().at(BUILDING_HEIGHT));
+        return Building(Rectangle(point, size));
+    } catch(const std::out_of_range& e) {
+        BOOST_LOG_TRIVIAL(error) << "Missing building field: " << e.what();
+        throw;
+    } catch(const boost::json::system_error& e) {
+        BOOST_LOG_TRIVIAL(error) << "JSON parsing error in building: " << e.what();
+        throw;
+    }
 };
 
 void tag_invoke(json::value_from_tag, json::value& jv, const Office& office) {
@@ -70,14 +102,22 @@ void tag_invoke(json::value_from_tag, json::value& jv, const Office& office) {
 };
 
 Office tag_invoke(json::value_to_tag<Office>, const json::value& jv) {
-    Office::Id id{json::value_to<std::string>(jv.as_object().at(OFFICE_ID))};
-    geom::Point2D position;
-    position.x = json::value_to<int>(jv.as_object().at(OFFICE_X));
-    position.y = json::value_to<int>(jv.as_object().at(OFFICE_Y));
-    Offset offset;
-    offset.dx = json::value_to<int>(jv.as_object().at(OFFICE_OFFSET_X));
-    offset.dy = json::value_to<int>(jv.as_object().at(OFFICE_OFFSET_Y));
-    return Office(id, position, offset);
+    try {
+        Office::Id id{json::value_to<std::string>(jv.as_object().at(OFFICE_ID))};
+        geom::Point2D position;
+        position.x = json::value_to<int>(jv.as_object().at(OFFICE_X));
+        position.y = json::value_to<int>(jv.as_object().at(OFFICE_Y));
+        Offset offset;
+        offset.dx = json::value_to<int>(jv.as_object().at(OFFICE_OFFSET_X));
+        offset.dy = json::value_to<int>(jv.as_object().at(OFFICE_OFFSET_Y));
+        return Office(id, position, offset);
+    } catch(const std::out_of_range& e) {
+        BOOST_LOG_TRIVIAL(error) << "Missing office field: " << e.what();
+        throw;
+    } catch(const boost::json::system_error& e) {
+        BOOST_LOG_TRIVIAL(error) << "JSON parsing error in office: " << e.what();
+        throw;
+    }
 };
 
 
@@ -94,16 +134,24 @@ void tag_invoke(json::value_from_tag, json::value& jv, const Road& road) {
 };
 
 Road tag_invoke(json::value_to_tag<Road>, const json::value& jv) {
-    Point start;
-    start.x = json::value_to<int>(jv.as_object().at(ROAD_XO));
-    start.y = json::value_to<int>(jv.as_object().at(ROAD_YO));
-    Coord end;
     try {
-        end = json::value_to<int>(jv.as_object().at(ROAD_X1));
-        return Road(Road::HORIZONTAL, start, end);
-    } catch (...) {
-        end = json::value_to<int>(jv.as_object().at(ROAD_Y1));
-        return Road(Road::VERTICAL, start, end);
+        Point start;
+        start.x = json::value_to<int>(jv.as_object().at(ROAD_XO));
+        start.y = json::value_to<int>(jv.as_object().at(ROAD_YO));
+        Coord end;
+        try {
+            end = json::value_to<int>(jv.as_object().at(ROAD_X1));
+            return Road(Road::HORIZONTAL, start, end);
+        } catch (...) {
+            end = json::value_to<int>(jv.as_object().at(ROAD_Y1));
+            return Road(Road::VERTICAL, start, end);
+        }
+    } catch(const std::out_of_range& e) {
+        BOOST_LOG_TRIVIAL(error) << "Missing road field: " << e.what();
+        throw;
+    } catch(const boost::json::system_error& e) {
+        BOOST_LOG_TRIVIAL(error) << "JSON parsing error in road: " << e.what();
+        throw;
     }
 };
 
@@ -111,7 +159,6 @@ Road tag_invoke(json::value_to_tag<Road>, const json::value& jv) {
 void tag_invoke(json::value_from_tag, json::value& jv, const Map& map) {
     jv = {{MAP_ID, json::value_from(*(map.GetId()))},
             {MAP_NAME, json::value_from(map.GetName())},
-            //{MAP_DOG_VELOCITY, json::value_from(map.GetDogVelocity())}, // todo: need?
             {ROADS, json::value_from(map.GetRoads())},
             {BUILDINGS, json::value_from(map.GetBuildings())},
             {OFFICES, json::value_from(map.GetOffices())},
@@ -120,29 +167,48 @@ void tag_invoke(json::value_from_tag, json::value& jv, const Map& map) {
 };
 
 Map tag_invoke(json::value_to_tag<Map>, const json::value& jv) {
-    Map::Id id{json::value_to<std::string>(jv.as_object().at(MAP_ID))};
-    std::string name = json::value_to<std::string>(jv.as_object().at(MAP_NAME));
-    Map map(id, name);
-    std::vector<Road> roads = json::value_to< std::vector<Road> >(jv.as_object().at(ROADS));
-    map.AddRoads(roads);
-    std::vector<Building> buildings = json::value_to<std::vector<Building>>(jv.as_object().at(BUILDINGS));
-    map.AddBuildings(buildings);
-    std::vector<Office> offices = json::value_to<std::vector<Office>>(jv.as_object().at(OFFICES));
-    map.AddOffices(offices);
-    std::vector<LootType> look_types = json::value_to<std::vector<LootType>>(jv.as_object().at(LOOT_TYPES));
-    if(look_types.empty()) {
-        throw EmptyLootTypesOnMapException(*id);
+    try {
+        Map::Id id{json::value_to<std::string>(jv.as_object().at(MAP_ID))};
+        std::string name = json::value_to<std::string>(jv.as_object().at(MAP_NAME));
+        Map map(id, name);
+        
+        std::vector<Road> roads = json::value_to< std::vector<Road> >(jv.as_object().at(ROADS));
+        map.AddRoads(roads);
+        
+        std::vector<Building> buildings = json::value_to<std::vector<Building>>(jv.as_object().at(BUILDINGS));
+        map.AddBuildings(buildings);
+        
+        std::vector<Office> offices = json::value_to<std::vector<Office>>(jv.as_object().at(OFFICES));
+        map.AddOffices(offices);
+        
+        std::vector<LootType> look_types = json::value_to<std::vector<LootType>>(jv.as_object().at(LOOT_TYPES));
+        if(look_types.empty()) {
+            throw EmptyLootTypesOnMapException(*id);
+        }
+        map.AddLootTypes(look_types);
+        
+        try {
+            double dog_velocity = json::value_to<double>(jv.as_object().at(MAP_DOG_VELOCITY));
+            map.SetDogVelocity(dog_velocity);
+        } catch(const std::out_of_range& e) {
+           
+        }
+        
+        try {
+            double bag_capacity = json::value_to<double>(jv.as_object().at(MAP_BAG_CAPACITY));
+            map.SetBagCapacity(bag_capacity);
+        } catch(const std::out_of_range& e) {
+           
+        }
+        
+        return map;
+    } catch(const std::out_of_range& e) {
+        BOOST_LOG_TRIVIAL(error) << "Missing map field: " << e.what();
+        throw;
+    } catch(const boost::json::system_error& e) {
+        BOOST_LOG_TRIVIAL(error) << "JSON parsing error in map: " << e.what();
+        throw;
     }
-    map.AddLootTypes(look_types);
-    try {
-        double dog_velocity = json::value_to<double>(jv.as_object().at(MAP_DOG_VELOCITY));
-        map.SetDogVelocity(dog_velocity);
-    } catch(boost::wrapexcept<std::out_of_range>& e) {}
-    try {
-        double bag_capacity = json::value_to<double>(jv.as_object().at(MAP_BAG_CAPACITY));
-        map.SetBagCapacity(bag_capacity);
-    } catch(boost::wrapexcept<std::out_of_range>& e) {}
-    return map;
 };
 
 }

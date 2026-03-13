@@ -1,6 +1,6 @@
 #pragma once
 #include "application.h"
-
+#include <cstdint>
 #include <string>
 #include <tuple>
 #include <optional>

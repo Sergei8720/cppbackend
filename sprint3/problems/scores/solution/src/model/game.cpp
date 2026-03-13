@@ -1,5 +1,6 @@
 #include "game.h"
 #include "model_invariants.h"
+#include "logger.h"
 
 #include <cmath>
 #include <string>
@@ -12,18 +13,19 @@ void Game::AddMap(const Map& map) {
     const size_t index = maps_.size();
     if (auto [it, inserted] = map_id_to_index_.emplace(map.GetId(), index); !inserted) {
         throw std::invalid_argument("Map with id "s + *map.GetId() + " already exists"s);
-    } else {
-        try {
-            auto current_map = std::make_shared<Map>(map);
-            if(default_dog_velocity_ &&
-                std::abs(current_map->GetDogVelocity() - INITIAL_DOG_VELOCITY) < EPSILON) {
-                current_map->SetDogVelocity(default_dog_velocity_.value());
-            }
-            maps_.push_back(current_map);
-        } catch (...) {
-            map_id_to_index_.erase(it);
-            throw;
+    }
+
+    try {
+        auto current_map = std::make_shared<Map>(map);
+        if(default_dog_velocity_ &&
+            std::abs(current_map->GetDogVelocity() - INITIAL_DOG_VELOCITY) < EPSILON) {
+            current_map->SetDogVelocity(default_dog_velocity_.value());
         }
+        maps_.push_back(current_map);
+    } catch (const std::exception& e) {
+        map_id_to_index_.erase(it);
+        BOOST_LOG_TRIVIAL(error) << "Failed to add map: " << e.what();
+        throw;
     }
 }
 

@@ -59,7 +59,7 @@ private:
     GameSessionIdToIndex session_id_to_players_;
     authentication::PlayerTokens player_tokens_;
     net::io_context& ioc_;
-    std::shared_ptr<AppStrand> strand_; // todo: temp implementation.
+    std::shared_ptr<AppStrand> strand_;
     std::vector< std::shared_ptr<app::GameSession> > sessions_;
     MapIdToSessionIndex map_id_to_session_index_;
     AuthTokenToSessionIndex auth_token_to_session_index_;

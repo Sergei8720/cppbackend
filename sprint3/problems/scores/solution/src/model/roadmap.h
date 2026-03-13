@@ -9,8 +9,6 @@
 
 namespace model {
 
-/*Класс для предстваления карты дорог. Map разбивается на ячейки с целочисленными координатами
-в каждой ячейке хранится множество дорог проходящих по данному участку*/
 class Roadmap {
 public:
     using Roads = std::vector<Road>;
@@ -28,6 +26,7 @@ public:
                             const geom::Point2D& potential_new_position,
                             const Velocity& old_velocity);
     geom::Point2D GenerateValidRandomPosition() const;
+    
 private:
     struct MatrixMapCoord {
         int64_t x;
@@ -40,6 +39,11 @@ private:
     using MatrixMap = std::map< int64_t, std::map<int64_t, std::unordered_set<size_t> > >;
     MatrixMap matrix_map_;
     Roads roads_;
+
+    void AddHorizontalRoad(const Road& road, int64_t scaledOffset);
+    void AddVerticalRoad(const Road& road, int64_t scaledOffset);
+    std::tuple<double, double, double, double> CalculateRoadBounds(const Road& road) const;
+    bool IsPositionWithinBounds(double pos, double start, double end) const;
 
     std::optional<const MatrixMapCoord> GetDestinationRoadsOfRoute(
         std::optional<const MatrixMapCoord> start,
@@ -58,7 +62,7 @@ private:
     bool IsValidPosition(const std::unordered_set<size_t>& roads_ind,
                         const geom::Point2D& position);
     
-    bool IsValidPositionOnRoad(const Road& road, const geom::Point2D& position);
+    bool IsValidPositionOnRoad(const Road& road, const geom::Point2D& position) const;
     void CopyContent(const Roads& roads);
 };
 
