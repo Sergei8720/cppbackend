@@ -94,7 +94,6 @@ add_executable(game_server
     src/middleware/json/json_converter.cpp
     src/middleware/json/json_model_converter.cpp
     src/middleware/json/boost_json.cpp
-    src/web/request_handlers/request_handler.cpp
     src/middleware/logging/logging_data_storage.cpp
     src/middleware/logging/logger.cpp
     src/app/authentication/player_tokens.cpp
