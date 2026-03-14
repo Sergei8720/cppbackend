@@ -1,6 +1,6 @@
 #include "game.h"
 #include "model_invariants.h"
-
+#include <boost/log/trivial.hpp>
 #include <cmath>
 #include <string>
 
@@ -10,9 +10,13 @@ using namespace std::literals;
 
 void Game::AddMap(const Map& map) {
     const size_t index = maps_.size();
-    if (auto [it, inserted] = map_id_to_index_.emplace(map.GetId(), index); !inserted) {
+    
+    auto it = map_id_to_index_.find(map.GetId());
+    if (it != map_id_to_index_.end()) {
         throw std::invalid_argument("Map with id "s + *map.GetId() + " already exists"s);
     }
+    
+    it = map_id_to_index_.emplace(map.GetId(), index).first;
 
     try {
         auto current_map = std::make_shared<Map>(map);
@@ -22,7 +26,7 @@ void Game::AddMap(const Map& map) {
         }
         maps_.push_back(current_map);
     } catch (const std::exception& e) {
-        map_id_to_index_.erase(it);
+        map_id_to_index_.erase(it);  // используем it
         BOOST_LOG_TRIVIAL(error) << "Failed to add map: " << e.what();
         throw;
     }
