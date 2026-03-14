@@ -64,7 +64,7 @@ bool BadRequestActivator(const Request& req) {
                     url[3] != "player" &&
                     url[3] != "tick" &&
                     (url.size() == SIZE_OF_FIVE_SEGMENT_URL && url[4] != "action"))
-            ); // todo: need refactor
+            ); 
 };
 
 template <typename Request, typename Send>

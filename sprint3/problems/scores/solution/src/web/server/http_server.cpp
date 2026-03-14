@@ -1,5 +1,5 @@
 #include "http_server.h"
-#include "middleware/logging/logger.h"
+#include "logger.h"
 #include "json_key_storage.h"
 
 namespace http_server {

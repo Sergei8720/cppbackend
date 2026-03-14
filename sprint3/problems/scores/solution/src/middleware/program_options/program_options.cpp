@@ -1,5 +1,5 @@
 #include "program_options.h"
-#include "middleware/logging/logger.h"
+#include "logger.h"
 
 #include <boost/program_options.hpp>
 

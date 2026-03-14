@@ -52,7 +52,7 @@ public:
 
 private:
     Point start_;
-    Point end_;
+    Point end_; 
 };
 
 }

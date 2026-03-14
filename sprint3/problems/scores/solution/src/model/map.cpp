@@ -62,7 +62,6 @@ void Map::AddOffice(const Office& office) {
     try {
         warehouse_id_to_index_.emplace(o.GetId(), index);
     } catch (...) {
-        // Удаляем офис из вектора, если не удалось вставить в unordered_map
         offices_.pop_back();
         throw;
     }

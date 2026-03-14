@@ -12,13 +12,11 @@ class StaticFileRequestHandlerExecutor{
     using ActivatorType = bool(*)(const Request&, const std::filesystem::path& );
     using HandlerType = void(*)(const Request&, const std::filesystem::path&, Send&&);
 public:
-    // убираем конструктор копирования
     StaticFileRequestHandlerExecutor(const StaticFileRequestHandlerExecutor&) = delete;
     StaticFileRequestHandlerExecutor& operator=(const StaticFileRequestHandlerExecutor&) = delete;
     StaticFileRequestHandlerExecutor(StaticFileRequestHandlerExecutor&&) = delete;
     StaticFileRequestHandlerExecutor& operator=(StaticFileRequestHandlerExecutor&&) = delete;
 
-    // получение ссылки на единственный объект
     static StaticFileRequestHandlerExecutor& GetInstance() {
         static StaticFileRequestHandlerExecutor obj;
         return obj;

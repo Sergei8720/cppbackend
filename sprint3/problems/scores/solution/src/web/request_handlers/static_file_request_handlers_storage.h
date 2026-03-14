@@ -1,6 +1,6 @@
 #pragma once
 #include "filesystem_utils.h" 
-#include "middleware/logging/logger.h"
+#include "logger.h"
 
 #include <vector>
 #include <boost/beast/http.hpp>
@@ -140,8 +140,6 @@ void GetStaticContentFileHandler(
         response.body() = std::move(file);
     }
 
-    // Метод prepare_payload заполняет заголовки Content-Length и Transfer-Encoding
-    // в зависимости от свойств тела сообщения
     response.prepare_payload();
     send(response);
 };

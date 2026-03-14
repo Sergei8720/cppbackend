@@ -53,4 +53,4 @@ private:
     std::vector<Handler> emerge_handlers_;
 };
 
-}
+} 
