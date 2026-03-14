@@ -1,4 +1,5 @@
 #include "application.h"
+#include <boost/log/trivial.hpp>
 
 namespace app {
 
@@ -75,10 +76,14 @@ void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
 
 void Application::AddGameSession(std::shared_ptr<GameSession> session) {
     const size_t index = sessions_.size();
-    if (auto [it, inserted] = map_id_to_session_index_.emplace(session->GetMap()->GetId(), index); !inserted) {
+    
+    auto it = map_id_to_session_index_.find(session->GetMap()->GetId());
+    if (it != map_id_to_session_index_.end()) {
         throw std::invalid_argument("Game session with map id "s + *(session->GetMap()->GetId()) + " already exists"s);
     }
     
+    it = map_id_to_session_index_.emplace(session->GetMap()->GetId(), index).first;
+
     try {
         sessions_.push_back(session);
     } catch (const std::exception& e) {
