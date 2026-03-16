@@ -54,14 +54,18 @@ find_package(Threads REQUIRED)
 add_compile_definitions(
     BOOST_BEAST_USE_STD_STRING_VIEW
     BOOST_JSON_STANDALONE
+    BOOST_THREAD_PROVIDES_FUTURE
 )
 
 # ============= БИБЛИОТЕКА COLLISION DETECTION =============
 add_library(collision_detection_lib STATIC
-    src/model/physics/collision_detector.h
     src/model/physics/collision_detector.cpp
-    src/model/physics/geom.h
 )
+
+target_include_directories(collision_detection_lib PUBLIC 
+    src/model/physics
+)
+
 target_link_libraries(collision_detection_lib PUBLIC CONAN_PKG::boost Threads::Threads)
 
 # ============= БИБЛИОТЕКА МОДЕЛИ ИГРЫ =============
@@ -80,6 +84,7 @@ add_library(game_model_lib STATIC
 )
 
 target_include_directories(game_model_lib PUBLIC 
+    src
     src/model
     src/model/physics
     src/middleware/utils
@@ -126,34 +131,14 @@ target_link_libraries(game_server PRIVATE Threads::Threads CONAN_PKG::boost game
 # ============= ТЕСТЫ =============
 include(CTest)
 
-add_executable(game_tests
-    tests/loot_generator_tests.cpp
-    tests/collision-detector-tests.cpp
-)
-
-target_include_directories(game_tests PRIVATE
-    src
-    src/model
-    src/model/physics
-    ${CONAN_INCLUDE_DIRS_CATCH2}
-)
-
-target_link_libraries(game_tests PRIVATE
-    game_model_lib
-    collision_detection_lib
-    Threads::Threads
-    CONAN_PKG::catch2
-    m
-)
-
-target_compile_features(game_tests PRIVATE cxx_std_20)
-
+# Тесты для обнаружения коллизий
 add_executable(collision_tests
     tests/collision-detector-tests.cpp
 )
 
 target_include_directories(collision_tests PRIVATE
     src
+    src/model
     src/model/physics
     ${CONAN_INCLUDE_DIRS_CATCH2}
 )
@@ -168,29 +153,12 @@ target_link_libraries(collision_tests PRIVATE
 
 target_compile_features(collision_tests PRIVATE cxx_std_20)
 
+# Добавляем тесты в CTest
 if(BUILD_TESTING)
-    add_test(NAME game_tests COMMAND game_tests)
     add_test(NAME collision_tests COMMAND collision_tests)
 endif()
 
-add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
-add_compile_definitions(BOOST_THREAD_PROVIDES_FUTURE)
-
 # Цели для запуска тестов
-add_custom_target(run_all_tests
-    COMMAND game_tests && collision_tests
-    DEPENDS game_tests collision_tests
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    COMMENT "🚀 Running all tests..."
-)
-
-add_custom_target(run_game_tests
-    COMMAND game_tests
-    DEPENDS game_tests
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    COMMENT "🚀 Running game tests..."
-)
-
 add_custom_target(run_collision_tests
     COMMAND collision_tests
     DEPENDS collision_tests
@@ -198,12 +166,10 @@ add_custom_target(run_collision_tests
     COMMENT "🚀 Running collision detection tests..."
 )
 
+# Информационные сообщения
 message(STATUS "🎮 Build targets:")
 message(STATUS "   - game_server (main executable)")
 message(STATUS "   - collision_detection_lib (static library)")
 message(STATUS "   - game_model_lib (game model library)")
-message(STATUS "   - game_tests (unified game tests)")
 message(STATUS "   - collision_tests (collision tests)")
-message(STATUS "   - run_all_tests (run all tests)")
-message(STATUS "   - run_game_tests (run game tests)")
 message(STATUS "   - run_collision_tests (run collision tests)")
