@@ -26,7 +26,7 @@ public:
     Token AddPlayer(std::shared_ptr<app::Player> player);
     std::shared_ptr<app::Player> FindPlayerBy(Token token);
     
-    // НОВЫЙ МЕТОД - для восстановления токена при загрузке из файла
+    // МЕТОД ДЛЯ ВОССТАНОВЛЕНИЯ ТОКЕНА ПРИ ЗАГРУЗКЕ ИЗ ФАЙЛА
     void RestoreToken(const Token& token, std::shared_ptr<app::Player> player) {
         tokenToPlayer_[token] = player;
     };

@@ -60,7 +60,7 @@ public:
         return tick_period_;
     };
     
-    const model::LootGeneratorConfig& GetLootGeneratorConfig() const noexcept {  // Добавлен const
+    const model::LootGeneratorConfig& GetLootGeneratorConfig() const noexcept {
         return game_.GetLootGeneratorConfig();
     };
 
@@ -85,6 +85,8 @@ private:
     std::vector< std::shared_ptr<app::GameSession> > sessions_;
     MapIdToSessionIndex map_id_to_session_index_;
     AuthTokenToSessionIndex auth_token_to_session_index_;
+    
+    // ДОБАВЛЯЕМ ЭТО ПОЛЕ
     PlayerIdToToken player_id_to_token_;
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);

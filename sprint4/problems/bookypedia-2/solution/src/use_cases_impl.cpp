@@ -12,85 +12,10 @@
 namespace app {
 using namespace domain;
 
-std::vector<std::string> UseCasesImpl::GetAllAuthorNames() {
-    std::vector<std::string> names;
-    auto authors = authors_.GetAllAuthors();
-    for (const auto& author : authors) {
-        names.push_back(author.GetName());
-    }
-    std::sort(names.begin(), names.end());
-    return names;
-}
-
-std::vector<Author> UseCasesImpl::GetAllAuthorsSorted() {
-    auto authors = authors_.GetAllAuthors();
-    std::sort(authors.begin(), authors.end(),
-        [](const Author& a, const Author& b) {
-            return a.GetName() < b.GetName();
-        });
-    return authors;
-}
-
-std::vector<std::pair<Book, std::string>> UseCasesImpl::GetAllBooksWithAuthors() {
-    std::vector<std::pair<Book, std::string>> result;
-    auto books = books_.GetAllBooks();
-    
-    std::unordered_map<std::string, std::string> author_names;
-    auto authors = authors_.GetAllAuthors();
-    for (const auto& author : authors) {
-        author_names[author.GetId().ToString()] = author.GetName();
-    }
-    
-    for (const auto& book : books) {
-        auto it = author_names.find(book.GetAuthorId().ToString());
-        if (it != author_names.end()) {
-            result.emplace_back(book, it->second);
-        }
-    }
-    
-    std::sort(result.begin(), result.end(),
-        [](const auto& a, const auto& b) {
-            return a.first.GetTitle() < b.first.GetTitle();
-        });
-    
-    return result;
-}
-
-int UseCasesImpl::FindAuthorIndexByName(const std::string& name) {
-    auto names = GetAllAuthorNames();
-    auto it = std::find(names.begin(), names.end(), name);
-    if (it != names.end()) {
-        return std::distance(names.begin(), it);
-    }
-    return -1;
-}
-
-int UseCasesImpl::FindBookIndexByTitle(const std::string& title, const std::string& author_name) {
-    auto books = GetAllBooksWithAuthors();
-    if (author_name.empty()) {
-        for (size_t i = 0; i < books.size(); ++i) {
-            if (books[i].first.GetTitle() == title) {
-                return i;
-            }
-        }
-    } else {
-        for (size_t i = 0; i < books.size(); ++i) {
-            if (books[i].first.GetTitle() == title && books[i].second == author_name) {
-                return i;
-            }
-        }
-    }
-    return -1;
-}
-
-// Authors
-void UseCasesImpl::AddAuthor(const std::string& name) {
-    authors_.Save({AuthorId::New(), name});
-}
-
 std::vector<std::string> UseCasesImpl::GetAllAuthors() {
     auto authors = authors_.GetAllAuthors();
     
+    // ГАРАНТИРОВАННАЯ сортировка по имени
     std::sort(authors.begin(), authors.end(),
         [](const domain::Author& a, const domain::Author& b) {
             return a.GetName() < b.GetName();
@@ -101,6 +26,10 @@ std::vector<std::string> UseCasesImpl::GetAllAuthors() {
         result.push_back(author.GetName());
     }
     return result;
+}
+
+void UseCasesImpl::AddAuthor(const std::string& name) {
+    authors_.Save({AuthorId::New(), name});
 }
 
 void UseCasesImpl::DeleteAuthor(const std::string& name) {
@@ -115,6 +44,23 @@ void UseCasesImpl::DeleteAuthorByIndex(int index) {
     if (index >= 0 && index < static_cast<int>(authors.size())) {
         authors_.Delete(authors[index].GetId());
     }
+}
+
+std::vector<Author> UseCasesImpl::GetAllAuthorsSorted() {
+    auto authors = authors_.GetAllAuthors();
+    std::sort(authors.begin(), authors.end(),
+        [](const Author& a, const Author& b) {
+            return a.GetName() < b.GetName();
+        });
+    return authors;
+}
+
+std::optional<std::string> UseCasesImpl::GetAuthorIdByName(const std::string& name) {
+    auto author = authors_.GetAuthorByName(name);
+    if (author) {
+        return author->GetId().ToString();
+    }
+    return std::nullopt;
 }
 
 void UseCasesImpl::EditAuthor(const std::string& old_name, const std::string& new_name) {
@@ -134,14 +80,6 @@ void UseCasesImpl::EditAuthorByIndex(int index, const std::string& new_name) {
     }
 }
 
-std::optional<std::string> UseCasesImpl::GetAuthorIdByName(const std::string& name) {
-    auto author = authors_.GetAuthorByName(name);
-    if (author) {
-        return author->GetId().ToString();
-    }
-    return std::nullopt;
-}
-
 // Books
 void UseCasesImpl::AddBook(const std::string& author_id, const std::string& title, 
                            int year, const std::vector<std::string>& tags) {
@@ -152,18 +90,7 @@ void UseCasesImpl::AddBook(const std::string& author_id, const std::string& titl
     books_.Save(book);
     
     if (!tags.empty()) {
-        std::vector<std::string> clean_tags;
-        for (const auto& tag : tags) {
-            std::string trimmed = tag;
-            boost::algorithm::trim(trimmed);
-            if (!trimmed.empty()) {
-                clean_tags.push_back(trimmed);
-            }
-        }
-        
-        if (!clean_tags.empty()) {
-            books_.SaveTags(book_id, clean_tags);
-        }
+        books_.SaveTags(book_id, tags);
     }
 }
 
@@ -171,9 +98,7 @@ std::vector<std::string> UseCasesImpl::GetAllBooks() {
     std::vector<std::string> result;
     auto books = books_.GetAllBooks();
     
-    if (books.empty()) {
-        return result;
-    }
+    if (books.empty()) return result;
     
     std::unordered_map<std::string, std::string> author_names;
     auto authors = authors_.GetAllAuthors();
@@ -227,90 +152,57 @@ std::vector<BookDetail> UseCasesImpl::GetBooksByTitle(const std::string& title) 
 }
 
 void UseCasesImpl::DeleteBook(const std::string& title, const std::string& author_name) {
-    if (author_name.empty()) {
-        auto books = books_.GetBooksByTitle(title);
-        for (const auto& book : books) {
-            books_.Delete(book.GetId());
-        }
-    } else {
-        int index = FindBookIndexByTitle(title, author_name);
-        if (index != -1) {
-            auto books = GetAllBooksWithAuthors();
-            if (index >= 0 && index < static_cast<int>(books.size())) {
-                books_.Delete(books[index].first.GetId());
-            }
-        }
+    auto books = books_.GetBooksByTitle(title);
+    for (const auto& book : books) {
+        books_.Delete(book.GetId());
     }
 }
 
 void UseCasesImpl::DeleteBookByIndex(int book_index, int title_index) {
-    auto books = GetAllBooksWithAuthors();
+    auto books = books_.GetAllBooks();
     if (book_index >= 0 && book_index < static_cast<int>(books.size())) {
-        books_.Delete(books[book_index].first.GetId());
+        books_.Delete(books[book_index].GetId());
     }
 }
 
 void UseCasesImpl::EditBook(const std::string& old_title, const std::string& new_title,
                             const std::string& new_year, const std::vector<std::string>& new_tags,
                             const std::string& author_name) {
-    if (author_name.empty()) {
-        auto books = books_.GetBooksByTitle(old_title);
-        for (auto& book : books) {
-            EditSingleBook(book, new_title, new_year, new_tags);
+    auto books = books_.GetBooksByTitle(old_title);
+    for (auto& book : books) {
+        if (!new_title.empty() && new_title != " ") {
+            book.SetTitle(new_title);
         }
-    } else {
-        int index = FindBookIndexByTitle(old_title, author_name);
-        if (index != -1) {
-            auto books_with_authors = GetAllBooksWithAuthors();
-            if (index >= 0 && index < static_cast<int>(books_with_authors.size())) {
-                auto book = books_with_authors[index].first;
-                EditSingleBook(book, new_title, new_year, new_tags);
-            }
+        if (!new_year.empty() && new_year != " ") {
+            try {
+                book.SetPublicationYear(std::stoi(new_year));
+            } catch (...) {}
+        }
+        books_.Update(book);
+        
+        if (!new_tags.empty()) {
+            books_.SaveTags(book.GetId(), new_tags);
         }
     }
 }
 
 void UseCasesImpl::EditBookByIndex(int book_index, const std::string& new_title,
                                    const std::string& new_year, const std::vector<std::string>& new_tags) {
-    auto books_with_authors = GetAllBooksWithAuthors();
-    if (book_index >= 0 && book_index < static_cast<int>(books_with_authors.size())) {
-        auto book = books_with_authors[book_index].first;
-        EditSingleBook(book, new_title, new_year, new_tags);
-    }
-}
-
-void UseCasesImpl::EditSingleBook(domain::Book& book, const std::string& new_title,
-                                  const std::string& new_year, const std::vector<std::string>& new_tags) {
-    bool updated = false;
-    
-    if (!new_title.empty() && new_title != " ") {
-        book.SetTitle(new_title);
-        updated = true;
-    }
-    
-    if (!new_year.empty() && new_year != " ") {
-        try {
-            int year = std::stoi(new_year);
-            book.SetPublicationYear(year);
-            updated = true;
-        } catch (...) {}
-    }
-    
-    if (updated) {
-        books_.Update(book);
-    }
-    
-    if (!new_tags.empty()) {
-        std::vector<std::string> tags_to_save;
-        for (const auto& tag : new_tags) {
-            std::string trimmed = tag;
-            boost::algorithm::trim(trimmed);
-            if (!trimmed.empty()) {
-                tags_to_save.push_back(trimmed);
-            }
+    auto books = books_.GetAllBooks();
+    if (book_index >= 0 && book_index < static_cast<int>(books.size())) {
+        auto book = books[book_index];
+        if (!new_title.empty() && new_title != " ") {
+            book.SetTitle(new_title);
         }
-        if (!tags_to_save.empty()) {
-            books_.SaveTags(book.GetId(), tags_to_save);
+        if (!new_year.empty() && new_year != " ") {
+            try {
+                book.SetPublicationYear(std::stoi(new_year));
+            } catch (...) {}
+        }
+        books_.Update(book);
+        
+        if (!new_tags.empty()) {
+            books_.SaveTags(book.GetId(), new_tags);
         }
     }
 }

@@ -124,7 +124,7 @@ const std::vector< std::shared_ptr<GameSession> >& Application::GetSessions() {
     return sessions_;
 };
 
-// НОВЫЕ МЕТОДЫ
+// МЕТОДЫ ДЛЯ СЕРИАЛИЗАЦИИ
 
 std::optional<authentication::Token> Application::FindTokenByPlayer(const Player::Id& player_id) const {
     auto it = player_id_to_token_.find(player_id);
