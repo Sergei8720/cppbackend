@@ -3,6 +3,7 @@
 #include <string>
 #include <pqxx/zview.hxx>
 #include <pqxx/pqxx>
+#include <algorithm>
 
 namespace postgres {
 
@@ -36,9 +37,12 @@ void AuthorRepositoryImpl::Update(const domain::Author& author) {
 std::vector<domain::Author> AuthorRepositoryImpl::GetAllAuthors() {
     std::vector<domain::Author> authors;
     pqxx::read_transaction read{connection_};
-    auto query_text = "SELECT id, name FROM authors ORDER BY name"_zv;
-    for (auto [id, name] : read.query<std::string, std::string>(query_text)) {
-        authors.emplace_back(domain::AuthorId::FromString(id), name);
+    auto result = read.exec("SELECT id, name FROM authors ORDER BY name");
+    for (auto row : result) {
+        authors.emplace_back(
+            domain::AuthorId::FromString(row[0].as<std::string>()), 
+            row[1].as<std::string>()
+        );
     }
     return authors;
 }
@@ -48,8 +52,10 @@ std::optional<domain::Author> AuthorRepositoryImpl::GetAuthorByName(const std::s
     auto result = read.exec_params("SELECT id, name FROM authors WHERE name = $1", name);
     if (!result.empty()) {
         auto row = result[0];
-        return domain::Author(domain::AuthorId::FromString(row[0].as<std::string>()), 
-                              row[1].as<std::string>());
+        return domain::Author(
+            domain::AuthorId::FromString(row[0].as<std::string>()), 
+            row[1].as<std::string>()
+        );
     }
     return std::nullopt;
 }
@@ -59,8 +65,10 @@ std::optional<domain::Author> AuthorRepositoryImpl::GetAuthorById(const domain::
     auto result = read.exec_params("SELECT id, name FROM authors WHERE id = $1", id.ToString());
     if (!result.empty()) {
         auto row = result[0];
-        return domain::Author(domain::AuthorId::FromString(row[0].as<std::string>()), 
-                              row[1].as<std::string>());
+        return domain::Author(
+            domain::AuthorId::FromString(row[0].as<std::string>()), 
+            row[1].as<std::string>()
+        );
     }
     return std::nullopt;
 }
@@ -94,14 +102,13 @@ void BookRepositoryImpl::Update(const domain::Book& book) {
 std::vector<domain::Book> BookRepositoryImpl::GetAllBooks() {
     std::vector<domain::Book> books;
     pqxx::read_transaction read{connection_};
-    auto query_text = "SELECT id, author_id, title, publication_year FROM books ORDER BY title"_zv;
-    for (auto [id, author_id, title, year] : 
-         read.query<std::string, std::string, std::string, int>(query_text)) {
+    auto result = read.exec("SELECT id, author_id, title, publication_year FROM books ORDER BY title");
+    for (auto row : result) {
         books.emplace_back(
-            domain::BookId::FromString(id),
-            domain::AuthorId::FromString(author_id),
-            title,
-            year
+            domain::BookId::FromString(row[0].as<std::string>()),
+            domain::AuthorId::FromString(row[1].as<std::string>()),
+            row[2].as<std::string>(),
+            row[3].as<int>()
         );
     }
     return books;
@@ -110,20 +117,20 @@ std::vector<domain::Book> BookRepositoryImpl::GetAllBooks() {
 std::vector<domain::Book> BookRepositoryImpl::GetBooksByAuthor(const std::string& author_name) {
     std::vector<domain::Book> books;
     pqxx::read_transaction read{connection_};
-    auto query_text = 
+    auto result = read.exec_params(
         "SELECT b.id, b.author_id, b.title, b.publication_year "
         "FROM books b "
         "JOIN authors a ON a.id = b.author_id "
         "WHERE a.name = $1 "
-        "ORDER BY b.publication_year, b.title";
+        "ORDER BY b.publication_year, b.title",
+        author_name);
     
-    for (auto [id, author_id, title, year] : 
-         read.query<std::string, std::string, std::string, int>(query_text, author_name)) {
+    for (auto row : result) {
         books.emplace_back(
-            domain::BookId::FromString(id),
-            domain::AuthorId::FromString(author_id),
-            title,
-            year
+            domain::BookId::FromString(row[0].as<std::string>()),
+            domain::AuthorId::FromString(row[1].as<std::string>()),
+            row[2].as<std::string>(),
+            row[3].as<int>()
         );
     }
     return books;
@@ -132,16 +139,16 @@ std::vector<domain::Book> BookRepositoryImpl::GetBooksByAuthor(const std::string
 std::vector<domain::Book> BookRepositoryImpl::GetBooksByTitle(const std::string& title) {
     std::vector<domain::Book> books;
     pqxx::read_transaction read{connection_};
-    auto query_text = 
-        "SELECT id, author_id, title, publication_year FROM books WHERE title = $1";
+    auto result = read.exec_params(
+        "SELECT id, author_id, title, publication_year FROM books WHERE title = $1",
+        title);
     
-    for (auto [id, author_id, book_title, year] : 
-         read.query<std::string, std::string, std::string, int>(query_text, title)) {
+    for (auto row : result) {
         books.emplace_back(
-            domain::BookId::FromString(id),
-            domain::AuthorId::FromString(author_id),
-            book_title,
-            year
+            domain::BookId::FromString(row[0].as<std::string>()),
+            domain::AuthorId::FromString(row[1].as<std::string>()),
+            row[2].as<std::string>(),
+            row[3].as<int>()
         );
     }
     return books;
@@ -168,10 +175,12 @@ void BookRepositoryImpl::SaveTags(const domain::BookId& book_id, const std::vect
 std::vector<std::string> BookRepositoryImpl::GetTags(const domain::BookId& book_id) {
     std::vector<std::string> tags;
     pqxx::read_transaction read{connection_};
-    auto query_text = "SELECT tag FROM book_tags WHERE book_id = $1 ORDER BY tag";
+    auto result = read.exec_params(
+        "SELECT tag FROM book_tags WHERE book_id = $1 ORDER BY tag",
+        book_id.ToString());
     
-    for (auto [tag] : read.query<std::string>(query_text, book_id.ToString())) {
-        tags.push_back(tag);
+    for (auto row : result) {
+        tags.push_back(row[0].as<std::string>());
     }
     
     return tags;

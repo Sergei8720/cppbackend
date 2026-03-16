@@ -44,7 +44,8 @@ RUN apt update && apt install -y \
 # Копируем собранный сервер и тесты
 COPY --from=build /app/build/bin/game_server /app/game_server
 COPY --from=build /app/build/bin/collision_tests /app/collision_tests
-COPY --from=build /app/build/bin/game_tests /app/game_tests
+# УДАЛЯЕМ game_tests так как его больше нет
+# COPY --from=build /app/build/bin/game_tests /app/game_tests
 COPY --from=build /app/tests /app/tests
 
 # Копируем конфигурационные файлы
@@ -55,13 +56,13 @@ WORKDIR /app
 # Скрипт для запуска сервера и тестов
 RUN echo '#!/bin/bash\n\
 # Запускаем сервер в фоне\n\
-./game_server --port 8080 --tick-period 100 --data-dir /app/data &\n\
+./game_server --config-file /app/data/config.json --www-root /app/static/ &\n\
 SERVER_PID=$!\n\
 \n\
 # Ждем запуска сервера\n\
 sleep 2\n\
 \n\
-# Запускаем тесты\n\
+# Запускаем Python тесты\n\
 python3 -m pytest /app/tests -v --junitxml=/app/test_results.xml\n\
 TEST_RESULT=$?\n\
 \n\
@@ -73,7 +74,7 @@ exit $TEST_RESULT\n\
 ' > /app/run_tests.sh && chmod +x /app/run_tests.sh
 
 # Устанавливаем pytest
-RUN pip3 install pytest pytest-quickcheck
+RUN pip3 install pytest
 
 # Запускаем тесты с сервером
 CMD ["/app/run_tests.sh"]
