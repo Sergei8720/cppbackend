@@ -109,12 +109,12 @@ add_executable(game_server
     src/middleware/program_options/program_options.cpp
     src/middleware/time_management/ticker.cpp
     src/middleware/error_handling/error_report.cpp
-    # НОВЫЕ ФАЙЛЫ ДЛЯ СЕРИАЛИЗАЦИИ
+    # ФАЙЛЫ СЕРИАЛИЗАЦИИ (ТОЛЬКО .cpp)
     src/app/serialization/dog_serialization.cpp
     src/app/serialization/game_session_serialization.cpp
     src/app/serialization/lost_object_serialization.cpp
     src/app/serialization/player_serialization.cpp
-    # УБРАЛИ src/app/serialization/misc_serialization.cpp - его нет!
+    # НОВЫЙ ФАЙЛ state_serializer.cpp
     src/app/state_serializer.cpp
 )
 

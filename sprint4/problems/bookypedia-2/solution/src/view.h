@@ -5,6 +5,8 @@
 #include <optional>
 #include <functional>
 
+#include "use_cases.h"
+
 namespace menu {
 class Menu;
 }
@@ -31,7 +33,7 @@ private:
         std::string title;
         std::string author_name;
         int author_index = -1;
-        std::vector<app::BookDetail> details;
+        std::vector<app::BookDetail> book_details;  // Переименовано, чтобы избежать конфликта
     };
 
     // Authors

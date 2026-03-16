@@ -144,7 +144,7 @@ std::optional<View::BookSelection> View::SelectBook(const std::string& title) {
                 sel.type = BookSelection::BY_AUTHOR;
                 sel.title = title;
                 sel.author_index = *index;
-                sel.details = details;
+                sel.book_details = details;  // Исправлено: book_details вместо details
                 return sel;
             }
         }
@@ -425,8 +425,8 @@ bool View::ShowBook(std::istream& cmd_input) {
                 
             case BookSelection::BY_AUTHOR:
                 if (selection.author_index >= 0 && 
-                    selection.author_index < static_cast<int>(selection.details.size())) {
-                    details.push_back(selection.details[selection.author_index]);
+                    selection.author_index < static_cast<int>(selection.book_details.size())) {
+                    details.push_back(selection.book_details[selection.author_index]);
                 }
                 break;
                 
@@ -495,9 +495,9 @@ bool View::DeleteBook(std::istream& cmd_input) {
                 
             case BookSelection::BY_AUTHOR:
                 if (selection.author_index >= 0 && 
-                    selection.author_index < static_cast<int>(selection.details.size())) {
+                    selection.author_index < static_cast<int>(selection.book_details.size())) {
                     use_cases_.DeleteBook(selection.title, 
-                                         selection.details[selection.author_index].author_name);
+                                         selection.book_details[selection.author_index].author_name);
                     output_ << "Book deleted successfully"sv << std::endl;
                 }
                 break;
@@ -551,9 +551,9 @@ bool View::EditBook(std::istream& cmd_input) {
                 
             case BookSelection::BY_AUTHOR:
                 if (selection.author_index >= 0 && 
-                    selection.author_index < static_cast<int>(selection.details.size())) {
+                    selection.author_index < static_cast<int>(selection.book_details.size())) {
                     use_cases_.EditBook(selection.title, new_title, new_year, new_tags,
-                                       selection.details[selection.author_index].author_name);
+                                       selection.book_details[selection.author_index].author_name);
                     output_ << "Book edited successfully"sv << std::endl;
                 }
                 break;
