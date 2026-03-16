@@ -111,7 +111,6 @@ add_executable(game_server
     src/middleware/error_handling/error_report.cpp
     # ФАЙЛЫ СЕРИАЛИЗАЦИИ
     src/app/serialization/dog_serialization.cpp
-    src/app/serialization/game_session_serialization.cpp
     src/app/serialization/lost_object_serialization.cpp
     src/app/serialization/player_serialization.cpp
     src/app/state_serializer.cpp
