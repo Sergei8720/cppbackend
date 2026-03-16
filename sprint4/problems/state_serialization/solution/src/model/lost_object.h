@@ -20,7 +20,6 @@ public:
       return id_;
   };
   
-  // ДОБАВИТЬ ЭТОТ МЕТОД
   void SetId(Id id) {
       id_ = id;
   };

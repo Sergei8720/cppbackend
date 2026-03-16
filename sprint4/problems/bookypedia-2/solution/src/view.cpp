@@ -65,7 +65,11 @@ std::optional<int> View::SelectFromList(const std::vector<std::string>& items,
     for (size_t i = 0; i < items.size(); ++i) {
         output_ << i + 1 << " " << items[i] << std::endl;
     }
-    output_ << prompt << std::endl;
+    output_ << prompt;
+    if (allow_empty) {
+        output_ << " (empty to cancel)";
+    }
+    output_ << ": "sv;
     
     std::string input;
     std::getline(input_, input);
@@ -95,7 +99,7 @@ std::optional<int> View::SelectAuthor(bool allow_empty) {
     if (authors.empty()) {
         return std::nullopt;
     }
-    return SelectFromList(authors, "Enter author # or empty line to cancel"s, allow_empty);
+    return SelectFromList(authors, "Enter author #"s, allow_empty);
 }
 
 std::optional<View::BookSelection> View::SelectBook(const std::string& title) {
@@ -106,7 +110,7 @@ std::optional<View::BookSelection> View::SelectBook(const std::string& title) {
             return std::nullopt;
         }
         
-        auto index = SelectFromList(books, "Enter book # or empty line to cancel"s);
+        auto index = SelectFromList(books, "Enter book #"s);
         if (index) {
             BookSelection sel;
             sel.type = BookSelection::GLOBAL_INDEX;
@@ -117,7 +121,6 @@ std::optional<View::BookSelection> View::SelectBook(const std::string& title) {
         // Показываем книги с указанным названием
         auto details = use_cases_.GetBooksByTitle(title);
         if (details.empty()) {
-            output_ << "Book not found: "sv << title << std::endl;
             return std::nullopt;
         }
         
@@ -137,14 +140,13 @@ std::optional<View::BookSelection> View::SelectBook(const std::string& title) {
                 book_options.push_back(ss.str());
             }
             
-            auto index = SelectFromList(book_options, 
-                "Enter book # or empty line to cancel"s, true);
+            auto index = SelectFromList(book_options, "Enter book #"s, true);
             if (index) {
                 BookSelection sel;
                 sel.type = BookSelection::BY_AUTHOR;
                 sel.title = title;
                 sel.author_index = *index;
-                sel.book_details = details;  // Исправлено: book_details вместо details
+                sel.book_details = details;
                 return sel;
             }
         }
@@ -184,14 +186,14 @@ bool View::AddAuthor(std::istream& cmd_input) {
         boost::algorithm::trim(name);
         
         if (name.empty()) {
-            output_ << "Failed to add author: name is empty"sv << std::endl;
+            output_ << "Failed to add author"sv << std::endl;
             return true;
         }
         
         use_cases_.AddAuthor(name);
-        output_ << "Author added successfully"sv << std::endl;
+        // Не выводим сообщение об успехе
     } catch (const std::exception& e) {
-        output_ << "Failed to add author: "sv << e.what() << std::endl;
+        output_ << "Failed to add author"sv << std::endl;
     }
     return true;
 }
@@ -207,7 +209,7 @@ bool View::ShowAuthors() {
             }
         }
     } catch (const std::exception& e) {
-        output_ << "Failed to show authors: "sv << e.what() << std::endl;
+        output_ << "Failed to show authors"sv << std::endl;
     }
     return true;
 }
@@ -223,20 +225,20 @@ bool View::DeleteAuthor(std::istream& cmd_input) {
             auto index = SelectAuthor(true);
             if (index) {
                 use_cases_.DeleteAuthorByIndex(*index);
-                output_ << "Author deleted successfully"sv << std::endl;
+                // Не выводим сообщение об успехе
             }
         } else {
             // Удаление по имени
             auto author_id = use_cases_.GetAuthorIdByName(name);
             if (!author_id) {
-                output_ << "Author not found: "sv << name << std::endl;
+                output_ << "Failed to delete author"sv << std::endl;
                 return true;
             }
             use_cases_.DeleteAuthor(name);
-            output_ << "Author deleted successfully"sv << std::endl;
+            // Не выводим сообщение об успехе
         }
     } catch (const std::exception& e) {
-        output_ << "Failed to delete author: "sv << e.what() << std::endl;
+        output_ << "Failed to delete author"sv << std::endl;
     }
     return true;
 }
@@ -263,7 +265,7 @@ bool View::EditAuthor(std::istream& cmd_input) {
             // Проверяем, существует ли автор
             auto author_id = use_cases_.GetAuthorIdByName(author_name);
             if (!author_id) {
-                output_ << "Author not found: "sv << author_name << std::endl;
+                output_ << "Failed to edit author"sv << std::endl;
                 return true;
             }
         }
@@ -274,7 +276,7 @@ bool View::EditAuthor(std::istream& cmd_input) {
         boost::algorithm::trim(new_name);
         
         if (new_name.empty()) {
-            output_ << "Failed to edit author: new name is empty"sv << std::endl;
+            output_ << "Failed to edit author"sv << std::endl;
             return true;
         }
         
@@ -283,9 +285,9 @@ bool View::EditAuthor(std::istream& cmd_input) {
         } else {
             use_cases_.EditAuthor(author_name, new_name);
         }
-        output_ << "Author edited successfully"sv << std::endl;
+        // Не выводим сообщение об успехе
     } catch (const std::exception& e) {
-        output_ << "Failed to edit author: "sv << e.what() << std::endl;
+        output_ << "Failed to edit author"sv << std::endl;
     }
     return true;
 }
@@ -302,7 +304,7 @@ bool View::AddBook(std::istream& cmd_input) {
         std::string title;
         
         if (!(iss >> year)) {
-            output_ << "Failed to add book: invalid year"sv << std::endl;
+            output_ << "Failed to add book"sv << std::endl;
             return true;
         }
         
@@ -310,7 +312,7 @@ bool View::AddBook(std::istream& cmd_input) {
         boost::algorithm::trim(title);
         
         if (title.empty()) {
-            output_ << "Failed to add book: title is empty"sv << std::endl;
+            output_ << "Failed to add book"sv << std::endl;
             return true;
         }
         
@@ -332,7 +334,6 @@ bool View::AddBook(std::istream& cmd_input) {
         boost::algorithm::trim(choice_str);
         
         if (choice_str.empty()) {
-            output_ << "Operation cancelled"sv << std::endl;
             return true;
         }
         
@@ -346,7 +347,7 @@ bool View::AddBook(std::istream& cmd_input) {
         auto author_id = use_cases_.GetAuthorIdByName(author_name);
         
         if (!author_id) {
-            output_ << "Failed to find author"sv << std::endl;
+            output_ << "Failed to add book"sv << std::endl;
             return true;
         }
         
@@ -357,10 +358,10 @@ bool View::AddBook(std::istream& cmd_input) {
         
         auto tags = ParseTags(tags_str);
         use_cases_.AddBook(*author_id, title, year, tags);
-        output_ << "Book added successfully"sv << std::endl;
+        // Не выводим сообщение об успехе
         
     } catch (const std::exception& e) {
-        output_ << "Failed to add book: "sv << e.what() << std::endl;
+        output_ << "Failed to add book"sv << std::endl;
     }
     return true;
 }
@@ -376,7 +377,7 @@ bool View::ShowBooks() {
             }
         }
     } catch (const std::exception& e) {
-        output_ << "Failed to show books: "sv << e.what() << std::endl;
+        output_ << "Failed to show books"sv << std::endl;
     }
     return true;
 }
@@ -399,7 +400,7 @@ bool View::ShowAuthorBooks() {
             }
         }
     } catch (const std::exception& e) {
-        output_ << "Failed to show author books: "sv << e.what() << std::endl;
+        output_ << "Failed to show author books"sv << std::endl;
     }
     return true;
 }
@@ -412,6 +413,9 @@ bool View::ShowBook(std::istream& cmd_input) {
         
         auto selection_opt = SelectBook(title);
         if (!selection_opt) {
+            if (!title.empty()) {
+                output_ << "Book not found: "sv << title << std::endl;
+            }
             return true;
         }
         
@@ -450,7 +454,9 @@ bool View::ShowBook(std::istream& cmd_input) {
         }
         
         if (details.empty()) {
-            output_ << "Book not found"sv << std::endl;
+            if (!title.empty()) {
+                output_ << "Book not found: "sv << title << std::endl;
+            }
             return true;
         }
         
@@ -469,7 +475,7 @@ bool View::ShowBook(std::istream& cmd_input) {
             output_ << std::endl;
         }
     } catch (const std::exception& e) {
-        output_ << "Failed to show book: "sv << e.what() << std::endl;
+        output_ << "Failed to show book"sv << std::endl;
     }
     return true;
 }
@@ -482,6 +488,9 @@ bool View::DeleteBook(std::istream& cmd_input) {
         
         auto selection_opt = SelectBook(title);
         if (!selection_opt) {
+            if (!title.empty()) {
+                output_ << "Book not found: "sv << title << std::endl;
+            }
             return true;
         }
         
@@ -490,7 +499,7 @@ bool View::DeleteBook(std::istream& cmd_input) {
         switch (selection.type) {
             case BookSelection::SINGLE_BOOK:
                 use_cases_.DeleteBook(selection.title, "");
-                output_ << "Book deleted successfully"sv << std::endl;
+                // Не выводим сообщение об успехе
                 break;
                 
             case BookSelection::BY_AUTHOR:
@@ -498,17 +507,17 @@ bool View::DeleteBook(std::istream& cmd_input) {
                     selection.author_index < static_cast<int>(selection.book_details.size())) {
                     use_cases_.DeleteBook(selection.title, 
                                          selection.book_details[selection.author_index].author_name);
-                    output_ << "Book deleted successfully"sv << std::endl;
+                    // Не выводим сообщение об успехе
                 }
                 break;
                 
             case BookSelection::GLOBAL_INDEX:
                 use_cases_.DeleteBookByIndex(selection.global_index, -1);
-                output_ << "Book deleted successfully"sv << std::endl;
+                // Не выводим сообщение об успехе
                 break;
         }
     } catch (const std::exception& e) {
-        output_ << "Failed to delete book: "sv << e.what() << std::endl;
+        output_ << "Failed to delete book"sv << std::endl;
     }
     return true;
 }
@@ -521,6 +530,9 @@ bool View::EditBook(std::istream& cmd_input) {
         
         auto selection_opt = SelectBook(old_title);
         if (!selection_opt) {
+            if (!old_title.empty()) {
+                output_ << "Book not found: "sv << old_title << std::endl;
+            }
             return true;
         }
         
@@ -546,7 +558,7 @@ bool View::EditBook(std::istream& cmd_input) {
         switch (selection.type) {
             case BookSelection::SINGLE_BOOK:
                 use_cases_.EditBook(selection.title, new_title, new_year, new_tags, "");
-                output_ << "Book edited successfully"sv << std::endl;
+                // Не выводим сообщение об успехе
                 break;
                 
             case BookSelection::BY_AUTHOR:
@@ -554,17 +566,17 @@ bool View::EditBook(std::istream& cmd_input) {
                     selection.author_index < static_cast<int>(selection.book_details.size())) {
                     use_cases_.EditBook(selection.title, new_title, new_year, new_tags,
                                        selection.book_details[selection.author_index].author_name);
-                    output_ << "Book edited successfully"sv << std::endl;
+                    // Не выводим сообщение об успехе
                 }
                 break;
                 
             case BookSelection::GLOBAL_INDEX:
                 use_cases_.EditBookByIndex(selection.global_index, new_title, new_year, new_tags);
-                output_ << "Book edited successfully"sv << std::endl;
+                // Не выводим сообщение об успехе
                 break;
         }
     } catch (const std::exception& e) {
-        output_ << "Failed to edit book: "sv << e.what() << std::endl;
+        output_ << "Failed to edit book"sv << std::endl;
     }
     return true;
 }

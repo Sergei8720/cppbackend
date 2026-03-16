@@ -89,11 +89,8 @@ int UseCasesImpl::FindBookIndexByTitle(const std::string& title, const std::stri
 
 // Authors
 void UseCasesImpl::AddAuthor(const std::string& name) {
-    // Проверяем, существует ли уже автор с таким именем
-    auto existing = authors_.GetAuthorByName(name);
-    if (!existing) {
-        authors_.Save({AuthorId::New(), name});
-    }
+    // Не проверяем существование автора, просто добавляем
+    authors_.Save({AuthorId::New(), name});
 }
 
 std::vector<std::string> UseCasesImpl::GetAllAuthors() {
@@ -129,25 +126,17 @@ void UseCasesImpl::DeleteAuthorByIndex(int index) {
 void UseCasesImpl::EditAuthor(const std::string& old_name, const std::string& new_name) {
     auto author = authors_.GetAuthorByName(old_name);
     if (author) {
-        // Проверяем, не существует ли уже автор с новым именем
-        auto existing = authors_.GetAuthorByName(new_name);
-        if (!existing) {
-            author->SetName(new_name);
-            authors_.Update(*author);
-        }
+        author->SetName(new_name);
+        authors_.Update(*author);
     }
 }
 
 void UseCasesImpl::EditAuthorByIndex(int index, const std::string& new_name) {
     auto authors = GetAllAuthorsSorted();
     if (index >= 0 && index < static_cast<int>(authors.size())) {
-        // Проверяем, не существует ли уже автор с новым именем
-        auto existing = authors_.GetAuthorByName(new_name);
-        if (!existing) {
-            auto author = authors[index];
-            author.SetName(new_name);
-            authors_.Update(author);
-        }
+        auto author = authors[index];
+        author.SetName(new_name);
+        authors_.Update(author);
     }
 }
 
@@ -174,7 +163,6 @@ void UseCasesImpl::AddBook(const std::string& author_id, const std::string& titl
         std::vector<std::string> clean_tags;
         for (const auto& tag : tags) {
             std::string trimmed = tag;
-            // Удаляем лишние пробелы
             boost::algorithm::trim(trimmed);
             if (!trimmed.empty()) {
                 clean_tags.push_back(trimmed);

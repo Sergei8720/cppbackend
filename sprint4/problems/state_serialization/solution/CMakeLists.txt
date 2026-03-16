@@ -76,7 +76,7 @@ add_library(game_model_lib STATIC
     src/model/roadmap.cpp
     src/model/support_types.cpp
     src/model/loot_generator.cpp
-    src/model/lost_object.cpp
+    # src/model/lost_object.cpp - УДАЛЕН! Все методы в заголовочном файле
     src/model/item_dog_provider.cpp
     src/middleware/utils/request_handlers_utils.cpp
     src/middleware/utils/filesystem_utils.cpp
@@ -109,12 +109,11 @@ add_executable(game_server
     src/middleware/program_options/program_options.cpp
     src/middleware/time_management/ticker.cpp
     src/middleware/error_handling/error_report.cpp
-    # ФАЙЛЫ СЕРИАЛИЗАЦИИ (ТОЛЬКО .cpp)
+    # ФАЙЛЫ СЕРИАЛИЗАЦИИ
     src/app/serialization/dog_serialization.cpp
     src/app/serialization/game_session_serialization.cpp
     src/app/serialization/lost_object_serialization.cpp
     src/app/serialization/player_serialization.cpp
-    # НОВЫЙ ФАЙЛ state_serializer.cpp
     src/app/state_serializer.cpp
 )
 
