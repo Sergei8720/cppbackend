@@ -25,8 +25,14 @@ public:
 
     Token AddPlayer(std::shared_ptr<app::Player> player);
     std::shared_ptr<app::Player> FindPlayerBy(Token token);
+    
+    // НОВЫЙ МЕТОД - для восстановления токена при загрузке из файла
+    void RestoreToken(const Token& token, std::shared_ptr<app::Player> player) {
+        tokenToPlayer_[token] = player;
+    };
+    
 private:
-    std::unordered_map< Token, std::shared_ptr<app::Player>, TokenHasher > tokenToPalyer_;
+    std::unordered_map< Token, std::shared_ptr<app::Player>, TokenHasher > tokenToPlayer_;
     std::random_device random_device_;
     std::mt19937_64 generator1_{[this] {
         std::uniform_int_distribution<std::mt19937_64::result_type> dist;

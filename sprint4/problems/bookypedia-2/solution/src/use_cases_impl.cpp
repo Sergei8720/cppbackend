@@ -35,7 +35,6 @@ std::vector<std::pair<Book, std::string>> UseCasesImpl::GetAllBooksWithAuthors()
     std::vector<std::pair<Book, std::string>> result;
     auto books = books_.GetAllBooks();
     
-    // Создаем map для быстрого поиска авторов
     std::unordered_map<std::string, std::string> author_names;
     auto authors = authors_.GetAllAuthors();
     for (const auto& author : authors) {
@@ -49,7 +48,6 @@ std::vector<std::pair<Book, std::string>> UseCasesImpl::GetAllBooksWithAuthors()
         }
     }
     
-    // Сортируем по названию книги
     std::sort(result.begin(), result.end(),
         [](const auto& a, const auto& b) {
             return a.first.GetTitle() < b.first.GetTitle();
@@ -70,14 +68,12 @@ int UseCasesImpl::FindAuthorIndexByName(const std::string& name) {
 int UseCasesImpl::FindBookIndexByTitle(const std::string& title, const std::string& author_name) {
     auto books = GetAllBooksWithAuthors();
     if (author_name.empty()) {
-        // Ищем первую книгу с таким названием
         for (size_t i = 0; i < books.size(); ++i) {
             if (books[i].first.GetTitle() == title) {
                 return i;
             }
         }
     } else {
-        // Ищем книгу с таким названием и автором
         for (size_t i = 0; i < books.size(); ++i) {
             if (books[i].first.GetTitle() == title && books[i].second == author_name) {
                 return i;
@@ -95,7 +91,6 @@ void UseCasesImpl::AddAuthor(const std::string& name) {
 std::vector<std::string> UseCasesImpl::GetAllAuthors() {
     auto authors = authors_.GetAllAuthors();
     
-    // Сортируем по имени
     std::sort(authors.begin(), authors.end(),
         [](const domain::Author& a, const domain::Author& b) {
             return a.GetName() < b.GetName();
@@ -156,9 +151,7 @@ void UseCasesImpl::AddBook(const std::string& author_id, const std::string& titl
     domain::Book book(book_id, author_id_obj, title, year);
     books_.Save(book);
     
-    // Сохраняем теги, если они есть
     if (!tags.empty()) {
-        // Фильтруем пустые теги
         std::vector<std::string> clean_tags;
         for (const auto& tag : tags) {
             std::string trimmed = tag;
@@ -182,14 +175,12 @@ std::vector<std::string> UseCasesImpl::GetAllBooks() {
         return result;
     }
     
-    // Получаем всех авторов
     std::unordered_map<std::string, std::string> author_names;
     auto authors = authors_.GetAllAuthors();
     for (const auto& author : authors) {
         author_names[author.GetId().ToString()] = author.GetName();
     }
     
-    // Сортируем книги по названию
     std::sort(books.begin(), books.end(),
         [](const domain::Book& a, const domain::Book& b) {
             return a.GetTitle() < b.GetTitle();
@@ -226,7 +217,6 @@ std::vector<BookDetail> UseCasesImpl::GetBooksByTitle(const std::string& title) 
         }
     }
     
-    // Сортируем по году и названию
     std::sort(result.begin(), result.end(),
         [](const BookDetail& a, const BookDetail& b) {
             if (a.year != b.year) return a.year < b.year;
@@ -238,7 +228,6 @@ std::vector<BookDetail> UseCasesImpl::GetBooksByTitle(const std::string& title) 
 
 void UseCasesImpl::DeleteBook(const std::string& title, const std::string& author_name) {
     if (author_name.empty()) {
-        // Удаляем все книги с таким названием
         auto books = books_.GetBooksByTitle(title);
         for (const auto& book : books) {
             books_.Delete(book.GetId());
@@ -265,7 +254,6 @@ void UseCasesImpl::EditBook(const std::string& old_title, const std::string& new
                             const std::string& new_year, const std::vector<std::string>& new_tags,
                             const std::string& author_name) {
     if (author_name.empty()) {
-        // Редактируем все книги с таким названием
         auto books = books_.GetBooksByTitle(old_title);
         for (auto& book : books) {
             EditSingleBook(book, new_title, new_year, new_tags);
@@ -331,7 +319,6 @@ std::vector<std::string> UseCasesImpl::GetBooksByAuthor(const std::string& autho
     std::vector<std::string> result;
     auto books = books_.GetBooksByAuthor(author_name);
     
-    // Сортируем по году и названию
     std::sort(books.begin(), books.end(),
         [](const Book& a, const Book& b) {
             if (a.GetPublicationYear() != b.GetPublicationYear()) {

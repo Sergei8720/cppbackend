@@ -45,7 +45,7 @@ public:
     std::shared_ptr<GameSession> FindGameSessionBy(const authentication::Token& token) const noexcept;
     const std::vector< std::shared_ptr<app::GameSession> >& GetSessions();
     
-    // НОВЫЕ МЕТОДЫ ДЛЯ СЕРИАЛИЗАЦИИ
+    // МЕТОДЫ ДЛЯ СЕРИАЛИЗАЦИИ
     const std::vector< std::shared_ptr<Player> >& GetAllPlayers() const noexcept {
         return players_;
     };
@@ -60,7 +60,7 @@ public:
         return tick_period_;
     };
     
-    const model::LootGeneratorConfig& GetLootGeneratorConfig() const noexcept {
+    const model::LootGeneratorConfig& GetLootGeneratorConfig() const noexcept {  // Добавлен const
         return game_.GetLootGeneratorConfig();
     };
 
@@ -72,7 +72,6 @@ private:
     using MapIdHasher = util::TaggedHasher<model::Map::Id>;
     using MapIdToSessionIndex = std::unordered_map<model::Map::Id, size_t, MapIdHasher>;
     using AuthTokenToSessionIndex = std::unordered_map<authentication::Token, std::shared_ptr<GameSession>, authentication::TokenHasher>;
-    // НОВЫЙ МЕТОД
     using PlayerIdToToken = std::unordered_map<Player::Id, authentication::Token, util::TaggedHasher<Player::Id>>;
 
     model::Game game_;
@@ -86,7 +85,6 @@ private:
     std::vector< std::shared_ptr<app::GameSession> > sessions_;
     MapIdToSessionIndex map_id_to_session_index_;
     AuthTokenToSessionIndex auth_token_to_session_index_;
-    // НОВОЕ ПОЛЕ
     PlayerIdToToken player_id_to_token_;
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);
