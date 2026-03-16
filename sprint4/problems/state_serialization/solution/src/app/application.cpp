@@ -18,6 +18,10 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
         const model::Map::Id& id) {
     auto player = CreatePlayer(player_name);
     auto token = player_tokens_.AddPlayer(player);
+    
+    // Сохраняем связь player_id -> token
+    player_id_to_token_[player->GetId()] = token;
+    
     std::shared_ptr<GameSession> game_session = FindGameSessionBy(id);
     if(!game_session){
         game_session = std::make_shared<GameSession>(game_.FindMap(id), tick_period_, game_.GetLootGeneratorConfig(), ioc_);
@@ -46,6 +50,9 @@ void Application::BoundPlayerAndGameSession(std::shared_ptr<Player> player,
 const std::vector< std::shared_ptr<Player> >& Application::GetPlayersFromGameSession(const authentication::Token& token) {
     static const std::vector< std::shared_ptr<Player> > emptyPlayerList;
     auto player = player_tokens_.FindPlayerBy(token);
+    if (!player) {
+        return emptyPlayerList;
+    }
     auto session_id = player->GetGameSessionId();
     if(!session_id_to_players_.contains(session_id)) {
         return emptyPlayerList;
@@ -59,7 +66,13 @@ bool Application::IsExistPlayer(const authentication::Token& token) {
 
 void Application::SetPlayerAction(const authentication::Token& token, model::Direction direction) {
     auto player = player_tokens_.FindPlayerBy(token);
+    if (!player) {
+        return;
+    }
     auto dog = player->GetDog().lock();
+    if (!dog) {
+        return;
+    }
     double velocity = player->GetGameSession()->GetMap()->GetDogVelocity();
     dog->SetAction(direction, velocity);
 };
@@ -109,6 +122,34 @@ std::shared_ptr<GameSession> Application::FindGameSessionBy(const authentication
 
 const std::vector< std::shared_ptr<GameSession> >& Application::GetSessions() {
     return sessions_;
+};
+
+// НОВЫЕ МЕТОДЫ
+
+std::optional<authentication::Token> Application::FindTokenByPlayer(const Player::Id& player_id) const {
+    auto it = player_id_to_token_.find(player_id);
+    if (it != player_id_to_token_.end()) {
+        return it->second;
+    }
+    return std::nullopt;
+};
+
+void Application::RestorePlayer(const authentication::Token& token, 
+                               std::shared_ptr<Player> player,
+                               std::shared_ptr<GameSession> session) {
+    // Восстанавливаем игрока
+    players_.push_back(player);
+    
+    // Восстанавливаем токен
+    player_tokens_.RestoreToken(token, player);
+    
+    // Восстанавливаем связи
+    player_id_to_token_[player->GetId()] = token;
+    auth_token_to_session_index_[token] = session;
+    session_id_to_players_[session->GetId()].push_back(player);
+    
+    // Восстанавливаем связь с сессией
+    player->SetGameSession(session);
 };
 
 }

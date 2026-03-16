@@ -110,6 +110,7 @@ void UseCasesImpl::DeleteAuthor(const std::string& name) {
     if(author) {
         authors_.Delete(author->GetId());
     }
+    // Если автор не найден, ничего не делаем - сообщение об ошибке будет в view
 }
 
 void UseCasesImpl::DeleteAuthorByIndex(int index) {
@@ -125,6 +126,7 @@ void UseCasesImpl::EditAuthor(const std::string& old_name, const std::string& ne
         author->SetName(new_name);
         authors_.Update(*author);
     }
+    // Если автор не найден, ничего не делаем - сообщение об ошибке будет в view
 }
 
 void UseCasesImpl::EditAuthorByIndex(int index, const std::string& new_name) {
@@ -160,7 +162,7 @@ std::vector<std::string> UseCasesImpl::GetAllBooks() {
         return result;
     }
     
-    // Получаем всех авторов для быстрого доступа
+    // Получаем всех авторов
     std::unordered_map<std::string, std::string> author_names;
     auto authors = authors_.GetAllAuthors();
     for(const auto& author : authors) {

@@ -9,6 +9,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <functional>
+#include <optional>
 
 namespace app {
 
@@ -43,6 +44,26 @@ public:
     std::shared_ptr<GameSession> FindGameSessionBy(const model::Map::Id& id) const noexcept;
     std::shared_ptr<GameSession> FindGameSessionBy(const authentication::Token& token) const noexcept;
     const std::vector< std::shared_ptr<app::GameSession> >& GetSessions();
+    
+    // НОВЫЕ МЕТОДЫ ДЛЯ СЕРИАЛИЗАЦИИ
+    const std::vector< std::shared_ptr<Player> >& GetAllPlayers() const noexcept {
+        return players_;
+    };
+    
+    std::optional<authentication::Token> FindTokenByPlayer(const Player::Id& player_id) const;
+    
+    void RestorePlayer(const authentication::Token& token, 
+                       std::shared_ptr<Player> player,
+                       std::shared_ptr<GameSession> session);
+    
+    std::chrono::milliseconds GetTickPeriod() const noexcept {
+        return tick_period_;
+    };
+    
+    const model::LootGeneratorConfig& GetLootGeneratorConfig() const noexcept {
+        return game_.GetLootGeneratorConfig();
+    };
+
 private:
     using GameSessionIdHasher = util::TaggedHasher<GameSession::Id>;
     using GameSessionIdToIndex = std::unordered_map<GameSession::Id,
@@ -51,6 +72,8 @@ private:
     using MapIdHasher = util::TaggedHasher<model::Map::Id>;
     using MapIdToSessionIndex = std::unordered_map<model::Map::Id, size_t, MapIdHasher>;
     using AuthTokenToSessionIndex = std::unordered_map<authentication::Token, std::shared_ptr<GameSession>, authentication::TokenHasher>;
+    // НОВЫЙ МЕТОД
+    using PlayerIdToToken = std::unordered_map<Player::Id, authentication::Token, util::TaggedHasher<Player::Id>>;
 
     model::Game game_;
     std::chrono::milliseconds tick_period_;
@@ -63,6 +86,8 @@ private:
     std::vector< std::shared_ptr<app::GameSession> > sessions_;
     MapIdToSessionIndex map_id_to_session_index_;
     AuthTokenToSessionIndex auth_token_to_session_index_;
+    // НОВОЕ ПОЛЕ
+    PlayerIdToToken player_id_to_token_;
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);
     void BoundPlayerAndGameSession(std::shared_ptr<Player> player,

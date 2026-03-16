@@ -61,24 +61,19 @@ std::optional<int> View::SelectFromList(const std::vector<std::string>& items,
         return std::nullopt;
     }
     
-    // Статическая переменная для отслеживания первой попытки
-    static bool first_attempt = true;
-    if(first_attempt) {
-        for(size_t i = 0; i < items.size(); ++i) {
-            output_ << i+1 << " " << items[i] << std::endl;
-        }
-        output_ << prompt << std::endl;
-        first_attempt = false;
+    // Выводим список
+    for(size_t i = 0; i < items.size(); ++i) {
+        output_ << i+1 << " " << items[i] << std::endl;
     }
+    output_ << prompt << std::endl;
     
     std::string input;
     std::getline(input_, input);
     boost::algorithm::trim(input);
     
     if(input.empty()) {
-        first_attempt = true;
         if(allow_empty) {
-            return std::nullopt;
+            return std::nullopt;  // Просто возвращаем nullopt без сообщения об ошибке
         }
         output_ << "Invalid choice. Retry attempt."sv << std::endl;
         return SelectFromList(items, prompt, allow_empty);
@@ -87,7 +82,6 @@ std::optional<int> View::SelectFromList(const std::vector<std::string>& items,
     try {
         int choice = std::stoi(input);
         if(choice >= 1 && choice <= static_cast<int>(items.size())) {
-            first_attempt = true;
             return choice - 1;
         }
     } catch(...) {}
@@ -214,13 +208,18 @@ bool View::DeleteAuthor(std::istream& cmd_input) {
         
         if(name.empty()) {
             // Выбор по индексу
-            auto index = SelectAuthor(true);
+            auto index = SelectAuthor(true);  // allow_empty = true
             if(index) {
                 use_cases_.DeleteAuthorByIndex(*index);
             }
             // Если index == nullopt (пустой ввод), просто ничего не делаем
         } else {
             // Удаление по имени
+            auto author_id = use_cases_.GetAuthorIdByName(name);
+            if(!author_id) {
+                output_ << "Failed to delete author"sv << std::endl;
+                return true;
+            }
             use_cases_.DeleteAuthor(name);
         }
     } catch (const std::exception& e) {
@@ -236,11 +235,22 @@ bool View::EditAuthor(std::istream& cmd_input) {
         boost::algorithm::trim(old_name);
         
         std::optional<int> index;
+        std::string author_name;
         
         if(old_name.empty()) {
             // Выбор по индексу
             index = SelectAuthor(true);
             if(!index) {
+                return true;  // Отмена
+            }
+            auto authors = use_cases_.GetAllAuthors();
+            author_name = authors[*index];
+        } else {
+            author_name = old_name;
+            // Проверяем, существует ли автор
+            auto author_id = use_cases_.GetAuthorIdByName(author_name);
+            if(!author_id) {
+                output_ << "Failed to edit author"sv << std::endl;
                 return true;
             }
         }
@@ -258,7 +268,7 @@ bool View::EditAuthor(std::istream& cmd_input) {
         if(index) {
             use_cases_.EditAuthorByIndex(*index, new_name);
         } else {
-            use_cases_.EditAuthor(old_name, new_name);
+            use_cases_.EditAuthor(author_name, new_name);
         }
     } catch (const std::exception& e) {
         output_ << "Failed to edit author"sv << std::endl;
@@ -271,13 +281,13 @@ bool View::AddBook(std::istream& cmd_input) {
     try {
         std::string line;
         std::getline(cmd_input, line);
-        boost::algorithm::trim(line);
         
         // Парсим год и название
         std::istringstream iss(line);
         int year;
         iss >> year;
         
+        // Читаем остаток строки как название (может содержать пробелы)
         std::string title;
         std::getline(iss, title);
         boost::algorithm::trim(title);
@@ -289,13 +299,33 @@ bool View::AddBook(std::istream& cmd_input) {
         
         // Выбор автора
         output_ << "Select author:"sv << std::endl;
-        auto author_index = SelectAuthor(false);
-        if(!author_index) {
+        auto authors = use_cases_.GetAllAuthors();
+        
+        if(authors.empty()) {
+            output_ << "No authors available. Please add an author first."sv << std::endl;
             return true;
         }
         
-        auto authors = use_cases_.GetAllAuthors();
-        std::string author_name = authors[*author_index];
+        for(size_t i = 0; i < authors.size(); ++i) {
+            output_ << i+1 << " " << authors[i] << std::endl;
+        }
+        output_ << "Enter author # or empty line to cancel"sv << std::endl;
+        
+        std::string choice_str;
+        std::getline(input_, choice_str);
+        boost::algorithm::trim(choice_str);
+        
+        if(choice_str.empty()) {
+            return true;  // Отмена
+        }
+        
+        int choice = std::stoi(choice_str);
+        if(choice < 1 || choice > static_cast<int>(authors.size())) {
+            output_ << "Invalid choice. Retry attempt."sv << std::endl;
+            return true;
+        }
+        
+        std::string author_name = authors[choice - 1];
         auto author_id = use_cases_.GetAuthorIdByName(author_name);
         
         if(!author_id) {

@@ -109,6 +109,13 @@ add_executable(game_server
     src/middleware/program_options/program_options.cpp
     src/middleware/time_management/ticker.cpp
     src/middleware/error_handling/error_report.cpp
+    # НОВЫЕ ФАЙЛЫ ДЛЯ СЕРИАЛИЗАЦИИ
+    src/app/serialization/dog_serialization.cpp
+    src/app/serialization/game_session_serialization.cpp
+    src/app/serialization/lost_object_serialization.cpp
+    src/app/serialization/player_serialization.cpp
+    src/app/serialization/misc_serialization.cpp
+    src/app/state_serializer.cpp
 )
 
 target_include_directories(game_server PRIVATE
@@ -124,6 +131,7 @@ target_include_directories(game_server PRIVATE
     src/middleware/program_options
     src/middleware/time_management
     src/middleware/error_handling
+    src/app/serialization  # НОВАЯ ДИРЕКТОРИЯ
 )
 
 target_link_libraries(game_server PRIVATE Threads::Threads CONAN_PKG::boost game_model_lib)
