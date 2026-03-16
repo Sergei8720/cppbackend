@@ -114,7 +114,7 @@ add_executable(game_server
     src/app/serialization/game_session_serialization.cpp
     src/app/serialization/lost_object_serialization.cpp
     src/app/serialization/player_serialization.cpp
-    src/app/serialization/misc_serialization.cpp
+    # УБРАЛИ src/app/serialization/misc_serialization.cpp - его нет!
     src/app/state_serializer.cpp
 )
 
@@ -131,7 +131,7 @@ target_include_directories(game_server PRIVATE
     src/middleware/program_options
     src/middleware/time_management
     src/middleware/error_handling
-    src/app/serialization  # НОВАЯ ДИРЕКТОРИЯ
+    src/app/serialization
 )
 
 target_link_libraries(game_server PRIVATE Threads::Threads CONAN_PKG::boost game_model_lib)

@@ -2,6 +2,7 @@
 #include "author_fwd.h"
 #include "book_fwd.h"
 #include "use_cases.h"
+#include <boost/algorithm/string.hpp>
 
 namespace app {
 
@@ -45,6 +46,8 @@ private:
     std::vector<std::pair<domain::Book, std::string>> GetAllBooksWithAuthors();
     int FindAuthorIndexByName(const std::string& name);
     int FindBookIndexByTitle(const std::string& title, const std::string& author_name = "");
+    void EditSingleBook(domain::Book& book, const std::string& new_title,
+                       const std::string& new_year, const std::vector<std::string>& new_tags);
 };
 
 }  // namespace app

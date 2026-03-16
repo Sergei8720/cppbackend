@@ -20,16 +20,30 @@ public:
     View(menu::Menu& menu, app::UseCases& use_cases, std::istream& input, std::ostream& output);
 
 private:
+    struct BookSelection {
+        enum Type {
+            GLOBAL_INDEX,
+            SINGLE_BOOK,
+            BY_AUTHOR
+        } type;
+        
+        int global_index = -1;
+        std::string title;
+        std::string author_name;
+        int author_index = -1;
+        std::vector<app::BookDetail> details;
+    };
+
     // Authors
     bool AddAuthor(std::istream& cmd_input);
-    bool ShowAuthors(std::istream& /*cmd_input*/);
+    bool ShowAuthors();
     bool DeleteAuthor(std::istream& cmd_input);
     bool EditAuthor(std::istream& cmd_input);
     
     // Books
     bool AddBook(std::istream& cmd_input);
-    bool ShowBooks(std::istream& /*cmd_input*/);
-    bool ShowAuthorBooks(std::istream& /*cmd_input*/);
+    bool ShowBooks();
+    bool ShowAuthorBooks();
     bool ShowBook(std::istream& cmd_input);
     bool DeleteBook(std::istream& cmd_input);
     bool EditBook(std::istream& cmd_input);
@@ -39,7 +53,7 @@ private:
                                        const std::string& prompt,
                                        bool allow_empty = true);
     std::optional<int> SelectAuthor(bool allow_empty = true);
-    std::optional<std::pair<int, int>> SelectBook(const std::string& title = "");
+    std::optional<BookSelection> SelectBook(const std::string& title = "");
     std::vector<std::string> ParseTags(const std::string& tags_str);
 
     menu::Menu& menu_;
