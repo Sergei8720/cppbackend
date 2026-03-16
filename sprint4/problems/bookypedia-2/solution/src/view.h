@@ -22,14 +22,14 @@ public:
 private:
     // Authors
     bool AddAuthor(std::istream& cmd_input);
-    bool ShowAuthors(std::istream& = {});
+    bool ShowAuthors(std::istream& /*cmd_input*/);  // Убрали значение по умолчанию
     bool DeleteAuthor(std::istream& cmd_input);
     bool EditAuthor(std::istream& cmd_input);
     
     // Books
     bool AddBook(std::istream& cmd_input);
-    bool ShowBooks(std::istream& = {});
-    bool ShowAuthorBooks(std::istream& = {});
+    bool ShowBooks(std::istream& /*cmd_input*/);  // Убрали значение по умолчанию
+    bool ShowAuthorBooks(std::istream& /*cmd_input*/);  // Убрали значение по умолчанию
     bool ShowBook(std::istream& cmd_input);
     bool DeleteBook(std::istream& cmd_input);
     bool EditBook(std::istream& cmd_input);

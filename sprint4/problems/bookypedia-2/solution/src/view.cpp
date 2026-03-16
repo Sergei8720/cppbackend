@@ -5,6 +5,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <algorithm>
 
 #include "menu.h"
 #include "use_cases.h"
@@ -24,7 +25,7 @@ View::View(menu::Menu& menu, app::UseCases& use_cases, std::istream& input, std:
         [this](auto& cmd_input) { return AddAuthor(cmd_input); });
     
     menu_.AddAction("ShowAuthors"s, ""s, "Show authors"s,
-        [this](auto&) { return ShowAuthors(); });
+        [this](std::istream& is) { return ShowAuthors(is); });
     
     menu_.AddAction("DeleteAuthor"s, "[name]"s, "Deletes author"s,
         [this](auto& cmd_input) { return DeleteAuthor(cmd_input); });
@@ -37,10 +38,10 @@ View::View(menu::Menu& menu, app::UseCases& use_cases, std::istream& input, std:
         [this](auto& cmd_input) { return AddBook(cmd_input); });
     
     menu_.AddAction("ShowBooks"s, ""s, "Show books"s,
-        [this](auto&) { return ShowBooks(); });
+        [this](std::istream& is) { return ShowBooks(is); });
     
     menu_.AddAction("ShowAuthorBooks"s, ""s, "Show books by author"s,
-        [this](auto&) { return ShowAuthorBooks(); });
+        [this](std::istream& is) { return ShowAuthorBooks(is); });
     
     menu_.AddAction("ShowBook"s, "[title]"s, "Show book details"s,
         [this](auto& cmd_input) { return ShowBook(cmd_input); });
@@ -90,7 +91,7 @@ std::optional<int> View::SelectAuthor(bool allow_empty) {
     if(authors.empty()) {
         return std::nullopt;
     }
-    return SelectFromList(authors, "Enter author # or empty line to cancel"sv, allow_empty);
+    return SelectFromList(authors, "Enter author # or empty line to cancel"s, allow_empty);
 }
 
 std::optional<std::pair<int, int>> View::SelectBook(const std::string& title) {
@@ -101,7 +102,7 @@ std::optional<std::pair<int, int>> View::SelectBook(const std::string& title) {
     
     if(title.empty()) {
         // Выбор из всех книг
-        auto index = SelectFromList(books, "Enter book # or empty line to cancel"sv);
+        auto index = SelectFromList(books, "Enter book # or empty line to cancel"s);
         if(index) {
             return std::make_pair(*index, -1);
         }
@@ -131,7 +132,7 @@ std::optional<std::pair<int, int>> View::SelectBook(const std::string& title) {
             }
             
             auto index = SelectFromList(book_options, 
-                "Enter book # or empty line to cancel"sv, true);
+                "Enter book # or empty line to cancel"s, true);
             if(index) {
                 return std::make_pair(-1, *index);
             }
@@ -142,6 +143,10 @@ std::optional<std::pair<int, int>> View::SelectBook(const std::string& title) {
 }
 
 std::vector<std::string> View::ParseTags(const std::string& tags_str) {
+    if(tags_str.empty()) {
+        return {};
+    }
+    
     std::vector<std::string> tags;
     std::vector<std::string> parts;
     boost::split(parts, tags_str, boost::is_any_of(","));

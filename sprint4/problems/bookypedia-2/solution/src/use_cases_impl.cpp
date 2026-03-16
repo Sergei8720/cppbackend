@@ -1,9 +1,9 @@
 #include "use_cases_impl.h"
 #include "author.h"
 #include "book.h"
-
-#include <ranges>
 #include <algorithm>
+#include <cctype>
+#include <ranges>
 #include <sstream>
 #include <optional>
 #include <unordered_map>
