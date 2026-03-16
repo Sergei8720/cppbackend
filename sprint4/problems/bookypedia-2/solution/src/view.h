@@ -22,20 +22,6 @@ public:
     View(menu::Menu& menu, app::UseCases& use_cases, std::istream& input, std::ostream& output);
 
 private:
-    struct BookSelection {
-        enum Type {
-            GLOBAL_INDEX,
-            SINGLE_BOOK,
-            BY_AUTHOR
-        } type;
-        
-        int global_index = -1;
-        std::string title;
-        std::string author_name;
-        int author_index = -1;
-        std::vector<app::BookDetail> book_details;  // Переименовано, чтобы избежать конфликта
-    };
-
     // Authors
     bool AddAuthor(std::istream& cmd_input);
     bool ShowAuthors();
@@ -52,10 +38,8 @@ private:
 
     // Helper methods
     std::optional<int> SelectFromList(const std::vector<std::string>& items, 
-                                       const std::string& prompt,
-                                       bool allow_empty = true);
-    std::optional<int> SelectAuthor(bool allow_empty = true);
-    std::optional<BookSelection> SelectBook(const std::string& title = "");
+                                       const std::string& prompt);
+    std::optional<int> SelectAuthor();
     std::vector<std::string> ParseTags(const std::string& tags_str);
 
     menu::Menu& menu_;

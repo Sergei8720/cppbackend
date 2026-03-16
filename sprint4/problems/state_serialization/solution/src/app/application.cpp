@@ -19,8 +19,8 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
     auto player = CreatePlayer(player_name);
     auto token = player_tokens_.AddPlayer(player);
     
-    // Сохраняем связь player_id -> token
-    player_id_to_token_[player->GetId()] = token;
+    // ИСПРАВЛЕНО: используем emplace вместо operator[]
+    player_id_to_token_.emplace(player->GetId(), token);
     
     std::shared_ptr<GameSession> game_session = FindGameSessionBy(id);
     if(!game_session){
@@ -28,7 +28,7 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
         AddGameSession(game_session);
         game_session->Run();
     }
-    auth_token_to_session_index_[token] = game_session;
+    auth_token_to_session_index_.emplace(token, game_session);  // ИСПРАВЛЕНО
     BoundPlayerAndGameSession(player, game_session);
     return std::tie(token, player->GetId());
 };
@@ -143,9 +143,9 @@ void Application::RestorePlayer(const authentication::Token& token,
     // Восстанавливаем токен
     player_tokens_.RestoreToken(token, player);
     
-    // Восстанавливаем связи
-    player_id_to_token_[player->GetId()] = token;
-    auth_token_to_session_index_[token] = session;
+    // Восстанавливаем связи - ИСПРАВЛЕНО: используем emplace
+    player_id_to_token_.emplace(player->GetId(), token);
+    auth_token_to_session_index_.emplace(token, session);
     session_id_to_players_[session->GetId()].push_back(player);
     
     // Восстанавливаем связь с сессией

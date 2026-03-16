@@ -51,10 +51,12 @@ View::View(menu::Menu& menu, app::UseCases& use_cases, std::istream& input, std:
         [this](auto& cmd_input) { return EditBook(cmd_input); });
 }
 
-// Минимальный парсинг - ничего лишнего
+// Helper methods
 std::optional<int> View::SelectFromList(const std::vector<std::string>& items, 
                                          const std::string& prompt) {
-    if (items.empty()) return std::nullopt;
+    if (items.empty()) {
+        return std::nullopt;
+    }
     
     for (size_t i = 0; i < items.size(); ++i) {
         output_ << i + 1 << " " << items[i] << std::endl;
@@ -66,7 +68,9 @@ std::optional<int> View::SelectFromList(const std::vector<std::string>& items,
     std::getline(input_, input);
     boost::algorithm::trim(input);
     
-    if (input.empty()) return std::nullopt;
+    if (input.empty()) {
+        return std::nullopt;
+    }
     
     try {
         int choice = std::stoi(input);
@@ -80,12 +84,16 @@ std::optional<int> View::SelectFromList(const std::vector<std::string>& items,
 
 std::optional<int> View::SelectAuthor() {
     auto authors = use_cases_.GetAllAuthors();
-    if (authors.empty()) return std::nullopt;
+    if (authors.empty()) {
+        return std::nullopt;
+    }
     return SelectFromList(authors, "Enter author #");
 }
 
 std::vector<std::string> View::ParseTags(const std::string& tags_str) {
-    if (tags_str.empty()) return {};
+    if (tags_str.empty() || tags_str == "y" || tags_str == "Y" || tags_str == "n" || tags_str == "N") {
+        return {};
+    }
     
     std::vector<std::string> tags;
     std::vector<std::string> parts;
@@ -286,6 +294,7 @@ bool View::ShowBook(std::istream& cmd_input) {
         return true;
     }
     
+    // Если несколько книг с одинаковым названием, берем первую
     const auto& detail = details[0];
     output_ << "Title: "sv << detail.title << std::endl;
     output_ << "Author: "sv << detail.author_name << std::endl;
