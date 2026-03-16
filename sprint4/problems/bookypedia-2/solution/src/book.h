@@ -38,6 +38,14 @@ public:
         return publication_year_;
     }
 
+    void SetTitle(const std::string& title) {
+        title_ = title;
+    }
+
+    void SetPublicationYear(int year) {
+        publication_year_ = year;
+    }
+
 private:
     BookId id_;
     AuthorId author_id_;
@@ -45,11 +53,24 @@ private:
     int publication_year_;
 };
 
+struct BookInfo {
+    BookId id;
+    std::string title;
+    std::string author_name;
+    int year;
+    std::vector<std::string> tags;
+};
+
 class BookRepository {
 public:
     virtual void Save(const Book& book) = 0;
+    virtual void Delete(const BookId& id) = 0;
+    virtual void Update(const Book& book) = 0;
     virtual std::vector<Book> GetAllBooks() = 0;
-    virtual std::vector<Book> GetBooksBy(const std::string& author_name) = 0;
+    virtual std::vector<Book> GetBooksByAuthor(const std::string& author_name) = 0;
+    virtual std::vector<Book> GetBooksByTitle(const std::string& title) = 0;
+    virtual void SaveTags(const BookId& book_id, const std::vector<std::string>& tags) = 0;
+    virtual std::vector<std::string> GetTags(const BookId& book_id) = 0;
 
 protected:
     ~BookRepository() = default;

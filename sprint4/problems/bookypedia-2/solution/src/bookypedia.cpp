@@ -16,14 +16,19 @@ Application::Application(const AppConfig& config)
 
 void Application::Run() {
     menu::Menu menu{std::cin, std::cout};
+    
+    // Базовые команды уже добавлены в конструкторе View
+    ui::View view{menu, use_cases_, std::cin, std::cout};
+    
     menu.AddAction("Help"s, {}, "Show instructions"s, [&menu](std::istream&) {
         menu.ShowInstructions();
         return true;
     });
+    
     menu.AddAction("Exit"s, {}, "Exit program"s, [&menu](std::istream&) {
         return false;
     });
-    ui::View view{menu, use_cases_, std::cin, std::cout};
+    
     menu.Run();
 }
 
