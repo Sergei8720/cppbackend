@@ -10,12 +10,13 @@
 #include <unordered_map>
 #include <chrono>
 #include <memory>
+#include <atomic>  // Добавлено для atomic
 
 namespace model {
 
 
 class Dog {
-    inline static size_t max_id_cont_ = 0;
+    inline static std::atomic<size_t> max_id_cont_{0};  // Исправлено на atomic
 public:
     using Id = util::Tagged<size_t, Dog>;
     using BagType = std::vector< std::shared_ptr<LostObject> >;
@@ -56,6 +57,11 @@ public:
     void DropLostObjectsFromBag();
 
     const size_t GetScore() const;
+    
+    // НОВЫЙ МЕТОД
+    size_t GetBagCapacity() const {
+        return bag_capacity_;
+    };
 
     const collision_detector::Gatherer& AsGatherer() const;
 private:

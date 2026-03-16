@@ -17,6 +17,11 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
 
+// Forward declaration
+namespace app {
+class Player;
+}
+
 namespace app {
 
 namespace net = boost::asio;
@@ -61,7 +66,7 @@ public:
     void UpdateGameState(const TimeInterval& delta_time);
     const LostObjects& GetLostObjects();
     
-    // НОВЫЕ МЕТОДЫ ДЛЯ СЕРИАЛИЗАЦИИ
+    // МЕТОДЫ ДЛЯ СЕРИАЛИЗАЦИИ
     const Dogs& GetDogs() const noexcept {
         return dogs_;
     };

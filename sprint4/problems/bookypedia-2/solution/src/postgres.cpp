@@ -22,6 +22,9 @@ void AuthorRepositoryImpl::Save(const domain::Author& author) {
 
 void AuthorRepositoryImpl::Delete(const domain::AuthorId& id) {
     pqxx::work work{connection_};
+    // Сначала удаляем все книги автора (теги удалятся каскадно)
+    work.exec_params("DELETE FROM books WHERE author_id = $1", id.ToString());
+    // Затем удаляем автора
     work.exec_params("DELETE FROM authors WHERE id = $1", id.ToString());
     work.commit();
 }
@@ -87,6 +90,9 @@ void BookRepositoryImpl::Save(const domain::Book& book) {
 
 void BookRepositoryImpl::Delete(const domain::BookId& id) {
     pqxx::work work{connection_};
+    // Сначала удаляем теги книги
+    work.exec_params("DELETE FROM book_tags WHERE book_id = $1", id.ToString());
+    // Затем удаляем книгу
     work.exec_params("DELETE FROM books WHERE id = $1", id.ToString());
     work.commit();
 }

@@ -89,7 +89,6 @@ int UseCasesImpl::FindBookIndexByTitle(const std::string& title, const std::stri
 
 // Authors
 void UseCasesImpl::AddAuthor(const std::string& name) {
-    // Не проверяем существование автора, просто добавляем
     authors_.Save({AuthorId::New(), name});
 }
 
@@ -303,7 +302,8 @@ void UseCasesImpl::EditSingleBook(domain::Book& book, const std::string& new_tit
     
     if (!new_year.empty() && new_year != " ") {
         try {
-            book.SetPublicationYear(std::stoi(new_year));
+            int year = std::stoi(new_year);
+            book.SetPublicationYear(year);
             updated = true;
         } catch (...) {}
     }
