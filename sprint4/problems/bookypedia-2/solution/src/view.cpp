@@ -61,23 +61,33 @@ std::optional<int> View::SelectFromList(const std::vector<std::string>& items,
         return std::nullopt;
     }
     
-    for(size_t i = 0; i < items.size(); ++i) {
-        output_ << i+1 << " " << items[i] << std::endl;
+    // Статическая переменная для отслеживания первой попытки
+    static bool first_attempt = true;
+    if(first_attempt) {
+        for(size_t i = 0; i < items.size(); ++i) {
+            output_ << i+1 << " " << items[i] << std::endl;
+        }
+        output_ << prompt << std::endl;
+        first_attempt = false;
     }
-    
-    output_ << prompt << std::endl;
     
     std::string input;
     std::getline(input_, input);
     boost::algorithm::trim(input);
     
-    if(input.empty() && allow_empty) {
-        return std::nullopt;
+    if(input.empty()) {
+        first_attempt = true;
+        if(allow_empty) {
+            return std::nullopt;
+        }
+        output_ << "Invalid choice. Retry attempt."sv << std::endl;
+        return SelectFromList(items, prompt, allow_empty);
     }
     
     try {
         int choice = std::stoi(input);
         if(choice >= 1 && choice <= static_cast<int>(items.size())) {
+            first_attempt = true;
             return choice - 1;
         }
     } catch(...) {}
@@ -204,10 +214,11 @@ bool View::DeleteAuthor(std::istream& cmd_input) {
         
         if(name.empty()) {
             // Выбор по индексу
-            auto index = SelectAuthor(false);
+            auto index = SelectAuthor(true);
             if(index) {
                 use_cases_.DeleteAuthorByIndex(*index);
             }
+            // Если index == nullopt (пустой ввод), просто ничего не делаем
         } else {
             // Удаление по имени
             use_cases_.DeleteAuthor(name);
@@ -228,7 +239,7 @@ bool View::EditAuthor(std::istream& cmd_input) {
         
         if(old_name.empty()) {
             // Выбор по индексу
-            index = SelectAuthor(false);
+            index = SelectAuthor(true);
             if(!index) {
                 return true;
             }
@@ -258,11 +269,17 @@ bool View::EditAuthor(std::istream& cmd_input) {
 // Books
 bool View::AddBook(std::istream& cmd_input) {
     try {
+        std::string line;
+        std::getline(cmd_input, line);
+        boost::algorithm::trim(line);
+        
+        // Парсим год и название
+        std::istringstream iss(line);
         int year;
-        cmd_input >> year;
+        iss >> year;
         
         std::string title;
-        std::getline(cmd_input, title);
+        std::getline(iss, title);
         boost::algorithm::trim(title);
         
         if(title.empty()) {

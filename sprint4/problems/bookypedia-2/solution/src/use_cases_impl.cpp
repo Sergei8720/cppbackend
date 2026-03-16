@@ -1,12 +1,13 @@
 #include "use_cases_impl.h"
 #include "author.h"
 #include "book.h"
-#include <algorithm>
-#include <cctype>
+
 #include <ranges>
+#include <algorithm>
 #include <sstream>
 #include <optional>
 #include <unordered_map>
+#include <cctype>
 
 namespace app {
 using namespace domain;
@@ -89,7 +90,19 @@ void UseCasesImpl::AddAuthor(const std::string& name) {
 }
 
 std::vector<std::string> UseCasesImpl::GetAllAuthors() {
-    return GetAllAuthorNames();
+    auto authors = authors_.GetAllAuthors();
+    
+    // Сортируем по имени
+    std::sort(authors.begin(), authors.end(),
+        [](const domain::Author& a, const domain::Author& b) {
+            return a.GetName() < b.GetName();
+        });
+    
+    std::vector<std::string> result;
+    for(const auto& author : authors) {
+        result.push_back(author.GetName());
+    }
+    return result;
 }
 
 void UseCasesImpl::DeleteAuthor(const std::string& name) {
@@ -141,13 +154,31 @@ void UseCasesImpl::AddBook(const std::string& author_id, const std::string& titl
 
 std::vector<std::string> UseCasesImpl::GetAllBooks() {
     std::vector<std::string> result;
-    auto books_with_authors = GetAllBooksWithAuthors();
+    auto books = books_.GetAllBooks();
     
-    for(size_t i = 0; i < books_with_authors.size(); ++i) {
+    if(books.empty()) {
+        return result;
+    }
+    
+    // Получаем всех авторов для быстрого доступа
+    std::unordered_map<std::string, std::string> author_names;
+    auto authors = authors_.GetAllAuthors();
+    for(const auto& author : authors) {
+        author_names[author.GetId().ToString()] = author.GetName();
+    }
+    
+    // Сортируем книги по названию
+    std::sort(books.begin(), books.end(),
+        [](const domain::Book& a, const domain::Book& b) {
+            return a.GetTitle() < b.GetTitle();
+        });
+    
+    for(size_t i = 0; i < books.size(); ++i) {
+        const auto& book = books[i];
         std::stringstream ss;
-        ss << i+1 << " " << books_with_authors[i].first.GetTitle() 
-           << " by " << books_with_authors[i].second << ", " 
-           << books_with_authors[i].first.GetPublicationYear();
+        ss << i+1 << " " << book.GetTitle() << " by " 
+           << author_names[book.GetAuthorId().ToString()] << ", " 
+           << book.GetPublicationYear();
         result.push_back(ss.str());
     }
     

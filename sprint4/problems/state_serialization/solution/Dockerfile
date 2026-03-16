@@ -41,11 +41,8 @@ RUN apt update && apt install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Копируем собранный сервер и тесты
+# Копируем собранный сервер
 COPY --from=build /app/build/bin/game_server /app/game_server
-COPY --from=build /app/build/bin/collision_tests /app/collision_tests
-# УДАЛЯЕМ game_tests так как его больше нет
-# COPY --from=build /app/build/bin/game_tests /app/game_tests
 COPY --from=build /app/tests /app/tests
 
 # Копируем конфигурационные файлы
@@ -53,14 +50,23 @@ COPY ./data /app/data
 
 WORKDIR /app
 
-# Скрипт для запуска сервера и тестов
+# Создаем директорию для state-файлов
+RUN mkdir -p /tmp/volume
+
+# Скрипт для запуска сервера с поддержкой state-файла
 RUN echo '#!/bin/bash\n\
-# Запускаем сервер в фоне\n\
-./game_server --config-file /app/data/config.json --www-root /app/static/ &\n\
+STATE_FILE=${1:-/tmp/volume/state}\n\
+echo "Starting server with state file: $STATE_FILE"\n\
+./game_server \\\n\
+  --config-file /app/data/config.json \\\n\
+  --www-root /app/static/ \\\n\
+  --state-file $STATE_FILE \\\n\
+  --save-state-period 50 \\\n\
+  --randomize-spawn-points &\n\
 SERVER_PID=$!\n\
 \n\
 # Ждем запуска сервера\n\
-sleep 2\n\
+sleep 3\n\
 \n\
 # Запускаем Python тесты\n\
 python3 -m pytest /app/tests -v --junitxml=/app/test_results.xml\n\
@@ -68,8 +74,16 @@ TEST_RESULT=$?\n\
 \n\
 # Останавливаем сервер\n\
 kill $SERVER_PID\n\
+wait $SERVER_PID 2>/dev/null\n\
 \n\
-# Возвращаем результат тестов\n\
+# Выводим содержимое state-файла для отладки\n\
+if [ -f "$STATE_FILE" ]; then\n\
+  echo "State file content:"\n\
+  cat "$STATE_FILE"\n\
+else\n\
+  echo "State file not found: $STATE_FILE"\n\
+fi\n\
+\n\
 exit $TEST_RESULT\n\
 ' > /app/run_tests.sh && chmod +x /app/run_tests.sh
 
