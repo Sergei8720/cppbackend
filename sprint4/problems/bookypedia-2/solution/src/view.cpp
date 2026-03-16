@@ -51,7 +51,6 @@ View::View(menu::Menu& menu, app::UseCases& use_cases, std::istream& input, std:
         [this](auto& cmd_input) { return EditBook(cmd_input); });
 }
 
-// Helper methods
 std::optional<int> View::SelectFromList(const std::vector<std::string>& items, 
                                          const std::string& prompt) {
     if (items.empty()) {
@@ -76,12 +75,8 @@ std::optional<int> View::SelectFromList(const std::vector<std::string>& items,
         int choice = std::stoi(input);
         if (choice >= 1 && choice <= static_cast<int>(items.size())) {
             return choice - 1;
-        } else {
-            output_ << "Invalid choice. Retry attempt."sv << std::endl;
         }
-    } catch (const std::invalid_argument&) {
-        output_ << "Invalid choice. Retry attempt."sv << std::endl;
-    } catch (const std::out_of_range&) {
+    } catch (...) {
         output_ << "Invalid choice. Retry attempt."sv << std::endl;
     }
     
@@ -97,7 +92,14 @@ std::optional<int> View::SelectAuthor() {
 }
 
 std::vector<std::string> View::ParseTags(const std::string& tags_str) {
-    if (tags_str.empty() || tags_str == "y" || tags_str == "Y" || tags_str == "n" || tags_str == "N") {
+    if (tags_str.empty()) {
+        return {};
+    }
+    
+    // Проверяем, не является ли это ответом на вопрос (y/n)
+    std::string trimmed = tags_str;
+    boost::algorithm::trim(trimmed);
+    if (trimmed == "y" || trimmed == "Y" || trimmed == "n" || trimmed == "N") {
         return {};
     }
     
@@ -107,7 +109,7 @@ std::vector<std::string> View::ParseTags(const std::string& tags_str) {
     
     for (auto& tag : parts) {
         boost::algorithm::trim(tag);
-        if (!tag.empty() && tag != "y" && tag != "Y" && tag != "n" && tag != "N") {
+        if (!tag.empty()) {
             tags.push_back(tag);
         }
     }
@@ -118,7 +120,6 @@ std::vector<std::string> View::ParseTags(const std::string& tags_str) {
     return tags;
 }
 
-// Authors
 bool View::AddAuthor(std::istream& cmd_input) {
     std::string name;
     std::getline(cmd_input, name);
@@ -131,7 +132,7 @@ bool View::AddAuthor(std::istream& cmd_input) {
     
     try {
         use_cases_.AddAuthor(name);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         output_ << "Failed to add author"sv << std::endl;
     }
     return true;
@@ -143,7 +144,7 @@ bool View::ShowAuthors() {
         for (size_t i = 0; i < authors.size(); ++i) {
             output_ << i + 1 << " " << authors[i] << std::endl;
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         output_ << "Failed to show authors"sv << std::endl;
     }
     return true;
@@ -168,7 +169,7 @@ bool View::DeleteAuthor(std::istream& cmd_input) {
             }
             use_cases_.DeleteAuthor(name);
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         output_ << "Failed to delete author"sv << std::endl;
     }
     return true;
@@ -212,13 +213,12 @@ bool View::EditAuthor(std::istream& cmd_input) {
         } else {
             use_cases_.EditAuthor(author_name, new_name);
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         output_ << "Failed to edit author"sv << std::endl;
     }
     return true;
 }
 
-// Books
 bool View::AddBook(std::istream& cmd_input) {
     try {
         std::string line;
@@ -288,7 +288,7 @@ bool View::AddBook(std::istream& cmd_input) {
         auto tags = ParseTags(tags_str);
         use_cases_.AddBook(*author_id, title, year, tags);
         
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         output_ << "Failed to add book"sv << std::endl;
     }
     return true;
@@ -300,7 +300,7 @@ bool View::ShowBooks() {
         for (const auto& book : books) {
             output_ << book << std::endl;
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         output_ << "Failed to show books"sv << std::endl;
     }
     return true;
@@ -318,7 +318,7 @@ bool View::ShowAuthorBooks() {
         for (const auto& book : books) {
             output_ << book << std::endl;
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         output_ << "Failed to show author books"sv << std::endl;
     }
     return true;
@@ -336,7 +336,6 @@ bool View::ShowBook(std::istream& cmd_input) {
             return true;
         }
         
-        // Если несколько книг с одинаковым названием, показываем все
         for (const auto& detail : details) {
             output_ << "Title: "sv << detail.title << std::endl;
             output_ << "Author: "sv << detail.author_name << std::endl;
@@ -351,7 +350,7 @@ bool View::ShowBook(std::istream& cmd_input) {
             }
             output_ << std::endl;
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         output_ << "Failed to show book"sv << std::endl;
     }
     return true;
@@ -375,7 +374,7 @@ bool View::DeleteBook(std::istream& cmd_input) {
         }
         
         use_cases_.DeleteBook(title, "");
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         output_ << "Failed to delete book"sv << std::endl;
     }
     return true;
@@ -437,12 +436,11 @@ bool View::EditBook(std::istream& cmd_input) {
         
         auto new_tags = ParseTags(tags_str);
         
-        // Редактируем все книги с таким названием
         for (const auto& detail : details) {
             use_cases_.EditBook(old_title, new_title, new_year, new_tags, detail.author_name);
         }
         
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         output_ << "Failed to edit book"sv << std::endl;
     }
     return true;

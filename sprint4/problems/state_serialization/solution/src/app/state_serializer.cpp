@@ -21,21 +21,24 @@ struct GameState {
     }
 };
 
-StateSerializer::StateSerializer(const std::filesystem::path& state_file, std::chrono::milliseconds save_period)
-    : state_file_(state_file)
+StateSerializer::StateSerializer(Application& application,
+                                 const std::filesystem::path& state_file,
+                                 std::chrono::milliseconds save_period)
+    : app_(application)
+    , state_file_(state_file)
     , save_period_(save_period) {
 }
 
-void StateSerializer::SaveState(Application& application) {
+void StateSerializer::SaveState() {
     try {
         GameState game_state;
         
         // Сохраняем все игровые сессии
-        for (const auto& session : application.GetSessions()) {
+        for (const auto& session : app_.GetSessions()) {
             // Собираем токены игроков для этой сессии
             std::unordered_map<authentication::Token, std::shared_ptr<Player>, authentication::TokenHasher> token_to_player;
             for (const auto& player : session->GetPlayers()) {
-                auto token = application.FindTokenByPlayer(player->GetId());
+                auto token = app_.FindTokenByPlayer(player->GetId());
                 if (token.has_value()) {
                     token_to_player[token.value()] = player;
                 }
@@ -45,8 +48,8 @@ void StateSerializer::SaveState(Application& application) {
         }
         
         // Сохраняем всех игроков (на случай, если есть игроки без сессий)
-        for (const auto& player : application.GetAllPlayers()) {
-            auto token = application.FindTokenByPlayer(player->GetId());
+        for (const auto& player : app_.GetAllPlayers()) {
+            auto token = app_.FindTokenByPlayer(player->GetId());
             if (token.has_value()) {
                 game_state.players.emplace_back(*player, token.value());
             }
@@ -66,7 +69,7 @@ void StateSerializer::SaveState(Application& application) {
     }
 }
 
-bool StateSerializer::LoadState(Application& application, net::io_context& ioc) {
+bool StateSerializer::LoadState(net::io_context& ioc) {
     try {
         if (!std::filesystem::exists(state_file_)) {
             BOOST_LOG_TRIVIAL(info) << "State file not found: " << state_file_.string();
@@ -82,18 +85,18 @@ bool StateSerializer::LoadState(Application& application, net::io_context& ioc) 
             // Восстанавливаем сессии
             for (const auto& session_ser : game_state.sessions) {
                 auto map_id = session_ser.RestoreMapId();
-                auto map = application.FindMap(map_id);
+                auto map = app_.FindMap(map_id);
                 if (!map) {
                     BOOST_LOG_TRIVIAL(error) << "Map not found for restored session: " << *map_id;
                     continue;
                 }
                 
-                auto session = std::make_shared<GameSession>(map, application.GetTickPeriod(), 
-                                                            application.GetLootGeneratorConfig(), ioc);
+                auto session = std::make_shared<GameSession>(map, app_.GetTickPeriod(), 
+                                                            app_.GetLootGeneratorConfig(), ioc);
                 
-                // Восстанавливаем lost objects
+                // Восстанавливаем lost objects (исправлено: создаём shared_ptr)
                 for (const auto& lost_obj_ser : session_ser.GetLostObjectsSerialize()) {
-                    session->AddLostObject(lost_obj_ser.Restore());
+                    session->AddLostObject(std::make_shared<model::LostObject>(lost_obj_ser.Restore()));
                 }
                 
                 // Восстанавливаем игроков
@@ -109,10 +112,10 @@ bool StateSerializer::LoadState(Application& application, net::io_context& ioc) 
                     
                     // Восстанавливаем токен
                     auto token = player_ser.RestoreToken();
-                    application.RestorePlayer(token, player, session);
+                    app_.RestorePlayer(token, player, session);
                 }
                 
-                application.AddGameSession(session);
+                app_.AddGameSession(session);
             }
             
             BOOST_LOG_TRIVIAL(info) << "Game state loaded from " << state_file_.string();
@@ -137,15 +140,13 @@ void StateSerializer::StartPeriodicSaving(net::io_context& ioc) {
     save_ticker_ = std::make_shared<time_m::Ticker>(
         strand,
         save_period_,
-        [this, &application = std::as_const(application)](const std::chrono::milliseconds&) {
-            this->SaveState(application);
+        [this](const std::chrono::milliseconds&) {
+            this->SaveState();  // используем сохранённую ссылку app_
         }
     );
     save_ticker_->Start();
 }
 
-void StateSerializer::OnSaveTimer(const std::chrono::milliseconds&, Application& application) {
-    SaveState(application);
-}
+// Если метод OnSaveTimer не используется, его можно удалить
 
 } // namespace app

@@ -15,18 +15,22 @@ namespace net = boost::asio;
 
 class StateSerializer : public std::enable_shared_from_this<StateSerializer> {
 public:
-    StateSerializer(const std::filesystem::path& state_file, std::chrono::milliseconds save_period);
+    // Теперь конструктор принимает Application&
+    StateSerializer(Application& application,
+                    const std::filesystem::path& state_file,
+                    std::chrono::milliseconds save_period);
     
-    void SaveState(Application& application);
-    bool LoadState(Application& application, net::io_context& ioc);
-    void StartPeriodicSaving(net::io_context& ioc);
+    void SaveState();  // без параметра
+    bool LoadState(net::io_context& ioc);  // без Application&
+    void StartPeriodicSaving(net::io_context& ioc);  // без Application&
 
 private:
+    Application& app_;  // ссылка на приложение
     std::filesystem::path state_file_;
     std::chrono::milliseconds save_period_;
     std::shared_ptr<time_m::Ticker> save_ticker_;
     
-    void OnSaveTimer(const std::chrono::milliseconds&, Application& application);
+    void OnSaveTimer(const std::chrono::milliseconds&);  // можно удалить, если не используется
 };
 
 } // namespace app

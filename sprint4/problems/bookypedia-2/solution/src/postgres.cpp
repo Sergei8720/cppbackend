@@ -22,9 +22,6 @@ void AuthorRepositoryImpl::Save(const domain::Author& author) {
 
 void AuthorRepositoryImpl::Delete(const domain::AuthorId& id) {
     pqxx::work work{connection_};
-    // Сначала удаляем все книги автора (теги удалятся каскадно)
-    work.exec_params("DELETE FROM books WHERE author_id = $1", id.ToString());
-    // Затем удаляем автора
     work.exec_params("DELETE FROM authors WHERE id = $1", id.ToString());
     work.commit();
 }
@@ -90,7 +87,7 @@ void BookRepositoryImpl::Save(const domain::Book& book) {
 
 void BookRepositoryImpl::Delete(const domain::BookId& id) {
     pqxx::work work{connection_};
-    // Сначала удаляем теги книги
+    // Сначала удаляем теги
     work.exec_params("DELETE FROM book_tags WHERE book_id = $1", id.ToString());
     // Затем удаляем книгу
     work.exec_params("DELETE FROM books WHERE id = $1", id.ToString());
@@ -163,10 +160,8 @@ std::vector<domain::Book> BookRepositoryImpl::GetBooksByTitle(const std::string&
 void BookRepositoryImpl::SaveTags(const domain::BookId& book_id, const std::vector<std::string>& tags) {
     pqxx::work work{connection_};
     
-    // Удаляем старые теги
     work.exec_params("DELETE FROM book_tags WHERE book_id = $1", book_id.ToString());
     
-    // Добавляем новые теги
     for(const auto& tag : tags) {
         if(!tag.empty()) {
             work.exec_params(
@@ -197,7 +192,6 @@ Database::Database(pqxx::connection connection)
     : connection_{std::move(connection)} {
     pqxx::work work{connection_};
     
-    // Создаем таблицы если их нет
     work.exec(R"(
 CREATE TABLE IF NOT EXISTS authors (
     id UUID PRIMARY KEY,

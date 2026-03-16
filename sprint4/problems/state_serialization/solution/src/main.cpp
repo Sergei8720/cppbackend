@@ -62,11 +62,12 @@ int main(int argc, const char* argv[]) {
         // Инициализация сериализатора состояния
         std::unique_ptr<app::StateSerializer> state_serializer;
         if (state_file.has_value()) {
+            // Передаём application в конструктор
             state_serializer = std::make_unique<app::StateSerializer>(
-                state_file.value(), save_state_period);
+                application, state_file.value(), save_state_period);
             
-            // Загружаем сохраненное состояние
-            state_serializer->LoadState(application, ioc);
+            // Загружаем сохранённое состояние
+            state_serializer->LoadState(ioc);
             
             // Запускаем периодическое сохранение
             if (save_state_period.count() > 0) {
@@ -81,7 +82,7 @@ int main(int argc, const char* argv[]) {
                                                                         logware::ExitCodeLogData(0));
                 // Сохраняем состояние при graceful shutdown
                 if (state_serializer) {
-                    state_serializer->SaveState(application);
+                    state_serializer->SaveState();  // без параметров
                 }
                 ioc.stop();
             }
