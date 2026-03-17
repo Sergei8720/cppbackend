@@ -140,6 +140,8 @@ void GetStaticContentFileHandler(
         response.body() = std::move(file);
     }
 
+    // Метод prepare_payload заполняет заголовки Content-Length и Transfer-Encoding
+    // в зависимости от свойств тела сообщения
     response.prepare_payload();
     send(response);
 };

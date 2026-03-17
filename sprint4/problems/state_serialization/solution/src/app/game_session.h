@@ -17,11 +17,6 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
 
-// Forward declaration
-namespace app {
-class Player;
-}
-
 namespace app {
 
 namespace net = boost::asio;
@@ -65,27 +60,8 @@ public:
                                         bool randomize_spawn_points);
     void UpdateGameState(const TimeInterval& delta_time);
     const LostObjects& GetLostObjects();
-    
-    // МЕТОДЫ ДЛЯ СЕРИАЛИЗАЦИИ
-    const Dogs& GetDogs() const noexcept {
-        return dogs_;
-    };
-    
-    void AddDog(std::shared_ptr<model::Dog> dog) {
-        dogs_[dog->GetId()] = dog;
-    };
-    
-    void AddLostObject(std::shared_ptr<model::LostObject> lost_object) {
-        lost_objects_[lost_object->GetId()] = lost_object;
-    };
-    
-    const std::vector<std::shared_ptr<Player>>& GetPlayers() const {
-        return players_;
-    };
-    
-    void AddPlayer(std::shared_ptr<Player> player) {
-        players_.push_back(player);
-    };
+    void AddLostObject(model::LostObject lost_object);
+    void AddDog(std::shared_ptr<model::Dog> dog);
     
 private:
     std::shared_ptr<model::Map> map_;
@@ -98,9 +74,6 @@ private:
     TimeInterval period_of_update_game_state_;
     std::shared_ptr<time_m::Ticker> update_game_state_ticker_;
     std::shared_ptr<time_m::Ticker> generate_loot_ticker_;
-    
-    // НОВОЕ ПОЛЕ
-    std::vector<std::shared_ptr<Player>> players_;
     
     void GenerateLoot(const TimeInterval& delta_time);
     void CreateLostObject();

@@ -15,31 +15,12 @@ public:
   LostObject(double width = LOOT_WIDTH)
         : Item({0,0}, width)
         , id_(Id{LostObject::max_id_cont_++}) {};
-  
-  const Id& GetId() const {
-      return id_;
-  };
-  
-  void SetId(Id id) {
-      id_ = id;
-  };
-  
-  size_t GetType() const {
-      return type_;
-  };
-  
-  void SetType(size_t type) {
-      type_ = type;
-  };
-  
-  size_t GetValue() const {
-      return value_;
-  };
-  
-  void SetValue(size_t value) {
-      value_ = value;
-  };
-  
+  const Id& GetId() const;
+  void SetId(const Id& id);
+  size_t GetType() const;
+  void SetType(size_t type);
+  size_t GetValue() const;
+  void SetValue(size_t value);
 private:
   Id id_;
   size_t type_;

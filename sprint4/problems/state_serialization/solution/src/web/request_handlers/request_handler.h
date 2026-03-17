@@ -15,15 +15,19 @@ namespace fs = std::filesystem;
 
 class RequestHandler {
 public:
-    explicit RequestHandler(app::Application& application, fs::path static_content_root_path)
+    explicit RequestHandler(std::shared_ptr<app::Application> application, fs::path static_content_root_path)
         : application_{application}, static_content_root_path_{static_content_root_path} {
     }
 
     RequestHandler(const RequestHandler&) = delete;
     RequestHandler& operator=(const RequestHandler&) = delete;
 
+    /*
+    # Обработчик отвратительный, есть идея как сделать его более гибким, но из-за шаблонов другая реализация пока не взлетела (надо обсудить).
+    */
     template <typename Body, typename Allocator, typename Send>
-    void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
+    void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {// 
+        // Обработать запрос request и отправить ответ, используя send
         if(rh_storage::ApiV1RequestHandlerExecutor<http::request<Body, http::basic_fields<Allocator>>, Send>
             ::GetInstance()
             .Execute(req, application_, std::move(send))) {
@@ -37,7 +41,7 @@ public:
     }
 
 private:
-    app::Application& application_;
+    std::shared_ptr<app::Application> application_;
     fs::path static_content_root_path_;
     
 };

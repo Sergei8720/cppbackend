@@ -1,5 +1,9 @@
 #include "application.h"
-#include <boost/log/trivial.hpp>
+
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/thread/future.hpp>
+#include <iostream>
 
 namespace app {
 
@@ -18,18 +22,15 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
         const model::Map::Id& id) {
     auto player = CreatePlayer(player_name);
     auto token = player_tokens_.AddPlayer(player);
-    
-    // ИСПРАВЛЕНО: используем emplace вместо operator[]
-    player_id_to_token_.emplace(player->GetId(), token);
-    
     std::shared_ptr<GameSession> game_session = FindGameSessionBy(id);
     if(!game_session){
         game_session = std::make_shared<GameSession>(game_.FindMap(id), tick_period_, game_.GetLootGeneratorConfig(), ioc_);
         AddGameSession(game_session);
         game_session->Run();
     }
-    auth_token_to_session_index_.emplace(token, game_session);  // ИСПРАВЛЕНО
+    auth_token_to_session_index_[token] = game_session;
     BoundPlayerAndGameSession(player, game_session);
+    game_session_to_token_player_pair_[game_session][token] = player;
     return std::tie(token, player->GetId());
 };
 
@@ -50,9 +51,6 @@ void Application::BoundPlayerAndGameSession(std::shared_ptr<Player> player,
 const std::vector< std::shared_ptr<Player> >& Application::GetPlayersFromGameSession(const authentication::Token& token) {
     static const std::vector< std::shared_ptr<Player> > emptyPlayerList;
     auto player = player_tokens_.FindPlayerBy(token);
-    if (!player) {
-        return emptyPlayerList;
-    }
     auto session_id = player->GetGameSessionId();
     if(!session_id_to_players_.contains(session_id)) {
         return emptyPlayerList;
@@ -66,13 +64,7 @@ bool Application::IsExistPlayer(const authentication::Token& token) {
 
 void Application::SetPlayerAction(const authentication::Token& token, model::Direction direction) {
     auto player = player_tokens_.FindPlayerBy(token);
-    if (!player) {
-        return;
-    }
     auto dog = player->GetDog().lock();
-    if (!dog) {
-        return;
-    }
     double velocity = player->GetGameSession()->GetMap()->GetDogVelocity();
     dog->SetAction(direction, velocity);
 };
@@ -83,26 +75,32 @@ bool Application::IsManualTimeManagement() {
 
 void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
     for(auto session : sessions_) {
-        session->UpdateGameState(delta_time);
+        boost::promise<void> res_promise;
+        auto res_future = res_promise.get_future();
+        net::dispatch(*(session->GetStrand()),
+            [session
+            , &delta_time
+            , &res_promise] {
+                session->UpdateGameState(delta_time);
+                res_promise.set_value();
+            }
+        );
+        res_future.get();
     }
+    SaveGameState(delta_time);
 };
 
 void Application::AddGameSession(std::shared_ptr<GameSession> session) {
     const size_t index = sessions_.size();
-    
-    auto it = map_id_to_session_index_.find(session->GetMap()->GetId());
-    if (it != map_id_to_session_index_.end()) {
+    if (auto [it, inserted] = map_id_to_session_index_.emplace(session->GetMap()->GetId(), index); !inserted) {
         throw std::invalid_argument("Game session with map id "s + *(session->GetMap()->GetId()) + " already exists"s);
-    }
-    
-    it = map_id_to_session_index_.emplace(session->GetMap()->GetId(), index).first;
-
-    try {
-        sessions_.push_back(session);
-    } catch (const std::exception& e) {
-        map_id_to_session_index_.erase(it);
-        BOOST_LOG_TRIVIAL(error) << "Failed to add game session: " << e.what();
-        throw;
+    } else {
+        try {
+            sessions_.push_back(session);
+        } catch (...) {
+            map_id_to_session_index_.erase(it);
+            throw;
+        }
     }
 };
 
@@ -124,32 +122,111 @@ const std::vector< std::shared_ptr<GameSession> >& Application::GetSessions() {
     return sessions_;
 };
 
-// МЕТОДЫ ДЛЯ СЕРИАЛИЗАЦИИ
-
-std::optional<authentication::Token> Application::FindTokenByPlayer(const Player::Id& player_id) const {
-    auto it = player_id_to_token_.find(player_id);
-    if (it != player_id_to_token_.end()) {
-        return it->second;
+void Application::RestoreGameState(saving::SavingSettings saving_settings) {
+    saving_settings_ = std::move(saving_settings);
+    RestoreGame();
+    if(!(saving_settings_.state_file_path
+        && saving_settings_.period) || IsManualTimeManagement()) {
+        return;
     }
-    return std::nullopt;
+    save_game_ticker_ = std::make_shared<time_m::Ticker>(
+        ioc_,
+        saving_settings_.period.value(),
+        [self = shared_from_this()](const std::chrono::milliseconds& delta_time) {
+            self->SaveGame();
+        }
+    );
+    save_game_ticker_->Start();
 };
 
-void Application::RestorePlayer(const authentication::Token& token, 
-                               std::shared_ptr<Player> player,
-                               std::shared_ptr<GameSession> session) {
-    // Восстанавливаем игрока
-    players_.push_back(player);
+void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
+    static int period = saving_settings_.period
+        ? saving_settings_.period.value().count() : 0;
+    if(!saving_settings_.period) {
+        return;
+    }
+    period -= delta_time.count();
+    if(period <= 0) {
+        SaveGame();
+        period = saving_settings_.period.value().count();
+    }
+};
+
+void Application::SaveGame() {
+    using game_data_ser::GameSessionSerialization;
+    if(!saving_settings_.state_file_path){
+        return;
+    }
+    std::vector<GameSessionSerialization> sessions_ser = GetSerializedData();
+
+    std::fstream output_fstream;
+    output_fstream.open(saving_settings_.state_file_path.value(), std::ios_base::out);
+    {
+        boost::archive::text_oarchive oarchive{output_fstream};
+        oarchive << sessions_ser;
+    }
+};
+
+std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedData() {
+    using game_data_ser::GameSessionSerialization;
+    std::vector<GameSessionSerialization> sessions_ser;
+    for(auto session_ptr : sessions_){
+        boost::promise<GameSessionSerialization> promise;
+        auto res_future = promise.get_future();
+        net::dispatch(*(session_ptr->GetStrand()),
+        [self = shared_from_this()
+        , &promise
+        , session_ptr] {
+            promise.set_value(
+                GameSessionSerialization(*session_ptr, self->game_session_to_token_player_pair_.at(session_ptr))
+            );
+        });
+        sessions_ser.push_back(std::move(res_future.get())); // todo: not parallel solution, need fix. 
+    };
+    return sessions_ser;
+};
+
+void Application::RestoreGame() {
+    using game_data_ser::GameSessionSerialization;
+    if(!saving_settings_.state_file_path){
+        return;
+    }
+    std::vector<GameSessionSerialization> sessions_ser;
+
+    std::fstream input_fstream;
+    input_fstream.open(saving_settings_.state_file_path.value(), std::ios_base::in);
+    if(!input_fstream.is_open()) {
+        return;
+    }
     
-    // Восстанавливаем токен
-    player_tokens_.RestoreToken(token, player);
+    boost::archive::text_iarchive iarchive{input_fstream};
+    iarchive >> sessions_ser;
+    input_fstream.close();
     
-    // Восстанавливаем связи - ИСПРАВЛЕНО: используем emplace
-    player_id_to_token_.emplace(player->GetId(), token);
-    auth_token_to_session_index_.emplace(token, session);
-    session_id_to_players_[session->GetId()].push_back(player);
-    
-    // Восстанавливаем связь с сессией
-    player->SetGameSession(session);
+    for(auto& item : sessions_ser) {
+        auto game_session = std::make_shared<GameSession>(game_.FindMap(item.RestoreMapId())
+                                                        , tick_period_
+                                                        , game_.GetLootGeneratorConfig()
+                                                        , ioc_);
+        for(auto& lost_obj_ser : item.GetLostObjectsSerialize()) {
+            game_session->AddLostObject(std::move(lost_obj_ser.Restore()));
+        }
+        for(auto& player_ser : item.GetPlayersSerialize()) {
+            auto player = std::make_shared<app::Player>(std::move(player_ser.Restore()));
+            auto dog = std::make_shared<model::Dog>(std::move(player_ser.RestoreDog()));
+            game_session->AddDog(dog);
+            player->SetDog(dog);
+            player->SetGameSession(game_session);
+            auto token = player_ser.RestoreToken();
+            auth_token_to_session_index_[token] = game_session;
+            game_session_to_token_player_pair_[game_session][token] = player;
+            player_tokens_.AddTokenPlayerPair(token, player);
+            auto session_id = game_session->GetId();
+            session_id_to_players_[session_id].push_back(player);
+        }
+        AddGameSession(game_session);
+        game_session->Run();
+    }
 };
 
 }

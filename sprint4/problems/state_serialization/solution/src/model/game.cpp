@@ -1,6 +1,6 @@
 #include "game.h"
 #include "model_invariants.h"
-#include <boost/log/trivial.hpp>
+
 #include <cmath>
 #include <string>
 
@@ -10,25 +10,20 @@ using namespace std::literals;
 
 void Game::AddMap(const Map& map) {
     const size_t index = maps_.size();
-    
-    auto it = map_id_to_index_.find(map.GetId());
-    if (it != map_id_to_index_.end()) {
+    if (auto [it, inserted] = map_id_to_index_.emplace(map.GetId(), index); !inserted) {
         throw std::invalid_argument("Map with id "s + *map.GetId() + " already exists"s);
-    }
-    
-    it = map_id_to_index_.emplace(map.GetId(), index).first;
-
-    try {
-        auto current_map = std::make_shared<Map>(map);
-        if(default_dog_velocity_ &&
-            std::abs(current_map->GetDogVelocity() - INITIAL_DOG_VELOCITY) < EPSILON) {
-            current_map->SetDogVelocity(default_dog_velocity_.value());
+    } else {
+        try {
+            auto current_map = std::make_shared<Map>(map);
+            if(default_dog_velocity_ &&
+                std::abs(current_map->GetDogVelocity() - INITIAL_DOG_VELOCITY) < EPSILON) {
+                current_map->SetDogVelocity(default_dog_velocity_.value());
+            }
+            maps_.push_back(current_map);
+        } catch (...) {
+            map_id_to_index_.erase(it);
+            throw;
         }
-        maps_.push_back(current_map);
-    } catch (const std::exception& e) {
-        map_id_to_index_.erase(it);  // используем it
-        BOOST_LOG_TRIVIAL(error) << "Failed to add map: " << e.what();
-        throw;
     }
 }
 
@@ -66,7 +61,7 @@ void Game::AddLootGeneratorConfig(LootGeneratorConfig cfg) {
     loot_gen_cfg_ = std::move(cfg);
 };
 
-const LootGeneratorConfig& Game::GetLootGeneratorConfig() const {  // Добавлен const
+const LootGeneratorConfig& Game::GetLootGeneratorConfig() {
     return loot_gen_cfg_;
 };
 

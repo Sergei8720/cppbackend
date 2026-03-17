@@ -10,13 +10,12 @@
 #include <unordered_map>
 #include <chrono>
 #include <memory>
-#include <atomic>  // Добавлено для atomic
 
 namespace model {
 
 
 class Dog {
-    inline static std::atomic<size_t> max_id_cont_{0};  // Исправлено на atomic
+    inline static size_t max_id_cont_ = 0;
 public:
     using Id = util::Tagged<size_t, Dog>;
     using BagType = std::vector< std::shared_ptr<LostObject> >;
@@ -28,7 +27,11 @@ public:
     Dog(Id id, std::string name, size_t bag_capacity) :
         id_(id),
         name_(name),
-        bag_capacity_(bag_capacity) {};
+        bag_capacity_(bag_capacity) {
+            if(*id_ >= Dog::max_id_cont_){
+                Dog::max_id_cont_ = *id_ + 1;
+            }
+        };
     Dog(const Dog& other) = default;
     Dog(Dog&& other) = default;
     Dog& operator = (const Dog& other) = default;
@@ -51,17 +54,13 @@ public:
     geom::Point2D CalculateNewPosition(const std::chrono::milliseconds& delta_time);
 
     const BagType& GetBag() const;
+    size_t GetBagCapacity() const;
     void CollectLostObject(std::shared_ptr<LostObject> loot);
     bool IsFullBag();
     bool IsEmptyBag();
     void DropLostObjectsFromBag();
 
     const size_t GetScore() const;
-    
-    // НОВЫЙ МЕТОД
-    size_t GetBagCapacity() const {
-        return bag_capacity_;
-    };
 
     const collision_detector::Gatherer& AsGatherer() const;
 private:

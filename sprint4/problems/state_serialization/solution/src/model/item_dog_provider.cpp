@@ -7,7 +7,7 @@ size_t ItemDogProvider::ItemsCount() const {
 };
 
 collision_detector::Item ItemDogProvider::GetItem(size_t idx) const {
-    return *items_.at(idx);
+    return *items_[idx];
 };
 
 size_t ItemDogProvider::GatherersCount() const {
@@ -15,11 +15,11 @@ size_t ItemDogProvider::GatherersCount() const {
 };
 
 collision_detector::Gatherer ItemDogProvider::GetGatherer(size_t idx) const {
-    return dogs_.at(idx)->AsGatherer();
+    return dogs_[idx]->AsGatherer();
 };
 
 const Dog::Id& ItemDogProvider::GetDogId(size_t idx) const {
-    return dogs_.at(idx)->GetId();
+    return dogs_[idx]->GetId();
 };
 
 }

@@ -28,10 +28,6 @@ public:
         return name_;
     }
 
-    void SetName(const std::string& name) {
-        name_ = name;
-    }
-
 private:
     AuthorId id_;
     std::string name_;
@@ -40,11 +36,8 @@ private:
 class AuthorRepository {
 public:
     virtual void Save(const Author& author) = 0;
-    virtual void Delete(const AuthorId& id) = 0;
-    virtual void Update(const Author& author) = 0;
     virtual std::vector<Author> GetAllAuthors() = 0;
-    virtual std::optional<Author> GetAuthorByName(const std::string& name) = 0;
-    virtual std::optional<Author> GetAuthorById(const AuthorId& id) = 0;
+    virtual std::optional<Author> GetAuthorBy(const std::string& author_name) = 0;
 
 protected:
     ~AuthorRepository() = default;

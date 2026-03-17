@@ -77,5 +77,5 @@ const std::unordered_map<Direction, Direction> DIRECTION_TO_OPOSITE_DIRECTION = 
     {Direction::EAST, Direction::WEST},
     {Direction::NONE, Direction::NONE}
 };
- 
+
 }

@@ -78,6 +78,10 @@ const Dog::BagType& Dog::GetBag() const {
     return bag_;
 };
 
+size_t Dog::GetBagCapacity() const {
+    return bag_capacity_;
+};
+
 void Dog::CollectLostObject(std::shared_ptr<LostObject> loot) {
     if(bag_.size() < bag_capacity_) {
         bag_.push_back(loot);

@@ -1,12 +1,15 @@
 #include "json_converter.h"
 #include "model_key_storage.h"
 #include "json_key_storage.h"
+#include "json_model_converter.h"
+
 #include <map>
 #include <sstream>
 #include <boost/json/array.hpp>
 #include <boost/json.hpp>
-#include "json_model_converter.h"
-#include "logger.h"
+
+
+#include <iostream>
 
 namespace json_converter{
 
@@ -75,6 +78,8 @@ std::string CreateInvalidMethodResponse() {
 };
 
 std::string CreateEmptyAuthorizationResponse() {
+    //json::value msg = {{json_keys::RESPONSE_CODE, "invalidToken"},
+    //                    {json_keys::RESPONSE_MESSAGE, "Authorization header is missing"}}; // todo: different messages
     json::value msg = {{json_keys::RESPONSE_CODE, "invalidToken"},
                         {json_keys::RESPONSE_MESSAGE, "Authorization header is required"}};
     return json::serialize(msg);
@@ -184,14 +189,7 @@ std::optional< std::tuple<std::string, model::Map::Id> > ParseJoinToGameRequest(
         std::string player_name = json::value_to<std::string>(jv.as_object().at(json_keys::REQUEST_PLAYER_NAME));
         model::Map::Id map_id{json::value_to<std::string>(jv.as_object().at(json_keys::REQUEST_MAP_ID))};
         return std::tie(player_name, map_id);
-    } catch(const boost::json::system_error& e) {
-        BOOST_LOG_TRIVIAL(error) << "JSON parsing error in JoinGameRequest: " << e.what();
-        return std::nullopt;
-    } catch(const std::out_of_range& e) {
-        BOOST_LOG_TRIVIAL(error) << "Missing required field in JoinGameRequest: " << e.what();
-        return std::nullopt;
-    } catch(const std::exception& e) {
-        BOOST_LOG_TRIVIAL(error) << "Unexpected error in JoinGameRequest: " << e.what();
+    } catch(...) {
         return std::nullopt;
     }
 };
@@ -201,14 +199,7 @@ std::optional<std::string> ParsePlayerActionRequest(const std::string& msg) {
         json::value jv = json::parse(msg);
         std::string direction = json::value_to<std::string>(jv.as_object().at(json_keys::REQUEST_PLAYER_MOVE));
         return direction;
-    } catch(const boost::json::system_error& e) {
-        BOOST_LOG_TRIVIAL(error) << "JSON parsing error in PlayerActionRequest: " << e.what();
-        return std::nullopt;
-    } catch(const std::out_of_range& e) {
-        BOOST_LOG_TRIVIAL(error) << "Missing required field in PlayerActionRequest: " << e.what();
-        return std::nullopt;
-    } catch(const std::exception& e) {
-        BOOST_LOG_TRIVIAL(error) << "Unexpected error in PlayerActionRequest: " << e.what();
+    } catch(...) {
         return std::nullopt;
     }
 };
@@ -221,16 +212,10 @@ std::optional<int> ParseSetDeltaTimeRequest(const std::string& msg) {
         }
         int time_delta = json::value_to<int>(jv.as_object().at(json_keys::REQUEST_TIME_DELTA));
         return time_delta;
-    } catch(const boost::json::system_error& e) {
-        BOOST_LOG_TRIVIAL(error) << "JSON parsing error in SetDeltaTimeRequest: " << e.what();
-        return std::nullopt;
-    } catch(const std::out_of_range& e) {
-        BOOST_LOG_TRIVIAL(error) << "Missing required field in SetDeltaTimeRequest: " << e.what();
-        return std::nullopt;
-    } catch(const std::exception& e) {
-        BOOST_LOG_TRIVIAL(error) << "Unexpected error in SetDeltaTimeRequest: " << e.what();
+    } catch(...) {
         return std::nullopt;
     }
 };
+
 
 }

@@ -13,19 +13,21 @@ namespace net = boost::asio;
 template<typename Request, typename Send>
 class ApiV1RequestHandlerExecutor{
     using ActivatorType = bool(*)(const Request&);
-    using HandlerType = std::optional<size_t>(*)(const Request&, app::Application&, Send&&);
+    using HandlerType = std::optional<size_t>(*)(const Request&, std::shared_ptr<app::Application>, Send&&);
 public:
+    // убираем конструктор копирования
     ApiV1RequestHandlerExecutor(const ApiV1RequestHandlerExecutor&) = delete;
     ApiV1RequestHandlerExecutor& operator=(const ApiV1RequestHandlerExecutor&) = delete;
     ApiV1RequestHandlerExecutor(ApiV1RequestHandlerExecutor&&) = delete;
     ApiV1RequestHandlerExecutor& operator=(ApiV1RequestHandlerExecutor&&) = delete;
 
+    // получение ссылки на единственный объект
     static ApiV1RequestHandlerExecutor& GetInstance() {
         static ApiV1RequestHandlerExecutor obj;
         return obj;
     };
 
-    bool Execute(const Request& req, app::Application& application, Send&& send) {
+    bool Execute(const Request& req, std::shared_ptr<app::Application> application, Send&& send) {
         for(auto item : rh_storage_) {
             if(item.GetActivator()(req)){
                     auto res = item.GetHandler(req.method())(req, application, std::forward<Send>(send));

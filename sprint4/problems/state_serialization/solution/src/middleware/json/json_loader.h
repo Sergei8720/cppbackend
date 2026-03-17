@@ -16,4 +16,3 @@ public:
 };
 
 }  // namespace json_loader
-
