@@ -1,44 +1,94 @@
-# Создать образ на основе базового слоя gcc (там будет ОС и сам компилятор).
-# 11.3 — используемая версия gcc.
+# Используем многоступенчатую сборку
 FROM gcc:11.3 as build
 
-# Выполнить установку зависимостей внутри контейнера.
+# Устанавливаем необходимые пакеты
 RUN apt update && \
     apt install -y \
       python3-pip \
       cmake \
     && \
-    pip3 install conan
+    pip3 install conan==1.63.0  # Фиксированная версия для стабильности
 
-# копируем conanfile.txt в контейнер и запускаем conan install
-COPY conanfile.txt /app/
-RUN mkdir /app/build && cd /app/build && \
-    conan install .. --build=missing -s compiler.libcxx=libstdc++11 -s build_type=Release
+# Настраиваем Conan
+RUN conan profile new default --detect --force
+RUN conan profile update settings.compiler.libcxx=libstdc++11 default
 
-# только после этого копируем остальные иходники
+# Копируем исходный код
 COPY ./src /app/src
-COPY ./data /app/data
-COPY ./static /app/static
 COPY ./tests /app/tests
-COPY CMakeLists.txt /app/
+COPY ./CMakeLists.txt /app/
+COPY ./conanfile.txt /app/
 
-RUN cd /app/build && \
-    cmake -DCMAKE_BUILD_TYPE=Release .. && \
-    cmake --build .
-    
-    
-# Второй контейнер в том же докерфайле
+# Создаем директорию для сборки
+RUN mkdir -p /app/build
+WORKDIR /app/build
+
+# Устанавливаем зависимости через Conan
+RUN conan install .. --build=missing -s build_type=Release
+
+# Собираем все цели проекта
+RUN cmake .. -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build . -j$(nproc)
+
+# Финальный образ для запуска сервера и тестов
 FROM ubuntu:22.04 as run
 
-# Создадим пользователя www
-RUN groupadd -r www && useradd -r -g www www
-USER www
+# Устанавливаем необходимые библиотеки для запуска и Python для тестов
+RUN apt update && apt install -y \
+    libstdc++6 \
+    python3 \
+    python3-pip \
+    python3-venv \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Скопируем приложение со сборочного контейнера в директорию /app.
-# Не забываем также папку data, она пригодится.
-COPY --from=build /app/build/bin/game_server /app/
+# Устанавливаем Python-зависимости для тестов (как в вашем логе)
+RUN pip3 install pytest==7.1.2 pytest-xprocess==0.20.0 pytest-quickcheck==0.9.0 docker==6.1.3
+
+# Копируем собранный сервер и тесты
+COPY --from=build /app/build/bin/game_server /app/game_server
+# Копируем только бинарники тестов, если они нужны
+COPY --from=build /app/build/bin/collision_tests /app/collision_tests
+COPY --from=build /app/build/bin/game_tests /app/game_tests
+
+# Копируем конфигурационные файлы и данные для тестов
 COPY ./data /app/data
-COPY ./static /app/static
+# Если тестам нужны исходники Python, копируем их
+COPY ./tests/test_s04_state_serialization.py /app/tests/
 
-# Запускаем игровой сервер
-ENTRYPOINT ["/app/game_server", "/app/data/config.json", "/app/static"] 
+WORKDIR /app
+
+# Скрипт для запуска сервера и тестов
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "Starting game server..."\n\
+./game_server --port 8080 --tick-period 100 --data-dir /app/data &\n\
+SERVER_PID=$!\n\
+\n\
+# Функция для остановки сервера\n\
+cleanup() {\n\
+    echo "Stopping server..."\n\
+    kill $SERVER_PID 2>/dev/null || true\n\
+    wait $SERVER_PID 2>/dev/null || true\n\
+}\n\
+trap cleanup EXIT\n\
+\n\
+# Ждем запуска сервера\n\
+sleep 2\n\
+if ! kill -0 $SERVER_PID 2>/dev/null; then\n\
+    echo "ERROR: Server failed to start"\n\
+    exit 1\n\
+fi\n\
+echo "Server started with PID $SERVER_PID"\n\
+\n\
+# Запускаем тесты\n\
+echo "Running tests..."\n\
+python3 -m pytest /app/tests/test_s04_state_serialization.py -v --junitxml=/app/test_results.xml\n\
+TEST_RESULT=$?\n\
+\n\
+echo "Tests completed with exit code $TEST_RESULT"\n\
+exit $TEST_RESULT\n\
+' > /app/run_tests.sh && chmod +x /app/run_tests.sh
+
+# Запускаем тесты с сервером
+CMD ["/app/run_tests.sh"]

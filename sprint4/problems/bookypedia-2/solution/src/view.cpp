@@ -19,9 +19,8 @@ View::View(menu::Menu& menu, app::UseCases& use_cases, std::istream& input, std:
     , input_{input}
     , output_{output} {
     menu_.AddAction(  //
-        "AddAuthor"s, "name"s, "Adds author"s, //std::bind(&View::AddAuthor, this, ph::_1)
-        // ����
-         [this](auto& cmd_input) { return AddAuthor(cmd_input); }
+        "AddAuthor"s, "name"s, "Adds author"s,
+        [this](auto& cmd_input) { return AddAuthor(cmd_input); }
     );
     menu_.AddAction(
         "ShowAuthors"s, ""s, "Show authors"s, [this](auto& cmd_input) { return ShowAuthors(); }
@@ -46,6 +45,13 @@ bool View::AddAuthor(std::istream& cmd_input) {
             output_ << "Failed to add author"sv << std::endl;
             return true;
         }
+        
+        // Проверяем, существует ли уже такой автор
+        if(use_cases_.GetAuthorIdBy(name)) {
+            output_ << "Failed to add author"sv << std::endl;
+            return true;
+        }
+        
         use_cases_.AddAuthor(std::move(name));
     } catch (const std::exception&) {
         output_ << "Failed to add author"sv << std::endl;
@@ -73,7 +79,7 @@ bool View::AddBook(std::istream& cmd_input) {
         cmd_input >> year;
         std::getline(cmd_input, title);
         boost::algorithm::trim(title);
-        output_ << std::endl;
+        // ИСПРАВЛЕНО: убрали лишний output_ << std::endl;
         
         auto list_of_authors = ShowAuthorsList();
         auto index_of_choosed_author = ChooseAuthor(list_of_authors);
@@ -82,7 +88,7 @@ bool View::AddBook(std::istream& cmd_input) {
         }
         auto id_of_choosed_author = use_cases_.GetAuthorIdBy(list_of_authors[*index_of_choosed_author - 1]);
         if(!id_of_choosed_author){
-            output_ << "Author doesn't exist. Failed to add book"sv << std::endl;
+            output_ << "Failed to add book"sv << std::endl;  // ИСПРАВЛЕНО: унифицировано сообщение
             return true;
         }
         
@@ -139,7 +145,7 @@ std::optional<size_t> View::ChooseAuthor(const std::vector<std::string>& authors
     int index_of_choosed_author{0};
     do {
         std::string tmp;
-        std::getline(std::cin, tmp);
+        std::getline(input_, tmp);  // ИСПРАВЛЕНО: input_ вместо std::cin
         boost::algorithm::trim(tmp);
         if(tmp.empty()) {
             return std::nullopt;
@@ -147,12 +153,10 @@ std::optional<size_t> View::ChooseAuthor(const std::vector<std::string>& authors
         std::stringstream ss;
         ss << tmp;
         ss >> index_of_choosed_author;
-        if((index_of_choosed_author <= 0)
-            or (index_of_choosed_author > authors.size())) {
+        if((index_of_choosed_author <= 0) || (index_of_choosed_author > static_cast<int>(authors.size()))) {
             output_ << "Invalid author. Retry attempt."sv << std::endl;
         }
-    } while((index_of_choosed_author <= 0)
-            or (index_of_choosed_author > authors.size()));
+    } while((index_of_choosed_author <= 0) || (index_of_choosed_author > static_cast<int>(authors.size())));
     return index_of_choosed_author;
 };
 

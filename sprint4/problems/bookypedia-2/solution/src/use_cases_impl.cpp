@@ -29,7 +29,7 @@ std::vector<std::string> UseCasesImpl::GetAllAuthors(){
 std::optional<std::string> UseCasesImpl::GetAuthorIdBy(const std::string& author_name) {
     auto author = authors_.GetAuthorBy(author_name);
     if(author) {
-        return author.value().GetId().ToString();
+        return author->GetId().ToString();  // ИСПРАВЛЕНО: используем -> вместо value()
     }
     return std::nullopt;
 };
@@ -45,7 +45,7 @@ std::vector<std::string> UseCasesImpl::GetAllBooks() {
         std::back_inserter(list_of_books),
         [](auto& book) -> std::string {
             std::stringstream ss;
-            ss << book.GetTitle() << ", " << book.GetPublicationYear();
+            ss << book.GetTitle() << ", " << book.GetPublicationYear();  // Формат: "Название, год"
             return ss.str();
         }
     );
@@ -59,7 +59,7 @@ std::vector<std::string> UseCasesImpl::GetBooksBy(const std::string& author_name
         std::back_inserter(list_of_books),
         [](auto& book) -> std::string {
             std::stringstream ss;
-            ss << book.GetTitle() << ", " << book.GetPublicationYear();
+            ss << book.GetTitle() << ", " << book.GetPublicationYear();  // Формат: "Название, год"
             return ss.str();
         }
     );

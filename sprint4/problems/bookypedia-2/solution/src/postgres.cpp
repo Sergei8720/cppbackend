@@ -104,9 +104,16 @@ CREATE TABLE IF NOT EXISTS books (
     publication_year int NOT NULL
 );
 )"_zv);
-    // ... создать другие таблицы
 
-    // коммитим изменения
+    // Добавляем таблицу book_tags для тестов (хотя в задании bookypedia-1 она не требуется)
+    work_.exec(R"(
+CREATE TABLE IF NOT EXISTS book_tags (
+    book_id UUID REFERENCES books(id) ON DELETE CASCADE,
+    tag varchar(50) NOT NULL,
+    PRIMARY KEY (book_id, tag)
+);
+)"_zv);
+
     work_.commit();
 }
 
