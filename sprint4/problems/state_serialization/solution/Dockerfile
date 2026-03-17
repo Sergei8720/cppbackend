@@ -7,7 +7,7 @@ RUN apt update && \
       python3-pip \
       cmake \
     && \
-    pip3 install conan==1.63.0  # Фиксированная версия для стабильности
+    pip3 install conan==1.63.0
 
 # Настраиваем Conan
 RUN conan profile new default --detect --force
@@ -42,27 +42,31 @@ RUN apt update && apt install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Устанавливаем Python-зависимости для тестов (как в вашем логе)
+# Устанавливаем Python-зависимости для тестов
 RUN pip3 install pytest==7.1.2 pytest-xprocess==0.20.0 pytest-quickcheck==0.9.0 docker==6.1.3
 
 # Копируем собранный сервер и тесты
 COPY --from=build /app/build/bin/game_server /app/game_server
-# Копируем только бинарники тестов, если они нужны
 COPY --from=build /app/build/bin/collision_tests /app/collision_tests
 COPY --from=build /app/build/bin/game_tests /app/game_tests
 
-# Копируем конфигурационные файлы и данные для тестов
+# Копируем конфигурационные файлы
 COPY ./data /app/data
-# Если тестам нужны исходники Python, копируем их
-COPY ./tests/test_s04_state_serialization.py /app/tests/
+
+# Копируем тестовые файлы Python - ИСПРАВЛЕНО для GitHub Actions
+# Поднимаемся на 4 уровня вверх, чтобы попасть в корень репозитория
+COPY ../../../../tests/test_s04_state_serialization.py /app/tests/
 
 WORKDIR /app
+
+# Создаем директорию для тестов, если её нет
+RUN mkdir -p /app/tests
 
 # Скрипт для запуска сервера и тестов
 RUN echo '#!/bin/bash\n\
 set -e\n\
 echo "Starting game server..."\n\
-./game_server --port 8080 --tick-period 100 --data-dir /app/data &\n\
+./game_server --config-file /app/data/config.json --www-root /app/static/ --state-file /tmp/volume/state &\n\
 SERVER_PID=$!\n\
 \n\
 # Функция для остановки сервера\n\
@@ -90,5 +94,4 @@ echo "Tests completed with exit code $TEST_RESULT"\n\
 exit $TEST_RESULT\n\
 ' > /app/run_tests.sh && chmod +x /app/run_tests.sh
 
-# Запускаем тесты с сервером
 CMD ["/app/run_tests.sh"]

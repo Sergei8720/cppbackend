@@ -38,6 +38,8 @@ public:
     virtual void Save(const Author& author) = 0;
     virtual std::vector<Author> GetAllAuthors() = 0;
     virtual std::optional<Author> GetAuthorBy(const std::string& author_name) = 0;
+    virtual void Delete(const std::string& name) = 0;
+    virtual void UpdateName(const std::string& old_name, const std::string& new_name) = 0;
 
 protected:
     ~AuthorRepository() = default;

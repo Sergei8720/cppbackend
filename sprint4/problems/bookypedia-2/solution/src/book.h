@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <optional>
 
 #include "tagged_uuid.h"
 #include "author.h"
@@ -50,6 +51,10 @@ public:
     virtual void Save(const Book& book) = 0;
     virtual std::vector<Book> GetAllBooks() = 0;
     virtual std::vector<Book> GetBooksBy(const std::string& author_name) = 0;
+    virtual void Delete(const std::string& title) = 0;
+    virtual std::vector<Book> FindByTitle(const std::string& title) = 0;
+    virtual void Update(const std::string& old_title, const std::string& new_title,
+                        const std::optional<int>& new_year, const std::optional<std::string>& new_tags) = 0;
 
 protected:
     ~BookRepository() = default;
