@@ -16,6 +16,9 @@ public:
     void Save(const domain::Author& author) override;
     std::vector<domain::Author> GetAllAuthors() override;
     std::optional<domain::Author> GetAuthorBy(const std::string& author_name) override;
+    std::optional<domain::Author> GetAuthorBy(const domain::AuthorId& id) override;
+    void Delete(const std::string& name) override;
+    void UpdateName(const std::string& old_name, const std::string& new_name) override;
 
 private:
     pqxx::connection& connection_;
@@ -30,7 +33,11 @@ public:
     void Save(const domain::Book& book) override;
     std::vector<domain::Book> GetAllBooks() override;
     std::vector<domain::Book> GetBooksBy(const std::string& author_name) override;
-    
+    void Delete(const std::string& title) override;
+    std::vector<domain::Book> FindByTitle(const std::string& title) override;
+    void Update(const std::string& old_title, const std::string& new_title,
+                const std::optional<int>& new_year, const std::optional<std::string>& new_tags) override;
+
 private:
     pqxx::connection& connection_;
 };

@@ -53,6 +53,17 @@ std::optional<domain::Author> AuthorRepositoryImpl::GetAuthorBy(const std::strin
     return std::nullopt;
 };
 
+std::optional<domain::Author> AuthorRepositoryImpl::GetAuthorBy(const domain::AuthorId& id) {
+    pqxx::read_transaction read_transaction_{connection_};
+    auto query_text = "SELECT * FROM authors WHERE id=" + read_transaction_.quote(id.ToString());
+    auto tmp_author = read_transaction_.query01<std::string, std::string>(query_text);
+    if (tmp_author) {
+        auto [id_str, name] = *tmp_author;
+        return domain::Author(domain::AuthorId::FromString(id_str), name);
+    };
+    return std::nullopt;
+}
+
 void BookRepositoryImpl::Save(const domain::Book& book) {
     pqxx::work work_{connection_};
     work_.exec_params(R"(
@@ -99,13 +110,11 @@ void BookRepositoryImpl::Update(const std::string& old_title, const std::string&
     
     for (const auto& book : books) {
         // Обновляем основную информацию
-        std::string update_query = "UPDATE books SET title=$1";
         if (new_year.has_value()) {
-            update_query += ", publication_year=$2";
-            work_.exec_params(update_query + " WHERE id=$3", 
+            work_.exec_params("UPDATE books SET title=$1, publication_year=$2 WHERE id=$3",
                             new_title, *new_year, book.GetId().ToString());
         } else {
-            work_.exec_params(update_query + " WHERE id=$2",
+            work_.exec_params("UPDATE books SET title=$1 WHERE id=$2",
                             new_title, book.GetId().ToString());
         }
         

@@ -59,7 +59,7 @@ std::vector<std::string> UseCasesImpl::ShowBook(const std::string& title) {
     }
     
     for (const auto& book : books) {
-        auto author = authors_.GetAuthorBy(book.GetAuthorId().ToString());
+        auto author = authors_.GetAuthorBy(book.GetAuthorId());
         if (author) {
             std::stringstream ss;
             ss << "Title: " << book.GetTitle() << std::endl;
@@ -82,7 +82,7 @@ std::vector<std::string> UseCasesImpl::GetAllBooks() {
         books_.GetAllBooks(),
         std::back_inserter(list_of_books),
         [this](auto& book) -> std::string {
-            auto author = authors_.GetAuthorBy(book.GetAuthorId().ToString());
+            auto author = authors_.GetAuthorBy(book.GetAuthorId());
             std::stringstream ss;
             if (author) {
                 ss << book.GetTitle() << " by " << author->GetName() << ", " << book.GetPublicationYear();
