@@ -429,6 +429,7 @@ bool View::EditBook(std::istream& cmd_input) {
         
         auto selected = SelectBookFromList(books, "Enter the book # or empty line to cancel:");
         if (!selected) {
+            output_ << "Book not found" << std::endl;  // При отмене выводим "Book not found"
             return true;
         }
         
@@ -455,8 +456,6 @@ bool View::EditBook(std::istream& cmd_input) {
         std::getline(input_, tags_input);
         
         std::vector<std::string> new_tags;
-        // Важно: если пользователь ввел пустую строку, оставляем вектор пустым
-        // Это сигнал use_cases, что теги не нужно менять
         if (!tags_input.empty()) {
             new_tags = NormalizeTags(tags_input);
         }
