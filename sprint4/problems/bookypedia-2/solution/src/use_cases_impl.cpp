@@ -54,18 +54,17 @@ std::vector<std::string> UseCasesImpl::ShowBook(const std::string& title) {
     std::vector<std::string> result;
     auto books = books_.FindByTitle(title);
     if (books.empty()) {
-        result.push_back("Book not found");
-        return result;
+        return result;  // Пустой список для несуществующей книги
     }
     
     for (const auto& book : books) {
         auto author = authors_.GetAuthorBy(book.GetAuthorId());
         if (author) {
-            std::stringstream ss;
-            ss << "Title: " << book.GetTitle() << std::endl;
-            ss << "Author: " << author->GetName() << std::endl;
-            ss << "Publication year: " << book.GetPublicationYear();
-            result.push_back(ss.str());
+            result.push_back("Title: " + book.GetTitle());
+            result.push_back("Author: " + author->GetName());
+            result.push_back("Publication year: " + std::to_string(book.GetPublicationYear()));
+            
+            // TODO: Добавить теги, если они есть
         }
     }
     return result;

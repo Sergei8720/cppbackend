@@ -3,23 +3,9 @@ catch2/3.1.0
 boost/1.82.0
 
 [generators]
-cmake
+cmake_multi
 cmake_find_package
 txt
 
 [options]
 boost:without_test=True
-boost:shared=False
-boost:iostreams=True
-boost:filesystem=True
-boost:system=True
-boost:thread=True
-boost:chrono=True
-boost:date_time=True
-boost:regex=True
-boost:serialization=True
-boost:program_options=True
-
-[imports]
-bin, *.dll -> ./bin
-lib, *.dylib* -> ./bin

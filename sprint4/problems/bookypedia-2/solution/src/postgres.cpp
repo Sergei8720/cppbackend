@@ -22,6 +22,9 @@ ON CONFLICT (id) DO UPDATE SET name=$2;
 
 void AuthorRepositoryImpl::Delete(const std::string& name) {
     pqxx::work work_{connection_};
+    // Сначала удаляем книги автора (из-за внешних ключей)
+    work_.exec_params("DELETE FROM books WHERE author_id=(SELECT id FROM authors WHERE name=$1)"_zv, name);
+    // Затем удаляем автора
     work_.exec_params("DELETE FROM authors WHERE name=$1"_zv, name);
     work_.commit();
 }
@@ -119,7 +122,7 @@ void BookRepositoryImpl::Update(const std::string& old_title, const std::string&
         }
         
         // Обновляем теги
-        if (new_tags.has_value()) {
+        if (new_tags.has_value() && !new_tags->empty()) {
             // Удаляем старые теги
             work_.exec_params("DELETE FROM book_tags WHERE book_id=$1"_zv, book.GetId().ToString());
             
