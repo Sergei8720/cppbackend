@@ -44,7 +44,6 @@ else()
 endif()
 
 set(CMAKE_PREFIX_PATH ${CONAN_BOOST_ROOT} ${CMAKE_PREFIX_PATH})
-set(Catch2_DIR ${CONAN_CATCH2_ROOT}/lib/cmake/Catch2)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
@@ -153,8 +152,11 @@ target_link_libraries(game_server PRIVATE
 
 # ============= ТЕСТЫ =============
 include(CTest)
-include(${CONAN_BUILD_DIRS_CATCH2}/Catch.cmake)
 
+# Подключаем Catch2 через find_package
+find_package(Catch2 REQUIRED)
+
+# Тест генератора лута
 add_executable(loot_generator_tests
     tests/loot-generator-tests.cpp
 )
@@ -167,12 +169,10 @@ target_include_directories(loot_generator_tests PRIVATE
 
 target_link_libraries(loot_generator_tests PRIVATE
     game_model_lib
-    CONAN_PKG::catch2
+    Catch2::Catch2
 )
 
-target_compile_features(loot_generator_tests PRIVATE cxx_std_20)
-catch_discover_tests(loot_generator_tests)
-
+# Тест детектора коллизий
 add_executable(collision_detection_tests
     tests/collision-detector-tests.cpp
 )
@@ -184,12 +184,10 @@ target_include_directories(collision_detection_tests PRIVATE
 
 target_link_libraries(collision_detection_tests PRIVATE
     collision_detection_lib
-    CONAN_PKG::catch2
+    Catch2::Catch2
 )
 
-target_compile_features(collision_detection_tests PRIVATE cxx_std_20)
-catch_discover_tests(collision_detection_tests)
-
+# Тест сериализации состояния
 add_executable(state_serialization_tests
     tests/state-serialization-tests.cpp
 )
@@ -205,10 +203,13 @@ target_include_directories(state_serialization_tests PRIVATE
 target_link_libraries(state_serialization_tests PRIVATE
     game_model_lib
     game_serialization_lib
-    CONAN_PKG::catch2
+    Catch2::Catch2
 )
 
-target_compile_features(state_serialization_tests PRIVATE cxx_std_20)
+# Регистрируем тесты с Catch2
+include(Catch)
+catch_discover_tests(loot_generator_tests)
+catch_discover_tests(collision_detection_tests)
 catch_discover_tests(state_serialization_tests)
 
 # ============= ТЕСТЫ ДЛЯ ЗАПУСКА ЧЕРЕЗ PYTEST =============
