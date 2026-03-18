@@ -52,9 +52,13 @@ public:
     virtual std::vector<Book> GetAllBooks() = 0;
     virtual std::vector<Book> GetBooksBy(const std::string& author_name) = 0;
     virtual void Delete(const std::string& title) = 0;
+    virtual void DeleteById(const BookId& id) = 0;
     virtual std::vector<Book> FindByTitle(const std::string& title) = 0;
-    virtual void Update(const std::string& old_title, const std::string& new_title,
-                        const std::optional<int>& new_year, const std::optional<std::string>& new_tags) = 0;
+    virtual std::optional<Book> FindById(const BookId& id) = 0;
+    virtual void Update(const BookId& id, const std::string& new_title,
+                       const std::optional<int>& new_year) = 0;
+    virtual void SaveTags(const BookId& book_id, const std::vector<std::string>& tags) = 0;
+    virtual std::vector<std::string> GetTags(const BookId& book_id) = 0;
 
 protected:
     ~BookRepository() = default;

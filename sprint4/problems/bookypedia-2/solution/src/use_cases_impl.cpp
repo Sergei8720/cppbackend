@@ -42,70 +42,116 @@ std::optional<std::string> UseCasesImpl::GetAuthorIdBy(const std::string& author
     return std::nullopt;
 };
 
-void UseCasesImpl::AddBook(const std::string& author_id, const std::string& title, int year) {
-    books_.Save({BookId::New(), AuthorId::FromString(author_id), title, year});
+void UseCasesImpl::AddBook(const std::string& author_id, const std::string& title, int year, const std::vector<std::string>& tags) {
+    auto book_id = BookId::New();
+    books_.Save({book_id, AuthorId::FromString(author_id), title, year});
+    books_.SaveTags(book_id, tags);
 };
 
-void UseCasesImpl::DeleteBook(const std::string& title) {
-    books_.Delete(title);
-}
-
-std::vector<std::string> UseCasesImpl::ShowBook(const std::string& title) {
-    std::vector<std::string> result;
-    auto books = books_.FindByTitle(title);
-    if (books.empty()) {
-        return result;  // Пустой список для несуществующей книги
-    }
+std::vector<BookInfo> UseCasesImpl::GetAllBooks() {
+    std::vector<BookInfo> result;
+    auto books = books_.GetAllBooks();
     
     for (const auto& book : books) {
         auto author = authors_.GetAuthorBy(book.GetAuthorId());
         if (author) {
-            result.push_back("Title: " + book.GetTitle());
-            result.push_back("Author: " + author->GetName());
-            result.push_back("Publication year: " + std::to_string(book.GetPublicationYear()));
-            
-            // TODO: Добавить теги, если они есть
+            auto tags = books_.GetTags(book.GetId());
+            result.push_back({
+                book.GetId().ToString(),
+                book.GetTitle(),
+                author->GetName(),
+                book.GetPublicationYear(),
+                tags
+            });
         }
     }
+    
+    // Сортировка: по названию, по автору, по году
+    std::sort(result.begin(), result.end(),
+        [](const BookInfo& a, const BookInfo& b) {
+            if (a.title != b.title) return a.title < b.title;
+            if (a.author_name != b.author_name) return a.author_name < b.author_name;
+            return a.year < b.year;
+        });
+    
     return result;
-}
-
-void UseCasesImpl::EditBook(const std::string& old_title, const std::string& new_title,
-                           const std::optional<int>& new_year, const std::optional<std::string>& new_tags) {
-    books_.Update(old_title, new_title, new_year, new_tags);
-}
-
-std::vector<std::string> UseCasesImpl::GetAllBooks() {
-    std::vector<std::string> list_of_books;
-    std::ranges::transform(
-        books_.GetAllBooks(),
-        std::back_inserter(list_of_books),
-        [this](auto& book) -> std::string {
-            auto author = authors_.GetAuthorBy(book.GetAuthorId());
-            std::stringstream ss;
-            if (author) {
-                ss << book.GetTitle() << " by " << author->GetName() << ", " << book.GetPublicationYear();
-            } else {
-                ss << book.GetTitle() << ", " << book.GetPublicationYear();
-            }
-            return ss.str();
-        }
-    );
-    return list_of_books;
 };
 
-std::vector<std::string> UseCasesImpl::GetBooksBy(const std::string& author_name) {
-    std::vector<std::string> list_of_books;
-    std::ranges::transform(
-        books_.GetBooksBy(author_name),
-        std::back_inserter(list_of_books),
-        [](auto& book) -> std::string {
-            std::stringstream ss;
-            ss << book.GetTitle() << ", " << book.GetPublicationYear();
-            return ss.str();
+std::vector<BookInfo> UseCasesImpl::GetBooksByAuthor(const std::string& author_name) {
+    std::vector<BookInfo> result;
+    auto books = books_.GetBooksBy(author_name);
+    
+    for (const auto& book : books) {
+        auto author = authors_.GetAuthorBy(book.GetAuthorId());
+        if (author) {
+            auto tags = books_.GetTags(book.GetId());
+            result.push_back({
+                book.GetId().ToString(),
+                book.GetTitle(),
+                author->GetName(),
+                book.GetPublicationYear(),
+                tags
+            });
         }
-    );
-    return list_of_books;
+    }
+    
+    return result;
+};
+
+std::vector<BookInfo> UseCasesImpl::FindBooksByTitle(const std::string& title) {
+    std::vector<BookInfo> result;
+    auto books = books_.FindByTitle(title);
+    
+    for (const auto& book : books) {
+        auto author = authors_.GetAuthorBy(book.GetAuthorId());
+        if (author) {
+            auto tags = books_.GetTags(book.GetId());
+            result.push_back({
+                book.GetId().ToString(),
+                book.GetTitle(),
+                author->GetName(),
+                book.GetPublicationYear(),
+                tags
+            });
+        }
+    }
+    
+    return result;
+};
+
+std::optional<BookInfo> UseCasesImpl::GetBookById(const std::string& id) {
+    auto book = books_.FindById(BookId::FromString(id));
+    if (!book) {
+        return std::nullopt;
+    }
+    
+    auto author = authors_.GetAuthorBy(book->GetAuthorId());
+    if (!author) {
+        return std::nullopt;
+    }
+    
+    auto tags = books_.GetTags(book->GetId());
+    
+    return BookInfo{
+        book->GetId().ToString(),
+        book->GetTitle(),
+        author->GetName(),
+        book->GetPublicationYear(),
+        tags
+    };
+};
+
+void UseCasesImpl::DeleteBook(const std::string& id) {
+    books_.DeleteById(BookId::FromString(id));
+};
+
+void UseCasesImpl::EditBook(const std::string& id, const std::string& new_title,
+                           const std::optional<int>& new_year, const std::vector<std::string>& new_tags) {
+    auto book_id = BookId::FromString(id);
+    books_.Update(book_id, new_title, new_year);
+    if (!new_tags.empty()) {
+        books_.SaveTags(book_id, new_tags);
+    }
 };
 
 }  // namespace app

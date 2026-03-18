@@ -22,11 +22,27 @@ ON CONFLICT (id) DO UPDATE SET name=$2;
 
 void AuthorRepositoryImpl::Delete(const std::string& name) {
     pqxx::work work_{connection_};
-    // Сначала удаляем книги автора (из-за внешних ключей)
-    work_.exec_params("DELETE FROM books WHERE author_id=(SELECT id FROM authors WHERE name=$1)"_zv, name);
-    // Затем удаляем автора
-    work_.exec_params("DELETE FROM authors WHERE name=$1"_zv, name);
-    work_.commit();
+    try {
+        // Сначала удаляем теги книг автора
+        work_.exec_params(R"(
+            DELETE FROM book_tags 
+            WHERE book_id IN (
+                SELECT id FROM books 
+                WHERE author_id = (SELECT id FROM authors WHERE name = $1)
+            )
+        )"_zv, name);
+        
+        // Затем удаляем книги автора
+        work_.exec_params("DELETE FROM books WHERE author_id = (SELECT id FROM authors WHERE name = $1)"_zv, name);
+        
+        // Наконец удаляем автора
+        work_.exec_params("DELETE FROM authors WHERE name = $1"_zv, name);
+        
+        work_.commit();
+    } catch (const std::exception& e) {
+        work_.abort();
+        throw;
+    }
 }
 
 void AuthorRepositoryImpl::UpdateName(const std::string& old_name, const std::string& new_name) {
@@ -69,6 +85,7 @@ std::optional<domain::Author> AuthorRepositoryImpl::GetAuthorBy(const domain::Au
 
 void BookRepositoryImpl::Save(const domain::Book& book) {
     pqxx::work work_{connection_};
+    
     work_.exec_params(R"(
 INSERT INTO books (id, author_id, title, publication_year) VALUES ($1, $2, $3, $4)
 ON CONFLICT (id) DO UPDATE SET author_id=$2, title=$3, publication_year=$4;
@@ -77,13 +94,41 @@ ON CONFLICT (id) DO UPDATE SET author_id=$2, title=$3, publication_year=$4;
                       book.GetAuthorId().ToString(),
                       book.GetTitle(),
                       book.GetPublicationYear());
+    
     work_.commit();
 }
 
 void BookRepositoryImpl::Delete(const std::string& title) {
     pqxx::work work_{connection_};
-    work_.exec_params("DELETE FROM books WHERE title=$1"_zv, title);
-    work_.commit();
+    try {
+        // Сначала удаляем теги книги
+        work_.exec_params(R"(
+            DELETE FROM book_tags 
+            WHERE book_id IN (
+                SELECT id FROM books WHERE title = $1
+            )
+        )"_zv, title);
+        
+        // Затем удаляем книгу
+        work_.exec_params("DELETE FROM books WHERE title = $1"_zv, title);
+        
+        work_.commit();
+    } catch (const std::exception& e) {
+        work_.abort();
+        throw;
+    }
+}
+
+void BookRepositoryImpl::DeleteById(const domain::BookId& id) {
+    pqxx::work work_{connection_};
+    try {
+        work_.exec_params("DELETE FROM book_tags WHERE book_id = $1"_zv, id.ToString());
+        work_.exec_params("DELETE FROM books WHERE id = $1"_zv, id.ToString());
+        work_.commit();
+    } catch (const std::exception& e) {
+        work_.abort();
+        throw;
+    }
 }
 
 std::vector<domain::Book> BookRepositoryImpl::FindByTitle(const std::string& title) {
@@ -103,53 +148,78 @@ std::vector<domain::Book> BookRepositoryImpl::FindByTitle(const std::string& tit
     return books;
 }
 
-void BookRepositoryImpl::Update(const std::string& old_title, const std::string& new_title,
-                                const std::optional<int>& new_year, const std::optional<std::string>& new_tags) {
+std::optional<domain::Book> BookRepositoryImpl::FindById(const domain::BookId& id) {
+    pqxx::read_transaction read_transaction_{connection_};
+    auto query_text = "SELECT id, author_id, title, publication_year FROM books WHERE id=" 
+        + read_transaction_.quote(id.ToString());
+    auto result = read_transaction_.query01<std::string, std::string, std::string, int>(query_text);
+    if (result) {
+        auto [id_str, author_id, title, year] = *result;
+        return domain::Book(
+            domain::BookId::FromString(id_str),
+            domain::AuthorId::FromString(author_id),
+            title,
+            year
+        );
+    }
+    return std::nullopt;
+}
+
+void BookRepositoryImpl::Update(const domain::BookId& id, const std::string& new_title,
+                                const std::optional<int>& new_year) {
     pqxx::work work_{connection_};
     
-    // Сначала получаем книгу
-    auto books = FindByTitle(old_title);
-    if (books.empty()) return;
-    
-    for (const auto& book : books) {
-        // Обновляем основную информацию
+    try {
         if (new_year.has_value()) {
             work_.exec_params("UPDATE books SET title=$1, publication_year=$2 WHERE id=$3",
-                            new_title, *new_year, book.GetId().ToString());
+                            new_title, *new_year, id.ToString());
         } else {
             work_.exec_params("UPDATE books SET title=$1 WHERE id=$2",
-                            new_title, book.GetId().ToString());
+                            new_title, id.ToString());
         }
+        work_.commit();
+    } catch (const std::exception& e) {
+        work_.abort();
+        throw;
+    }
+}
+
+void BookRepositoryImpl::SaveTags(const domain::BookId& book_id, const std::vector<std::string>& tags) {
+    pqxx::work work_{connection_};
+    
+    try {
+        // Удаляем старые теги
+        work_.exec_params("DELETE FROM book_tags WHERE book_id=$1"_zv, book_id.ToString());
         
-        // Обновляем теги
-        if (new_tags.has_value() && !new_tags->empty()) {
-            // Удаляем старые теги
-            work_.exec_params("DELETE FROM book_tags WHERE book_id=$1"_zv, book.GetId().ToString());
-            
-            // Добавляем новые теги
-            std::string tags_str = *new_tags;
-            std::stringstream ss(tags_str);
-            std::string tag;
-            while (std::getline(ss, tag, ',')) {
-                size_t start = tag.find_first_not_of(" ");
-                size_t end = tag.find_last_not_of(" ");
-                if (start != std::string::npos && end != std::string::npos) {
-                    std::string clean_tag = tag.substr(start, end - start + 1);
-                    if (!clean_tag.empty()) {
-                        work_.exec_params("INSERT INTO book_tags (book_id, tag) VALUES ($1, $2)"_zv,
-                                        book.GetId().ToString(), clean_tag);
-                    }
-                }
+        // Добавляем новые теги
+        for (const auto& tag : tags) {
+            if (!tag.empty()) {
+                work_.exec_params("INSERT INTO book_tags (book_id, tag) VALUES ($1, $2)"_zv,
+                                book_id.ToString(), tag);
             }
         }
+        
+        work_.commit();
+    } catch (const std::exception& e) {
+        work_.abort();
+        throw;
     }
-    work_.commit();
+}
+
+std::vector<std::string> BookRepositoryImpl::GetTags(const domain::BookId& book_id) {
+    std::vector<std::string> tags;
+    pqxx::read_transaction read_transaction_{connection_};
+    auto query_text = "SELECT tag FROM book_tags WHERE book_id=" + read_transaction_.quote(book_id.ToString()) + " ORDER BY tag ASC";
+    for (auto [tag] : read_transaction_.query<std::string>(query_text)) {
+        tags.push_back(tag);
+    }
+    return tags;
 }
 
 std::vector<domain::Book> BookRepositoryImpl::GetAllBooks() {
     std::vector<domain::Book> books;
     pqxx::read_transaction read_transaction_{connection_};
-    auto query_text = "SELECT id, author_id, title, publication_year FROM books ORDER BY title ASC"_zv;
+    auto query_text = "SELECT id, author_id, title, publication_year FROM books ORDER BY title ASC, author_id ASC, publication_year ASC"_zv;
     for (auto [id, author_id, title, year] : read_transaction_.query<std::string, std::string, std::string, int>(query_text)) {
         books.emplace_back(
             domain::BookId::FromString(id),
@@ -201,7 +271,7 @@ CREATE TABLE IF NOT EXISTS books (
     work_.exec(R"(
 CREATE TABLE IF NOT EXISTS book_tags (
     book_id UUID REFERENCES books(id) ON DELETE CASCADE,
-    tag varchar(50) NOT NULL,
+    tag varchar(30) NOT NULL,
     PRIMARY KEY (book_id, tag)
 );
 )"_zv);

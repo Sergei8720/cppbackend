@@ -34,9 +34,13 @@ public:
     std::vector<domain::Book> GetAllBooks() override;
     std::vector<domain::Book> GetBooksBy(const std::string& author_name) override;
     void Delete(const std::string& title) override;
+    void DeleteById(const domain::BookId& id) override;
     std::vector<domain::Book> FindByTitle(const std::string& title) override;
-    void Update(const std::string& old_title, const std::string& new_title,
-                const std::optional<int>& new_year, const std::optional<std::string>& new_tags) override;
+    std::optional<domain::Book> FindById(const domain::BookId& id) override;
+    void Update(const domain::BookId& id, const std::string& new_title,
+                const std::optional<int>& new_year) override;
+    void SaveTags(const domain::BookId& book_id, const std::vector<std::string>& tags) override;
+    std::vector<std::string> GetTags(const domain::BookId& book_id) override;
 
 private:
     pqxx::connection& connection_;

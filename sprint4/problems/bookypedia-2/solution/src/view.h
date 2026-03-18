@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <optional>
+#include <functional>
 
 namespace menu {
 class Menu;
@@ -10,6 +11,7 @@ class Menu;
 
 namespace app {
 class UseCases;
+struct BookInfo;
 }
 
 namespace ui {
@@ -35,6 +37,10 @@ private:
     std::vector<std::string> ShowBooksList();
     std::optional<size_t> ChooseAuthor(const std::vector<std::string>& authors);
     std::optional<size_t> ChooseBook(const std::vector<std::string>& books);
+    
+    std::vector<std::string> NormalizeTags(const std::string& tags_input);
+    std::string GetCurrentTagsString(const std::vector<std::string>& tags);
+    std::optional<app::BookInfo> SelectBookFromList(const std::vector<app::BookInfo>& books, const std::string& prompt);
 
     menu::Menu& menu_;
     app::UseCases& use_cases_;

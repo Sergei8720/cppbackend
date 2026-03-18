@@ -19,13 +19,14 @@ public:
     void DeleteAuthor(const std::string& name) override;
     void EditAuthor(const std::string& old_name, const std::string& new_name) override;
     
-    void AddBook(const std::string& author_id, const std::string& title, int year) override;
-    std::vector<std::string> GetAllBooks() override;
-    std::vector<std::string> GetBooksBy(const std::string& author_name) override;
-    void DeleteBook(const std::string& title) override;
-    std::vector<std::string> ShowBook(const std::string& title) override;
-    void EditBook(const std::string& old_title, const std::string& new_title,
-                 const std::optional<int>& new_year, const std::optional<std::string>& new_tags) override;
+    void AddBook(const std::string& author_id, const std::string& title, int year, const std::vector<std::string>& tags) override;
+    std::vector<BookInfo> GetAllBooks() override;
+    std::vector<BookInfo> GetBooksByAuthor(const std::string& author_name) override;
+    std::vector<BookInfo> FindBooksByTitle(const std::string& title) override;
+    std::optional<BookInfo> GetBookById(const std::string& id) override;
+    void DeleteBook(const std::string& id) override;
+    void EditBook(const std::string& id, const std::string& new_title,
+                 const std::optional<int>& new_year, const std::vector<std::string>& new_tags) override;
 
 private:
     domain::AuthorRepository& authors_;
