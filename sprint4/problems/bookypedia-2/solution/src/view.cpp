@@ -94,13 +94,11 @@ bool View::DeleteAuthor(std::istream& cmd_input) {
         if (name.empty()) {
             auto list_of_authors = ShowAuthorsList();
             if (list_of_authors.empty()) {
-                output_ << "Failed to delete author"sv << std::endl;
-                return true;
+                return true;  // Ничего не выводим
             }
             auto index = ChooseAuthor(list_of_authors);
             if (!index) {
-                output_ << "Failed to delete author"sv << std::endl;
-                return true;
+                return true;  // Отмена - ничего не выводим
             }
             name = list_of_authors[*index - 1];
         }
@@ -126,13 +124,11 @@ bool View::EditAuthor(std::istream& cmd_input) {
         if (old_name.empty()) {
             auto list_of_authors = ShowAuthorsList();
             if (list_of_authors.empty()) {
-                output_ << "Failed to edit author"sv << std::endl;
-                return true;
+                return true;  // Ничего не выводим
             }
             auto index = ChooseAuthor(list_of_authors);
             if (!index) {
-                output_ << "Failed to edit author"sv << std::endl;
-                return true;
+                return true;  // Отмена - ничего не выводим
             }
             old_name = list_of_authors[*index - 1];
         }
@@ -183,8 +179,7 @@ bool View::AddBook(std::istream& cmd_input) {
             boost::algorithm::trim(author_name);
             
             if (author_name.empty()) {
-                // Отмена добавления
-                return true;
+                return true;  // Отмена - ничего не выводим
             }
             
             output_ << "No author found. Do you want to add " << author_name << " (y/n)?" << std::endl;
@@ -210,8 +205,7 @@ bool View::AddBook(std::istream& cmd_input) {
             auto list_of_authors = ShowAuthorsList();
             auto index = ChooseAuthor(list_of_authors);
             if (!index) {
-                // Отмена выбора
-                return true;
+                return true;  // Отмена - ничего не выводим
             }
             
             std::string author_name = list_of_authors[*index - 1];
@@ -224,7 +218,6 @@ bool View::AddBook(std::istream& cmd_input) {
             use_cases_.AddBook(*author_id, title, year);
         }
         
-        // Запрос тегов
         output_ << "Enter tags (comma-separated) or empty line:" << std::endl;
         std::string tags;
         std::getline(input_, tags);
@@ -259,7 +252,7 @@ bool View::ShowAuthorBooks() {
         }
         auto index = ChooseAuthor(list_of_authors);
         if (!index) {
-            return true;
+            return true;  // Отмена - ничего не выводим
         }
         auto books = use_cases_.GetBooksBy(list_of_authors[*index - 1]);
         size_t count = 1;
@@ -285,7 +278,7 @@ bool View::ShowBook(std::istream& cmd_input) {
             }
             auto index = ChooseBook(list_of_books);
             if (!index) {
-                return true;
+                return true;  // Отмена - ничего не выводим
             }
             // Извлекаем название из строки вида "1 Title by Author, Year"
             std::string book_line = list_of_books[*index - 1];
@@ -300,11 +293,6 @@ bool View::ShowBook(std::istream& cmd_input) {
         }
         
         auto book_info = use_cases_.ShowBook(title);
-        if (book_info.empty()) {
-            output_ << "Book not found" << std::endl;
-            return true;
-        }
-        
         for (const auto& line : book_info) {
             output_ << line << std::endl;
         }
@@ -323,13 +311,11 @@ bool View::DeleteBook(std::istream& cmd_input) {
         if (title.empty()) {
             auto list_of_books = ShowBooksList();
             if (list_of_books.empty()) {
-                output_ << "Failed to delete book"sv << std::endl;
-                return true;
+                return true;  // Ничего не выводим
             }
             auto index = ChooseBook(list_of_books);
             if (!index) {
-                output_ << "Failed to delete book"sv << std::endl;
-                return true;
+                return true;  // Отмена - ничего не выводим
             }
             std::string book_line = list_of_books[*index - 1];
             size_t pos = book_line.find(' ');
@@ -358,13 +344,11 @@ bool View::EditBook(std::istream& cmd_input) {
         if (old_title.empty()) {
             auto list_of_books = ShowBooksList();
             if (list_of_books.empty()) {
-                output_ << "Failed to edit book"sv << std::endl;
-                return true;
+                return true;  // Ничего не выводим
             }
             auto index = ChooseBook(list_of_books);
             if (!index) {
-                output_ << "Failed to edit book"sv << std::endl;
-                return true;
+                return true;  // Отмена - ничего не выводим
             }
             std::string book_line = list_of_books[*index - 1];
             size_t pos = book_line.find(' ');
