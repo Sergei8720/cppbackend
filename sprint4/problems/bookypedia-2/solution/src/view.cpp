@@ -102,7 +102,7 @@ bool View::DeleteAuthor(std::istream& cmd_input) {
             }
             auto index = ChooseAuthor(list_of_authors);
             if (!index) {
-                return true;
+                return true;  // Отмена - ничего не выводим
             }
             name = list_of_authors[*index - 1];
         }
@@ -132,7 +132,7 @@ bool View::EditAuthor(std::istream& cmd_input) {
             }
             auto index = ChooseAuthor(list_of_authors);
             if (!index) {
-                return true;
+                return true;  // Отмена - ничего не выводим
             }
             old_name = list_of_authors[*index - 1];
         }
@@ -310,31 +310,32 @@ std::optional<app::BookInfo> View::SelectBookFromList(const std::vector<app::Boo
         return books[0];
     }
     
-    size_t count = 1;
-    for (const auto& book : books) {
-        output_ << count++ << " " << book.title << " by " << book.author_name << ", " << book.year << std::endl;
-    }
-    output_ << prompt << std::endl;
-    
-    std::string input;
-    std::getline(input_, input);
-    boost::algorithm::trim(input);
-    
-    if (input.empty()) {
-        return std::nullopt;
-    }
-    
-    try {
-        size_t index = std::stoul(input);
-        if (index >= 1 && index <= books.size()) {
-            return books[index - 1];
+    while (true) {
+        size_t count = 1;
+        for (const auto& book : books) {
+            output_ << count++ << " " << book.title << " by " << book.author_name << ", " << book.year << std::endl;
         }
-    } catch (...) {
-        // ignore
+        output_ << prompt << std::endl;
+        
+        std::string input;
+        std::getline(input_, input);
+        boost::algorithm::trim(input);
+        
+        if (input.empty()) {
+            return std::nullopt;
+        }
+        
+        try {
+            size_t index = std::stoul(input);
+            if (index >= 1 && index <= books.size()) {
+                return books[index - 1];
+            }
+        } catch (...) {
+            // ignore
+        }
+        
+        output_ << "Invalid book. Retry attempt." << std::endl;
     }
-    
-    output_ << "Invalid book. Retry attempt." << std::endl;
-    return SelectBookFromList(books, prompt);
 }
 
 bool View::ShowBook(std::istream& cmd_input) {
@@ -351,6 +352,10 @@ bool View::ShowBook(std::istream& cmd_input) {
         } else {
             // Поиск по названию
             books = use_cases_.FindBooksByTitle(title);
+        }
+        
+        if (books.empty()) {
+            return true;  // Ничего не выводим
         }
         
         auto selected = SelectBookFromList(books, "Enter the book # or empty line to cancel:");
@@ -386,16 +391,19 @@ bool View::DeleteBook(std::istream& cmd_input) {
             books = use_cases_.FindBooksByTitle(title);
         }
         
+        if (books.empty()) {
+            return true;  // Ничего не выводим
+        }
+        
         auto selected = SelectBookFromList(books, "Enter the book # or empty line to cancel:");
         if (!selected) {
-            output_ << "Failed to delete book"sv << std::endl;
-            return true;
+            return true;  // Отмена - ничего не выводим
         }
         
         use_cases_.DeleteBook(selected->id);
         
-    } catch (const std::exception&) {
-        output_ << "Failed to delete book"sv << std::endl;
+    } catch (const std::exception& e) {
+        output_ << "Failed to delete book" << std::endl;
     }
     return true;
 }
@@ -414,9 +422,13 @@ bool View::EditBook(std::istream& cmd_input) {
             books = use_cases_.FindBooksByTitle(title);
         }
         
+        if (books.empty()) {
+            output_ << "Book not found" << std::endl;
+            return true;
+        }
+        
         auto selected = SelectBookFromList(books, "Enter the book # or empty line to cancel:");
         if (!selected) {
-            output_ << "Book not found"sv << std::endl;
             return true;
         }
         
@@ -424,9 +436,6 @@ bool View::EditBook(std::istream& cmd_input) {
         std::string new_title;
         std::getline(input_, new_title);
         boost::algorithm::trim(new_title);
-        if (new_title.empty()) {
-            new_title = selected->title;
-        }
         
         output_ << "Enter publication year or empty line to use the current one (" << selected->year << "):" << std::endl;
         std::string year_str;
@@ -446,14 +455,17 @@ bool View::EditBook(std::istream& cmd_input) {
         std::getline(input_, tags_input);
         
         std::vector<std::string> new_tags;
+        // Важно: если пользователь ввел пустую строку, оставляем вектор пустым
+        // Это сигнал use_cases, что теги не нужно менять
         if (!tags_input.empty()) {
             new_tags = NormalizeTags(tags_input);
         }
+        // Если tags_input пустой, new_tags остается пустым, и теги не обновляются
         
         use_cases_.EditBook(selected->id, new_title, new_year, new_tags);
         
-    } catch (const std::exception&) {
-        output_ << "Failed to edit book"sv << std::endl;
+    } catch (const std::exception& e) {
+        output_ << "Failed to edit book" << std::endl;
     }
     return true;
 }

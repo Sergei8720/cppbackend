@@ -48,6 +48,14 @@ void UseCasesImpl::AddBook(const std::string& author_id, const std::string& titl
     books_.SaveTags(book_id, tags);
 };
 
+void UseCasesImpl::DeleteBook(const std::string& id) {
+    auto book = books_.FindById(BookId::FromString(id));
+    if (!book) {
+        throw std::runtime_error("Book not found");
+    }
+    books_.DeleteById(BookId::FromString(id));
+};
+
 std::vector<BookInfo> UseCasesImpl::GetAllBooks() {
     std::vector<BookInfo> result;
     auto books = books_.GetAllBooks();
@@ -141,17 +149,22 @@ std::optional<BookInfo> UseCasesImpl::GetBookById(const std::string& id) {
     };
 };
 
-void UseCasesImpl::DeleteBook(const std::string& id) {
-    books_.DeleteById(BookId::FromString(id));
-};
-
 void UseCasesImpl::EditBook(const std::string& id, const std::string& new_title,
                            const std::optional<int>& new_year, const std::vector<std::string>& new_tags) {
-    auto book_id = BookId::FromString(id);
-    books_.Update(book_id, new_title, new_year);
-    if (!new_tags.empty()) {
-        books_.SaveTags(book_id, new_tags);
+    auto book = books_.FindById(BookId::FromString(id));
+    if (!book) {
+        throw std::runtime_error("Book not found");
     }
+    
+    // Обновляем основную информацию, если она изменилась
+    std::string title_to_use = new_title.empty() ? book->GetTitle() : new_title;
+    books_.Update(BookId::FromString(id), title_to_use, new_year);
+    
+    // Обновляем теги, только если они были предоставлены (не пустой вектор)
+    if (!new_tags.empty()) {
+        books_.SaveTags(BookId::FromString(id), new_tags);
+    }
+    // Если new_tags пустой, оставляем текущие теги без изменений
 };
 
 }  // namespace app
