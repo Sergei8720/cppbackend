@@ -37,8 +37,9 @@ if(NOT CONAN_BUILDINFO_FOUND)
     message(FATAL_ERROR "❌ conanbuildinfo file not found!")
 endif()
 
-# ВАЖНО: Добавляем путь к сгенерированным Conan файлам в CMAKE_MODULE_PATH
+# ВАЖНО: Добавляем путь к сгенерированным Conan файлам в CMAKE_MODULE_PATH и CMAKE_PREFIX_PATH
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_MODULE_PATH})
+set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_PREFIX_PATH})
 
 if(CONAN_IS_MULTI)
     conan_basic_setup(TARGETS)
@@ -156,8 +157,13 @@ target_link_libraries(game_server PRIVATE
 # ============= ТЕСТЫ =============
 include(CTest)
 
-# Подключаем Catch2 через find_package с CONFIG режимом
-find_package(Catch2 REQUIRED CONFIG)
+# ВАЖНО: Сначала пытаемся найти Catch2 через CONFIG режим с указанием пути
+find_package(Catch2 CONFIG QUIET PATHS ${CMAKE_BINARY_DIR})
+
+if(NOT Catch2_FOUND)
+    # Если не нашли через CONFIG, пробуем через модульный режим
+    find_package(Catch2 REQUIRED MODULE)
+endif()
 
 # Тест генератора лута
 add_executable(loot_generator_tests
