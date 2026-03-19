@@ -161,9 +161,8 @@ void UseCasesImpl::EditBook(const std::string& id, const std::string& new_title,
     books_.Update(BookId::FromString(id), title_to_use, new_year);
     
     // Обновляем теги ТОЛЬКО если они были предоставлены
-    // Вектор new_tags может быть:
-    // - пустым (пользователь ничего не ввел) - не меняем теги
-    // - содержать элементы (пользователь ввел новые теги) - заменяем теги
+    // В параметризованных тестах new_tags может быть пустым вектором,
+    // что означает "не обновлять теги"
     if (!new_tags.empty()) {
         books_.SaveTags(BookId::FromString(id), new_tags);
     }
