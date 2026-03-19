@@ -45,6 +45,7 @@ std::optional<std::string> UseCasesImpl::GetAuthorIdBy(const std::string& author
 void UseCasesImpl::AddBook(const std::string& author_id, const std::string& title, int year, const std::vector<std::string>& tags) {
     auto book_id = BookId::New();
     books_.Save({book_id, AuthorId::FromString(author_id), title, year});
+    // Сохраняем теги только если они не пустые
     if (!tags.empty()) {
         books_.SaveTags(book_id, tags);
     }
