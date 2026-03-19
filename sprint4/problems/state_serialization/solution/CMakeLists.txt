@@ -179,6 +179,7 @@ target_include_directories(loot_generator_tests PRIVATE
 target_link_libraries(loot_generator_tests PRIVATE
     game_model_lib
     Catch2::Catch2
+    Catch2::Catch2WithMain
 )
 
 # Тест детектора коллизий
@@ -194,6 +195,7 @@ target_include_directories(collision_detection_tests PRIVATE
 target_link_libraries(collision_detection_tests PRIVATE
     collision_detection_lib
     Catch2::Catch2
+    Catch2::Catch2WithMain
 )
 
 # Тест сериализации состояния
@@ -213,6 +215,7 @@ target_link_libraries(state_serialization_tests PRIVATE
     game_model_lib
     game_serialization_lib
     Catch2::Catch2
+    Catch2::Catch2WithMain
 )
 
 # Регистрируем тесты с Catch2
