@@ -13,12 +13,13 @@
 #include <unordered_map>
 #include <functional>
 #include <fstream>
+#include <optional>
 
 namespace app {
 
 namespace net = boost::asio;
 
-class Application  : public std::enable_shared_from_this<Application>{
+class Application : public std::enable_shared_from_this<Application> {
 public:
     using AppStrand = net::strand<net::io_context::executor_type>;
 
@@ -46,8 +47,17 @@ public:
     std::shared_ptr<GameSession> FindGameSessionBy(const model::Map::Id& id) const noexcept;
     std::shared_ptr<GameSession> FindGameSessionBy(const authentication::Token& token) const noexcept;
     const std::vector< std::shared_ptr<app::GameSession> >& GetSessions();
-    void RestoreGameState(saving::SavingSettings saving_settings);
-    void SaveGame();
+    
+    // Методы для сохранения/восстановления состояния
+    void SetupStateSaving(const std::string& state_file_path, size_t save_period_ms);
+    void SaveGameState();
+    bool LoadGameState(const std::string& state_file_path, net::io_context& ioc);
+    
+    // Вспомогательные методы для сериализации
+    std::optional<authentication::Token> FindTokenByPlayer(const Player::Id& player_id) const;
+    void RestorePlayer(const authentication::Token& token, std::shared_ptr<Player> player, 
+                       std::shared_ptr<GameSession> session);
+
 private:
     using GameSessionIdHasher = util::TaggedHasher<GameSession::Id>;
     using GameSessionIdToIndex = std::unordered_map<GameSession::Id,
@@ -61,6 +71,7 @@ private:
                                     authentication::TokenHasher >;
     using GameSessionToTokenPlayerPair = std::unordered_map<std::shared_ptr<GameSession>,
                                                             TokenToPlayer>;
+    using PlayerIdToToken = std::unordered_map<Player::Id, authentication::Token, util::TaggedHasher<Player::Id>>;
 
     model::Game game_;
     std::chrono::milliseconds tick_period_;
@@ -72,16 +83,34 @@ private:
     std::vector< std::shared_ptr<app::GameSession> > sessions_;
     MapIdToSessionIndex map_id_to_session_index_;
     AuthTokenToSessionIndex auth_token_to_session_index_;
-    saving::SavingSettings saving_settings_;
     GameSessionToTokenPlayerPair game_session_to_token_player_pair_;
-    std::shared_ptr<time_m::Ticker> save_game_ticker_;
+    PlayerIdToToken player_id_to_token_;  // Для обратного поиска токена по ID игрока
+    
+    // Параметры сохранения состояния
+    std::optional<std::string> state_file_path_;
+    std::chrono::milliseconds save_state_period_{0};
+    std::shared_ptr<time_m::Ticker> save_state_ticker_;
+    int64_t time_since_last_save_{0};
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);
     void BoundPlayerAndGameSession(std::shared_ptr<Player> player,
                                     std::shared_ptr<GameSession> session);
-    void SaveGameState(const std::chrono::milliseconds& delta_time);
-    std::vector<game_data_ser::GameSessionSerialization> GetSerializedData();
-    void RestoreGame();
+    void OnSaveStateTimer(const std::chrono::milliseconds& delta_time);
+    
+    // Структура для полной сериализации состояния игры
+    struct GameStateSerialization {
+        std::vector<game_data_ser::GameSessionSerialization> sessions;
+        std::vector<game_data_ser::PlayerSerialization> players;
+        
+        template <typename Archive>
+        void serialize(Archive& ar, [[maybe_unused]] const unsigned int version) {
+            ar& sessions;
+            ar& players;
+        }
+    };
+    
+    GameStateSerialization GetSerializedState();
+    bool RestoreFromSerializedState(const GameStateSerialization& state, net::io_context& ioc);
 };
 
 }
