@@ -45,7 +45,9 @@ std::optional<std::string> UseCasesImpl::GetAuthorIdBy(const std::string& author
 void UseCasesImpl::AddBook(const std::string& author_id, const std::string& title, int year, const std::vector<std::string>& tags) {
     auto book_id = BookId::New();
     books_.Save({book_id, AuthorId::FromString(author_id), title, year});
-    books_.SaveTags(book_id, tags);
+    if (!tags.empty()) {
+        books_.SaveTags(book_id, tags);
+    }
 };
 
 void UseCasesImpl::DeleteBook(const std::string& id) {
@@ -160,8 +162,8 @@ void UseCasesImpl::EditBook(const std::string& id, const std::string& new_title,
     std::string title_to_use = new_title.empty() ? book->GetTitle() : new_title;
     books_.Update(BookId::FromString(id), title_to_use, new_year);
     
-    // Обновляем теги ТОЛЬКО если они были предоставлены
-    // В параметризованных тестах new_tags может быть пустым вектором,
+    // Обновляем теги ТОЛЬКО если они были предоставлены (вектор не пустой)
+    // В параметризованных тестах new_tags = False передается как пустой вектор,
     // что означает "не обновлять теги"
     if (!new_tags.empty()) {
         books_.SaveTags(BookId::FromString(id), new_tags);
