@@ -8,7 +8,6 @@
 #include <boost/json/array.hpp>
 #include <boost/json.hpp>
 
-
 #include <iostream>
 
 namespace json_converter{
@@ -33,80 +32,78 @@ std::string CreateMapNotFoundResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "mapNotFound"},
                         {json_keys::RESPONSE_MESSAGE, "Map not found"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreateBadRequestResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "badRequest"},
                         {json_keys::RESPONSE_MESSAGE, "Bad request"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreatePageNotFoundResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "pageNotFound"},
                         {json_keys::RESPONSE_MESSAGE, "Page not found"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreateOnlyPostMethodAllowedResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "invalidMethod"},
                         {json_keys::RESPONSE_MESSAGE, "Only POST method is expected"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreateJoinToGameInvalidArgumentResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "invalidArgument"},
                         {json_keys::RESPONSE_MESSAGE, "Join game request parse error"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreateJoinToGameMapNotFoundResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "mapNotFound"},
                         {json_keys::RESPONSE_MESSAGE, "Map not found"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreateJoinToGameEmptyPlayerNameResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "invalidArgument"},
                         {json_keys::RESPONSE_MESSAGE, "Invalid name"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreateInvalidMethodResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "invalidMethod"},
                         {json_keys::RESPONSE_MESSAGE, "Invalid method"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreateEmptyAuthorizationResponse() {
-    //json::value msg = {{json_keys::RESPONSE_CODE, "invalidToken"},
-    //                    {json_keys::RESPONSE_MESSAGE, "Authorization header is missing"}}; // todo: different messages
     json::value msg = {{json_keys::RESPONSE_CODE, "invalidToken"},
                         {json_keys::RESPONSE_MESSAGE, "Authorization header is required"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreateUnknownTokenResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "unknownToken"},
                         {json_keys::RESPONSE_MESSAGE, "Player token has not been found"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreatePlayerActionResponse() {
     json::object msg = {};
     return json::serialize(msg);
-};
+}
 
 std::string CreatePlayerActionInvalidActionResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "invalidArgument"},
                         {json_keys::RESPONSE_MESSAGE, "Failed to parse action"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreateInvalidContentTypeResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "invalidArgument"},
                         {json_keys::RESPONSE_MESSAGE, "Invalid content type"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreatePlayersListOnMapResponse(const std::vector< std::shared_ptr<app::Player> >& players) {
     json::value jv;
@@ -118,7 +115,7 @@ std::string CreatePlayersListOnMapResponse(const std::vector< std::shared_ptr<ap
         obj[ss.str()] = jv_item;
     }
     return json::serialize(jv);
-};
+}
 
 std::string CreateGameStateResponse(const std::vector< std::shared_ptr<app::Player> >& players,
                                     const app::GameSession::LostObjects& lost_objects) {
@@ -158,30 +155,30 @@ std::string CreateGameStateResponse(const std::vector< std::shared_ptr<app::Play
     res[json_keys::LOST_OBJECTS] = loots;
     jv.emplace_object() = res;
     return json::serialize(jv);
-};
+}
 
 std::string CreateJoinToGameResponse(const std::string& token, size_t player_id) {
     json::value msg = {{json_keys::RESPONSE_AUTHORISATION_TOKEN, token},
                         {json_keys::RESPONSE_PLAYER_ID, player_id}};
     return json::serialize(msg);
-};
+}
 
 std::string CreateSetDeltaTimeResponse() {
     json::object msg = {};
     return json::serialize(msg);
-};
+}
 
 std::string CreateSetDeltaTimeInvalidMsgResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "invalidArgument"},
                         {json_keys::RESPONSE_MESSAGE, "Failed to parse tick request JSON"}};
     return json::serialize(msg);
-};
+}
 
 std::string CreateInvalidEndpointResponse() {
     json::value msg = {{json_keys::RESPONSE_CODE, "badRequest"},
                         {json_keys::RESPONSE_MESSAGE, "Invalid endpoint"}};
     return json::serialize(msg);
-};
+}
 
 std::optional< std::tuple<std::string, model::Map::Id> > ParseJoinToGameRequest(const std::string& msg) {
     try {
@@ -189,20 +186,22 @@ std::optional< std::tuple<std::string, model::Map::Id> > ParseJoinToGameRequest(
         std::string player_name = json::value_to<std::string>(jv.as_object().at(json_keys::REQUEST_PLAYER_NAME));
         model::Map::Id map_id{json::value_to<std::string>(jv.as_object().at(json_keys::REQUEST_MAP_ID))};
         return std::tie(player_name, map_id);
-    } catch(...) {
+    } catch(const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "Failed to parse join request: " << e.what();
         return std::nullopt;
     }
-};
+}
 
 std::optional<std::string> ParsePlayerActionRequest(const std::string& msg) {
     try {
         json::value jv = json::parse(msg);
         std::string direction = json::value_to<std::string>(jv.as_object().at(json_keys::REQUEST_PLAYER_MOVE));
         return direction;
-    } catch(...) {
+    } catch(const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "Failed to parse action request: " << e.what();
         return std::nullopt;
     }
-};
+}
 
 std::optional<int> ParseSetDeltaTimeRequest(const std::string& msg) {
     try {
@@ -212,10 +211,10 @@ std::optional<int> ParseSetDeltaTimeRequest(const std::string& msg) {
         }
         int time_delta = json::value_to<int>(jv.as_object().at(json_keys::REQUEST_TIME_DELTA));
         return time_delta;
-    } catch(...) {
+    } catch(const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "Failed to parse delta time request: " << e.what();
         return std::nullopt;
     }
-};
-
+}
 
 }

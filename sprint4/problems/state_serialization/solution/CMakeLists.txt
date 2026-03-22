@@ -101,7 +101,6 @@ add_executable(game_server
     src/app/game_session.cpp
     src/app/player.cpp
     src/web/server/http_server.cpp
-    src/web/request_handlers/request_handler.cpp
     src/middleware/program_options/program_options.cpp
     src/middleware/time_management/ticker.cpp
     src/middleware/error_handling/error_report.cpp
