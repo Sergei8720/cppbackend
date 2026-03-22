@@ -12,10 +12,7 @@ StateSerializer::StateSerializer(Application& application,
     , save_period_(save_period) {
     saving_settings_.state_file_path = state_file;
     saving_settings_.period = save_period;
-}
-
-void StateSerializer::SetSavingSettings(const saving::SavingSettings& settings) {
-    saving_settings_ = settings;
+    app_.SetSavingSettings(saving_settings_);  // ДОБАВЛЕНО - передаем настройки в Application
 }
 
 void StateSerializer::SaveState() {

@@ -33,7 +33,6 @@ public:
     void SaveState();
     bool LoadState(net::io_context& ioc);
     void StartPeriodicSaving(net::io_context& ioc);
-    void SetSavingSettings(const saving::SavingSettings& settings);
 
 private:
     Application& app_;
