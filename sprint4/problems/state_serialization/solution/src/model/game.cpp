@@ -61,7 +61,7 @@ void Game::AddLootGeneratorConfig(LootGeneratorConfig cfg) {
     loot_gen_cfg_ = std::move(cfg);
 };
 
-const LootGeneratorConfig& Game::GetLootGeneratorConfig() {
+const LootGeneratorConfig& Game::GetLootGeneratorConfig() const {  // ИСПРАВЛЕНО: добавлен const
     return loot_gen_cfg_;
 };
 
