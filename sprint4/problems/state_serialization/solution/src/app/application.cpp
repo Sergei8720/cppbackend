@@ -146,6 +146,12 @@ void Application::RestorePlayer(const authentication::Token& token,
     game_session_to_token_player_pair_[session][token] = player;
     players_.push_back(player);
     session->AddPlayer(player);
+    
+    // Добавляем собаку в сессию, если она есть
+    auto dog = player->GetDog().lock();
+    if (dog) {
+        session->AddDog(dog);
+    }
 };
 
 void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
@@ -170,14 +176,18 @@ void Application::SaveGame() {
 
     std::string temp_file = saving_settings_.state_file_path.value() + ".tmp";
     std::fstream output_fstream;
-    output_fstream.open(temp_file, std::ios_base::out);
+    output_fstream.open(temp_file, std::ios_base::out | std::ios_base::trunc);
     if (output_fstream.is_open()) {
         {
             boost::archive::text_oarchive oarchive{output_fstream};
             oarchive << sessions_ser;
         }
         output_fstream.close();
-        std::filesystem::rename(temp_file, saving_settings_.state_file_path.value());
+        std::error_code ec;
+        std::filesystem::rename(temp_file, saving_settings_.state_file_path.value(), ec);
+        if (ec) {
+            BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
+        }
     }
 };
 

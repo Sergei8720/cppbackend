@@ -10,9 +10,9 @@ StateSerializer::StateSerializer(Application& application,
     : app_(application)
     , state_file_(state_file)
     , save_period_(save_period) {
-    saving_settings_.state_file_path = state_file;
+    saving_settings_.state_file_path = state_file.string();
     saving_settings_.period = save_period;
-    app_.SetSavingSettings(saving_settings_);  // ДОБАВЛЕНО - передаем настройки в Application
+    app_.SetSavingSettings(saving_settings_);
 }
 
 void StateSerializer::SaveState() {
@@ -52,9 +52,13 @@ void StateSerializer::SaveState() {
         ofs.close();
         
         // Атомарно переименовываем
-        std::filesystem::rename(temp_file_, state_file_);
-        
-        BOOST_LOG_TRIVIAL(info) << "Game state saved to " << state_file_.string();
+        std::error_code ec;
+        std::filesystem::rename(temp_file_, state_file_, ec);
+        if (ec) {
+            BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
+        } else {
+            BOOST_LOG_TRIVIAL(info) << "Game state saved to " << state_file_.string();
+        }
         
     } catch (const std::exception& e) {
         BOOST_LOG_TRIVIAL(error) << "Failed to save game state: " << e.what();
@@ -110,6 +114,8 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 
                 // Восстанавливаем связь player-dog
                 player->SetDog(dog);
+                
+                // Добавляем собаку в сессию
                 session->AddDog(dog);
                 
                 // Восстанавливаем токен

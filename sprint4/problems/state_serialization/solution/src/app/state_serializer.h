@@ -3,6 +3,7 @@
 #include "game_serialization.h"
 #include "ticker.h"
 #include "logger.h"
+#include "saving_settings.h"
 #include <filesystem>
 #include <fstream>
 #include <boost/archive/text_oarchive.hpp>

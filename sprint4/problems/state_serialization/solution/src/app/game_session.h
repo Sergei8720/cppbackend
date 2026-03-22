@@ -66,6 +66,11 @@ public:
     void AddDog(std::shared_ptr<model::Dog> dog);
     void AddPlayer(std::shared_ptr<Player> player);
     const std::vector<std::shared_ptr<Player>>& GetPlayers() const { return players_; }
+    const Dogs& GetDogs() const { return dogs_; }
+    
+    void RestoreDog(std::shared_ptr<model::Dog> dog) {
+        dogs_[dog->GetId()] = dog;
+    }
     
 private:
     std::shared_ptr<model::Map> map_;

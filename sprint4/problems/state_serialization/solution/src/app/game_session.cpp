@@ -61,6 +61,10 @@ void GameSession::AddLostObject(std::shared_ptr<model::LostObject> lost_object) 
     lost_objects_[lost_object->GetId()] = lost_object;
 };
 
+void GameSession::AddDog(std::shared_ptr<model::Dog> dog) {
+    dogs_[dog->GetId()] = dog;
+};
+
 void GameSession::UpdateGameState(const GameSession::TimeInterval& delta_time) {
     for(auto [dog_id, dog] : dogs_) {
         auto [new_position, new_velocity] = map_->GetValidMove(
@@ -163,10 +167,6 @@ void GameSession::DropLoot(const model::ItemDogProvider& provider, size_t item_i
         }
         dog->DropLostObjectsFromBag();
     }
-};
-
-void GameSession::AddDog(std::shared_ptr<model::Dog> dog) {
-    dogs_[dog->GetId()] = dog;
 };
 
 void GameSession::AddPlayer(std::shared_ptr<Player> player) {
