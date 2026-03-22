@@ -4,11 +4,17 @@ project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -Wall")
 
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup(TARGETS)
+# Подключаем файлы, сгенерированные Conan
+if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+    include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+    conan_basic_setup(TARGETS)
+else()
+    message(WARNING "Conan build info not found. Make sure to run 'conan install' first.")
+endif()
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+# Поиск Boost через find_package (работает с cmake_find_package генератором)
 find_package(Boost 1.78.0 REQUIRED)
 if(Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
@@ -22,7 +28,7 @@ add_library(collision_detection_lib STATIC
 	src/model/physics/collision_detector.cpp
 	src/model/physics/geom.h
 )
-target_link_libraries(collision_detection_lib PUBLIC CONAN_PKG::boost Threads::Threads)
+target_link_libraries(collision_detection_lib PUBLIC Threads::Threads)
 
 add_library(game_model_lib STATIC
 	src/model/map.cpp
@@ -38,12 +44,11 @@ add_library(game_model_lib STATIC
 	src/middleware/utils/random_generators.cpp
 )
 target_include_directories(game_model_lib PUBLIC 
-	${ZLIB_INCLUDES}
 	src/model
 	src/model/physics
 	src/middleware/utils
 )
-target_link_libraries(game_model_lib PUBLIC ${BOOST_LIB} ${ZLIB_LIB} collision_detection_lib)
+target_link_libraries(game_model_lib PUBLIC Threads::Threads collision_detection_lib)
 
 add_executable(game_server
 	src/main.cpp
@@ -83,21 +88,22 @@ target_include_directories(game_server PRIVATE
 	src/middleware/error_handling
 	src/middleware/game_data_store
 )
-target_link_libraries(game_server PRIVATE Threads::Threads CONAN_PKG::boost game_model_lib)
+target_link_libraries(game_server PRIVATE Threads::Threads game_model_lib)
 
-include(CTest)
-include(${CONAN_BUILD_DIRS_CATCH2}/Catch.cmake)
+# Поиск Catch2 (работает с cmake_find_package генератором)
+find_package(Catch2 3.1.0 REQUIRED)
+include(Catch)
 
 add_executable(game_server_tests
 	tests/loot-generator-tests.cpp
 )
-target_link_libraries(game_server_tests PRIVATE CONAN_PKG::catch2 game_model_lib)
+target_link_libraries(game_server_tests PRIVATE Catch2::Catch2 game_model_lib)
 catch_discover_tests(game_server_tests)
 
 add_executable(collision_detection_tests
 	tests/collision-detector-tests.cpp
 )
-target_link_libraries(collision_detection_tests CONAN_PKG::catch2 collision_detection_lib)
+target_link_libraries(collision_detection_tests PRIVATE Catch2::Catch2 collision_detection_lib)
 catch_discover_tests(collision_detection_tests)
 
 add_executable(state_serialization_tests
@@ -109,7 +115,7 @@ target_include_directories(state_serialization_tests PRIVATE
 	src/middleware/game_data_store
 	src/model/physics
 )
-target_link_libraries(state_serialization_tests CONAN_PKG::catch2 collision_detection_lib)
+target_link_libraries(state_serialization_tests PRIVATE Catch2::Catch2 collision_detection_lib)
 catch_discover_tests(state_serialization_tests)
 
 # Boost.Beast будет использовать std::string_view вместо boost::string_view

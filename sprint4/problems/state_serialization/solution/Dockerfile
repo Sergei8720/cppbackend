@@ -16,7 +16,7 @@ RUN conan profile new default --detect --force && \
 
 # копируем conanfile.txt в контейнер и запускаем conan install
 COPY conanfile.txt /app/
-RUN mkdir /app/build && cd /app/build && \
+RUN mkdir -p /app/build && cd /app/build && \
     conan install .. --build=missing -s build_type=Release
 
 # только после этого копируем остальные исходники
@@ -25,7 +25,10 @@ COPY ./data /app/data
 COPY ./static /app/static
 COPY ./CMakeLists.txt /app/
 
+# Собираем проект
 RUN cd /app/build && \
+    # Проверяем наличие conanbuildinfo.cmake
+    ls -la /app/build/ && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
     cmake --build .
 
