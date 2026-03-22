@@ -6,6 +6,7 @@
 #include "saving_settings.h"
 #include <filesystem>
 #include <fstream>
+#include <atomic>
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/vector.hpp>
@@ -42,6 +43,7 @@ private:
     std::shared_ptr<time_m::Ticker> save_ticker_;
     std::string temp_file_;
     saving::SavingSettings saving_settings_;
+    std::atomic<bool> is_saving_{false};
 };
 
 } // namespace app

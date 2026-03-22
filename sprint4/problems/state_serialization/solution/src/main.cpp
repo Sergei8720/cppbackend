@@ -78,6 +78,8 @@ int main(int argc, const char* argv[]) {
                     BOOST_LOG_TRIVIAL(error) << "Failed to load game state from " << args.state_file;
                     return EXIT_FAILURE;
                 }
+                // Если файла нет - начинаем с чистого листа
+                BOOST_LOG_TRIVIAL(info) << "Starting with clean state (no state file or empty)";
             }
             
             // Запускаем периодическое сохранение
@@ -116,6 +118,7 @@ int main(int argc, const char* argv[]) {
         
         // 10. Сохраняем состояние при нормальном завершении
         if (state_serializer) {
+            BOOST_LOG_TRIVIAL(info) << "Normal shutdown, saving final state...";
             state_serializer->SaveState();
         }
         

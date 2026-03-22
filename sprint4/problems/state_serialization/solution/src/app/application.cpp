@@ -172,22 +172,46 @@ void Application::SaveGame() {
     if(!saving_settings_.state_file_path){
         return;
     }
-    std::vector<GameSessionSerialization> sessions_ser = GetSerializedData();
+    
+    BOOST_LOG_TRIVIAL(info) << "Saving game state to " << saving_settings_.state_file_path.value();
+    
+    std::vector<GameSessionSerialization> sessions_ser;
+    try {
+        sessions_ser = GetSerializedData();
+        BOOST_LOG_TRIVIAL(info) << "Serialized " << sessions_ser.size() << " sessions";
+    } catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "Failed to get serialized data: " << e.what();
+        return;
+    }
 
     std::string temp_file = saving_settings_.state_file_path.value() + ".tmp";
     std::fstream output_fstream;
     output_fstream.open(temp_file, std::ios_base::out | std::ios_base::trunc);
-    if (output_fstream.is_open()) {
+    if (!output_fstream.is_open()) {
+        BOOST_LOG_TRIVIAL(error) << "Failed to open temporary state file: " << temp_file;
+        return;
+    }
+    
+    try {
         {
             boost::archive::text_oarchive oarchive{output_fstream};
             oarchive << sessions_ser;
         }
         output_fstream.close();
+        
         std::error_code ec;
         std::filesystem::rename(temp_file, saving_settings_.state_file_path.value(), ec);
         if (ec) {
             BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
+            std::filesystem::remove(temp_file, ec);
+        } else {
+            BOOST_LOG_TRIVIAL(info) << "Game state saved successfully to " << saving_settings_.state_file_path.value();
         }
+    } catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "Failed to save game state: " << e.what();
+        output_fstream.close();
+        std::error_code ec;
+        std::filesystem::remove(temp_file, ec);
     }
 };
 
@@ -207,6 +231,9 @@ std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedD
                 auto token = self->FindTokenByPlayer(player->GetId());
                 if (token.has_value()) {
                     token_to_player[token.value()] = player;
+                } else {
+                    BOOST_LOG_TRIVIAL(warning) << "Player " << *player->GetId() 
+                                               << " has no token, skipping from serialization";
                 }
             }
             promise.set_value(
