@@ -16,9 +16,9 @@ public:
     GameSessionSerialization(
         app::GameSession& game_session,
         const std::unordered_map< authentication::Token, std::shared_ptr<app::Player>,
-                                    authentication::TokenHasher >& tokenToPlayer)  // Исправлено: tokenToPalyer -> tokenToPlayer
+                                    authentication::TokenHasher >& tokenToPalyer)
         : map_id_(*(game_session.GetMap()->GetId())) {
-        std::ranges::transform(tokenToPlayer, std::back_inserter(players_ser_),
+        std::ranges::transform(tokenToPalyer, std::back_inserter(players_ser_),
             [](const auto& token_to_player)->PlayerSerialization {
                 return PlayerSerialization(*token_to_player.second, token_to_player.first);
             }

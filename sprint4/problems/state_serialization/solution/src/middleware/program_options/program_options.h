@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <optional>
 
 namespace prog_opt {
 
@@ -10,8 +9,8 @@ struct Args {
     std::string config_file;
     std::string www_root;
     bool randomize_spawn_points{false};
-    std::string state_file{};  // Новый параметр
-    size_t save_state_period{0};  // Новый параметр
+    std::string state_file{};
+    size_t save_state_period{0};
 };
 
 [[nodiscard]] Args ParseCommandLine(int argc, const char* const argv[]);
@@ -29,5 +28,6 @@ public:
         return "Static content path is not specified.";
     }
 };
+
 
 }

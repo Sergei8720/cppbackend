@@ -18,7 +18,7 @@ using namespace std::literals;
         ("config-file,c", po::value(&args.config_file)->value_name("file"s), "set config file path")
         ("www-root,w", po::value(&args.www_root)->value_name("dir"s), "set static files root")
         ("randomize-spawn-points", po::value(&args.randomize_spawn_points), "spawn dogs at random positions")
-        ("state-file", po::value<std::string>(&args.state_file)->value_name("file"s), "set file for save and restore game state")
+        ("state-file", po::value(&args.state_file)->value_name("file"s), "set file for save and restore game state")
         ("save-state-period", po::value(&args.save_state_period)->value_name("milliseconds"s), "set save game state period");
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);

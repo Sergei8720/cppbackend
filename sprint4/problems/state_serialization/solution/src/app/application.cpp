@@ -1,13 +1,8 @@
 #include "application.h"
-#include "player_tokens.h"
-#include "random_generators.h"
-#include "logger.h"
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/thread/future.hpp>
-#include <boost/filesystem.hpp>
-#include <fstream>
 #include <iostream>
 
 namespace app {
@@ -27,10 +22,6 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
         const model::Map::Id& id) {
     auto player = CreatePlayer(player_name);
     auto token = player_tokens_.AddPlayer(player);
-    
-    // Сохраняем обратную связь ID игрока -> токен
-    player_id_to_token_[player->GetId()] = token;
-    
     std::shared_ptr<GameSession> game_session = FindGameSessionBy(id);
     if(!game_session){
         game_session = std::make_shared<GameSession>(game_.FindMap(id), tick_period_, game_.GetLootGeneratorConfig(), ioc_);
@@ -60,9 +51,6 @@ void Application::BoundPlayerAndGameSession(std::shared_ptr<Player> player,
 const std::vector< std::shared_ptr<Player> >& Application::GetPlayersFromGameSession(const authentication::Token& token) {
     static const std::vector< std::shared_ptr<Player> > emptyPlayerList;
     auto player = player_tokens_.FindPlayerBy(token);
-    if (!player) {
-        return emptyPlayerList;
-    }
     auto session_id = player->GetGameSessionId();
     if(!session_id_to_players_.contains(session_id)) {
         return emptyPlayerList;
@@ -76,13 +64,7 @@ bool Application::IsExistPlayer(const authentication::Token& token) {
 
 void Application::SetPlayerAction(const authentication::Token& token, model::Direction direction) {
     auto player = player_tokens_.FindPlayerBy(token);
-    if (!player) {
-        return;
-    }
     auto dog = player->GetDog().lock();
-    if (!dog) {
-        return;
-    }
     double velocity = player->GetGameSession()->GetMap()->GetDogVelocity();
     dog->SetAction(direction, velocity);
 };
@@ -92,27 +74,20 @@ bool Application::IsManualTimeManagement() {
 };
 
 void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
-    // Обновляем состояние всех сессий
     for(auto session : sessions_) {
         boost::promise<void> res_promise;
         auto res_future = res_promise.get_future();
         net::dispatch(*(session->GetStrand()),
-            [session, &delta_time, &res_promise] {
+            [session
+            , &delta_time
+            , &res_promise] {
                 session->UpdateGameState(delta_time);
                 res_promise.set_value();
             }
         );
         res_future.get();
     }
-    
-    // При ручном управлении временем и включенном сохранении
-    if (state_file_path_ && save_state_period_.count() > 0 && IsManualTimeManagement()) {
-        time_since_last_save_ += delta_time.count();
-        if (time_since_last_save_ >= save_state_period_.count()) {
-            SaveGameState();
-            time_since_last_save_ = 0;
-        }
-    }
+    SaveGameState(delta_time);
 };
 
 void Application::AddGameSession(std::shared_ptr<GameSession> session) {
@@ -147,239 +122,111 @@ const std::vector< std::shared_ptr<GameSession> >& Application::GetSessions() {
     return sessions_;
 };
 
-void Application::SetupStateSaving(const std::string& state_file_path, size_t save_period_ms) {
-    state_file_path_ = state_file_path;
-    save_state_period_ = std::chrono::milliseconds(save_period_ms);
-    
-    // Если период сохранения > 0 и не ручное управление временем, запускаем таймер
-    if (save_state_period_.count() > 0 && !IsManualTimeManagement()) {
-        save_state_ticker_ = std::make_shared<time_m::Ticker>(
-            ioc_,
-            save_state_period_,
-            [self = shared_from_this()](const std::chrono::milliseconds& delta_time) {
-                self->OnSaveStateTimer(delta_time);
-            }
-        );
-        save_state_ticker_->Start();
-        time_since_last_save_ = 0;
+void Application::RestoreGameState(saving::SavingSettings saving_settings) {
+    saving_settings_ = std::move(saving_settings);
+    RestoreGame();
+    if(!(saving_settings_.state_file_path
+        && saving_settings_.period) || IsManualTimeManagement()) {
+        return;
+    }
+    save_game_ticker_ = std::make_shared<time_m::Ticker>(
+        ioc_,
+        saving_settings_.period.value(),
+        [self = shared_from_this()](const std::chrono::milliseconds& delta_time) {
+            self->SaveGame();
+        }
+    );
+    save_game_ticker_->Start();
+};
+
+void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
+    static int period = saving_settings_.period
+        ? saving_settings_.period.value().count() : 0;
+    if(!saving_settings_.period) {
+        return;
+    }
+    period -= delta_time.count();
+    if(period <= 0) {
+        SaveGame();
+        period = saving_settings_.period.value().count();
     }
 };
 
-void Application::OnSaveStateTimer(const std::chrono::milliseconds& delta_time) {
-    time_since_last_save_ += delta_time.count();
-    if (time_since_last_save_ >= save_state_period_.count()) {
-        SaveGameState();
-        time_since_last_save_ = 0;
+void Application::SaveGame() {
+    using game_data_ser::GameSessionSerialization;
+    if(!saving_settings_.state_file_path){
+        return;
+    }
+    std::vector<GameSessionSerialization> sessions_ser = GetSerializedData();
+
+    std::fstream output_fstream;
+    output_fstream.open(saving_settings_.state_file_path.value(), std::ios_base::out);
+    {
+        boost::archive::text_oarchive oarchive{output_fstream};
+        oarchive << sessions_ser;
     }
 };
 
-void Application::SaveGameState() {
-    if (!state_file_path_) {
+std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedData() {
+    using game_data_ser::GameSessionSerialization;
+    std::vector<GameSessionSerialization> sessions_ser;
+    for(auto session_ptr : sessions_){
+        boost::promise<GameSessionSerialization> promise;
+        auto res_future = promise.get_future();
+        net::dispatch(*(session_ptr->GetStrand()),
+        [self = shared_from_this()
+        , &promise
+        , session_ptr] {
+            promise.set_value(
+                GameSessionSerialization(*session_ptr, self->game_session_to_token_player_pair_.at(session_ptr))
+            );
+        });
+        sessions_ser.push_back(std::move(res_future.get())); // todo: not parallel solution, need fix. 
+    };
+    return sessions_ser;
+};
+
+void Application::RestoreGame() {
+    using game_data_ser::GameSessionSerialization;
+    if(!saving_settings_.state_file_path){
+        return;
+    }
+    std::vector<GameSessionSerialization> sessions_ser;
+
+    std::fstream input_fstream;
+    input_fstream.open(saving_settings_.state_file_path.value(), std::ios_base::in);
+    if(!input_fstream.is_open()) {
         return;
     }
     
-    try {
-        BOOST_LOG_TRIVIAL(info) << "Saving game state to " << *state_file_path_;
-        
-        // Получаем сериализованное состояние
-        auto state = GetSerializedState();
-        
-        // Сохраняем во временный файл для атомарности
-        std::string temp_file = *state_file_path_ + ".tmp";
-        {
-            std::ofstream ofs(temp_file);
-            if (!ofs.is_open()) {
-                BOOST_LOG_TRIVIAL(error) << "Failed to open temporary file for writing: " << temp_file;
-                return;
-            }
-            boost::archive::text_oarchive oa(ofs);
-            oa << state;
-        }
-        
-        // Атомарно переименовываем временный файл в целевой
-        boost::system::error_code ec;
-        boost::filesystem::rename(temp_file, *state_file_path_, ec);
-        if (ec) {
-            BOOST_LOG_TRIVIAL(error) << "Failed to rename temporary file: " << ec.message();
-            boost::filesystem::remove(temp_file);
-            return;
-        }
-        
-        BOOST_LOG_TRIVIAL(info) << "Game state saved successfully";
-        
-    } catch (const std::exception& e) {
-        BOOST_LOG_TRIVIAL(error) << "Failed to save game state: " << e.what();
-    }
-};
-
-Application::GameStateSerialization Application::GetSerializedState() {
-    using game_data_ser::GameSessionSerialization;
-    using game_data_ser::PlayerSerialization;
+    boost::archive::text_iarchive iarchive{input_fstream};
+    iarchive >> sessions_ser;
+    input_fstream.close();
     
-    GameStateSerialization state;
-    
-    // Сохраняем все игровые сессии
-    for (const auto& session_ptr : sessions_) {
-        boost::promise<GameSessionSerialization> promise;
-        auto future = promise.get_future();
-        
-        net::dispatch(*(session_ptr->GetStrand()),
-            [this, session_ptr, &promise]() {
-                // Собираем токены игроков для этой сессии
-                TokenToPlayer token_to_player;
-                if (auto it = game_session_to_token_player_pair_.find(session_ptr); 
-                    it != game_session_to_token_player_pair_.end()) {
-                    token_to_player = it->second;
-                }
-                promise.set_value(GameSessionSerialization(*session_ptr, token_to_player));
-            }
-        );
-        
-        state.sessions.push_back(future.get());
-    }
-    
-    // Сохраняем всех игроков с их токенами (на случай, если есть игроки без сессий)
-    for (const auto& player : players_) {
-        auto token_opt = FindTokenByPlayer(player->GetId());
-        if (token_opt) {
-            state.players.emplace_back(*player, *token_opt);
+    for(auto& item : sessions_ser) {
+        auto game_session = std::make_shared<GameSession>(game_.FindMap(item.RestoreMapId())
+                                                        , tick_period_
+                                                        , game_.GetLootGeneratorConfig()
+                                                        , ioc_);
+        for(auto& lost_obj_ser : item.GetLostObjectsSerialize()) {
+            game_session->AddLostObject(std::move(lost_obj_ser.Restore()));
         }
-    }
-    
-    return state;
-};
-
-std::optional<authentication::Token> Application::FindTokenByPlayer(const Player::Id& player_id) const {
-    if (auto it = player_id_to_token_.find(player_id); it != player_id_to_token_.end()) {
-        return it->second;
-    }
-    return std::nullopt;
-};
-
-bool Application::LoadGameState(const std::string& state_file_path, net::io_context& ioc) {
-    try {
-        if (!boost::filesystem::exists(state_file_path)) {
-            BOOST_LOG_TRIVIAL(info) << "State file not found, starting fresh: " << state_file_path;
-            return false;
-        }
-        
-        BOOST_LOG_TRIVIAL(info) << "Loading game state from " << state_file_path;
-        
-        GameStateSerialization state;
-        {
-            std::ifstream ifs(state_file_path);
-            if (!ifs.is_open()) {
-                BOOST_LOG_TRIVIAL(error) << "Failed to open state file for reading: " << state_file_path;
-                return false;
-            }
-            boost::archive::text_iarchive ia(ifs);
-            ia >> state;
-        }
-        
-        bool restored = RestoreFromSerializedState(state, ioc);
-        if (restored) {
-            BOOST_LOG_TRIVIAL(info) << "Game state loaded successfully";
-        } else {
-            BOOST_LOG_TRIVIAL(error) << "Failed to restore game state";
-        }
-        return restored;
-        
-    } catch (const std::exception& e) {
-        BOOST_LOG_TRIVIAL(error) << "Exception while loading game state: " << e.what();
-        return false;
-    }
-};
-
-bool Application::RestoreFromSerializedState(const GameStateSerialization& state, net::io_context& ioc) {
-    try {
-        using game_data_ser::GameSessionSerialization;
-        using game_data_ser::PlayerSerialization;
-        
-        // Очищаем текущее состояние
-        sessions_.clear();
-        players_.clear();
-        map_id_to_session_index_.clear();
-        auth_token_to_session_index_.clear();
-        game_session_to_token_player_pair_.clear();
-        player_id_to_token_.clear();
-        session_id_to_players_.clear();
-        
-        // Восстанавливаем сессии
-        for (const auto& session_ser : state.sessions) {
-            auto map_id = session_ser.RestoreMapId();
-            auto map = game_.FindMap(map_id);
-            if (!map) {
-                BOOST_LOG_TRIVIAL(error) << "Map not found for restored session: " << *map_id;
-                continue;
-            }
-            
-            auto session = std::make_shared<GameSession>(map, tick_period_, 
-                                                          game_.GetLootGeneratorConfig(), ioc);
-            
-            // Восстанавливаем lost objects
-            for (const auto& lost_obj_ser : session_ser.GetLostObjectsSerialize()) {
-                session->AddLostObject(lost_obj_ser.Restore());
-            }
-            
-            // Восстанавливаем игроков этой сессии
-            for (const auto& player_ser : session_ser.GetPlayersSerialize()) {
-                auto player = std::make_shared<Player>(player_ser.Restore());
-                auto dog = std::make_shared<model::Dog>(player_ser.RestoreDog());
-                auto token = player_ser.RestoreToken();
-                
-                // Восстанавливаем связи
-                player->SetDog(dog);
-                session->AddDog(dog);
-                
-                RestorePlayer(token, player, session);
-            }
-            
-            AddGameSession(session);
-            session->Run();
-        }
-        
-        // Восстанавливаем игроков без сессий (если есть)
-        for (const auto& player_ser : state.players) {
-            // Проверяем, не был ли уже восстановлен этот игрок
+        for(auto& player_ser : item.GetPlayersSerialize()) {
+            auto player = std::make_shared<app::Player>(std::move(player_ser.Restore()));
+            auto dog = std::make_shared<model::Dog>(std::move(player_ser.RestoreDog()));
+            game_session->AddDog(dog);
+            player->SetDog(dog);
+            player->SetGameSession(game_session);
             auto token = player_ser.RestoreToken();
-            if (auth_token_to_session_index_.find(token) == auth_token_to_session_index_.end()) {
-                auto player = std::make_shared<Player>(player_ser.Restore());
-                auto dog = std::make_shared<model::Dog>(player_ser.RestoreDog());
-                
-                player->SetDog(dog);
-                player_tokens_.AddTokenPlayerPair(token, player);
-                players_.push_back(player);
-                player_id_to_token_[player->GetId()] = token;
-            }
+            auth_token_to_session_index_[token] = game_session;
+            game_session_to_token_player_pair_[game_session][token] = player;
+            player_tokens_.AddTokenPlayerPair(token, player);
+            auto session_id = game_session->GetId();
+            session_id_to_players_[session_id].push_back(player);
         }
-        
-        return true;
-        
-    } catch (const std::exception& e) {
-        BOOST_LOG_TRIVIAL(error) << "Exception while restoring state: " << e.what();
-        return false;
+        AddGameSession(game_session);
+        game_session->Run();
     }
-};
-
-void Application::RestorePlayer(const authentication::Token& token, std::shared_ptr<Player> player, 
-                                 std::shared_ptr<GameSession> session) {
-    // Добавляем в список всех игроков
-    players_.push_back(player);
-    
-    // Сохраняем связь токен -> игрок
-    player_tokens_.AddTokenPlayerPair(token, player);
-    
-    // Сохраняем связь токен -> сессия
-    auth_token_to_session_index_[token] = session;
-    
-    // Сохраняем связь сессия -> {токен -> игрок}
-    game_session_to_token_player_pair_[session][token] = player;
-    
-    // Сохраняем связь игрок -> сессия в session_id_to_players_
-    session_id_to_players_[session->GetId()].push_back(player);
-    
-    // Сохраняем обратную связь ID игрока -> токен
-    player_id_to_token_[player->GetId()] = token;
 };
 
 }
