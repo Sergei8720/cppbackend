@@ -60,6 +60,7 @@ add_executable(game_server
 	src/middleware/game_data_store/dog_serialization.cpp
 	src/middleware/game_data_store/player_serialization.cpp
 	src/middleware/game_data_store/game_session_serialization.cpp
+	src/app/state_serializer.cpp
 	src/web/request_handlers/request_handler.cpp
 	src/web/server/http_server.cpp
 	src/app/authentication/player_tokens.cpp

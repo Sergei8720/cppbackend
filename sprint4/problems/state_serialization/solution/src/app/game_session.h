@@ -21,6 +21,8 @@ namespace app {
 
 namespace net = boost::asio;
 
+class Player;  // forward declaration
+
 class GameSession : public std::enable_shared_from_this<GameSession>  {
 public:
     using SessionStrand = net::strand<net::io_context::executor_type>;
@@ -60,8 +62,10 @@ public:
                                         bool randomize_spawn_points);
     void UpdateGameState(const TimeInterval& delta_time);
     const LostObjects& GetLostObjects();
-    void AddLostObject(model::LostObject lost_object);
+    void AddLostObject(std::shared_ptr<model::LostObject> lost_object);
     void AddDog(std::shared_ptr<model::Dog> dog);
+    void AddPlayer(std::shared_ptr<Player> player);
+    const std::vector<std::shared_ptr<Player>>& GetPlayers() const { return players_; }
     
 private:
     std::shared_ptr<model::Map> map_;
@@ -74,6 +78,7 @@ private:
     TimeInterval period_of_update_game_state_;
     std::shared_ptr<time_m::Ticker> update_game_state_ticker_;
     std::shared_ptr<time_m::Ticker> generate_loot_ticker_;
+    std::vector<std::shared_ptr<Player>> players_;
     
     void GenerateLoot(const TimeInterval& delta_time);
     void CreateLostObject();

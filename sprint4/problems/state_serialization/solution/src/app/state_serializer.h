@@ -2,6 +2,7 @@
 #include "application.h"
 #include "game_serialization.h"
 #include "ticker.h"
+#include "logger.h"
 #include <filesystem>
 #include <fstream>
 #include <boost/archive/text_oarchive.hpp>
@@ -13,24 +14,31 @@ namespace app {
 
 namespace net = boost::asio;
 
+struct GameState {
+    std::vector<game_data_ser::GameSessionSerialization> sessions;
+    
+    template <typename Archive>
+    void serialize(Archive& ar, [[maybe_unused]] const unsigned int version) {
+        ar& sessions;
+    }
+};
+
 class StateSerializer : public std::enable_shared_from_this<StateSerializer> {
 public:
-    // Теперь конструктор принимает Application&
     StateSerializer(Application& application,
                     const std::filesystem::path& state_file,
                     std::chrono::milliseconds save_period);
     
-    void SaveState();  // без параметра
-    bool LoadState(net::io_context& ioc);  // без Application&
-    void StartPeriodicSaving(net::io_context& ioc);  // без Application&
+    void SaveState();
+    bool LoadState(net::io_context& ioc);
+    void StartPeriodicSaving(net::io_context& ioc);
 
 private:
-    Application& app_;  // ссылка на приложение
+    Application& app_;
     std::filesystem::path state_file_;
     std::chrono::milliseconds save_period_;
     std::shared_ptr<time_m::Ticker> save_ticker_;
-    
-    void OnSaveTimer(const std::chrono::milliseconds&);  // можно удалить, если не используется
+    std::string temp_file_;
 };
 
 } // namespace app

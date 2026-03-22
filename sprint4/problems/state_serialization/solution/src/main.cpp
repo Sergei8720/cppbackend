@@ -6,6 +6,7 @@
 #include "application.h"
 #include "program_options.h"
 #include "saving_settings.h"
+#include "state_serializer.h"
 
 #include <boost/asio/io_context.hpp>
 #include <thread>
@@ -43,39 +44,54 @@ int main(int argc, const char* argv[]) {
     try {
         // 1. Загружаем карту из файла и построить модель игры
         model::Game game = json_loader::LoadGame(args.config_file);
-        //model::Game game = json_loader::LoadGame("../../data/config.json"); // for debug
 
         // 2. Устанавливаем путь до статического контента.
         fs::path sc_root_path{args.www_root};
-        //fs::path sc_root_path{"../../static"};
 
         // 3. Инициализируем io_context
         const unsigned num_threads = std::thread::hardware_concurrency();
         net::io_context ioc(num_threads);
 
         // 4. Создание application
-        auto application = std::make_shared<app::Application>(std::move(game)
-                                                            , args.tick_period
-                                                            , args.randomize_spawn_points
-                                                            , ioc);
+        auto application = std::make_shared<app::Application>(std::move(game),
+                                                              args.tick_period,
+                                                              args.randomize_spawn_points,
+                                                              ioc);
 
-        // 5. Инициализация настроек сохранения игрового состояния.
-        saving::SavingSettings saving_settings;
-        if(!args.state_file.empty()) {
-            saving_settings.state_file_path = args.state_file;
-            if(args.save_state_period != 0) {
-                saving_settings.period = std::chrono::milliseconds(args.save_state_period);
+        // 5. Инициализация настроек сохранения
+        std::unique_ptr<app::StateSerializer> state_serializer;
+        if (!args.state_file.empty()) {
+            auto save_period = args.save_state_period > 0 
+                ? std::chrono::milliseconds(args.save_state_period)
+                : std::chrono::milliseconds(0);
+            
+            state_serializer = std::make_unique<app::StateSerializer>(
+                *application, 
+                args.state_file, 
+                save_period
+            );
+            
+            // Восстанавливаем состояние
+            if (!state_serializer->LoadState(ioc)) {
+                // Если файл существует, но произошла ошибка - завершаем работу
+                if (std::filesystem::exists(args.state_file)) {
+                    BOOST_LOG_TRIVIAL(error) << "Failed to load game state from " << args.state_file;
+                    return EXIT_FAILURE;
+                }
             }
-            application->RestoreGameState(std::move(saving_settings));
-        }        
+            
+            // Запускаем периодическое сохранение
+            state_serializer->StartPeriodicSaving(ioc);
+        }
 
         // 6. Добавляем асинхронный обработчик сигналов SIGINT и SIGTERM
         net::signal_set signals(ioc, SIGINT, SIGTERM);
-        signals.async_wait([&ioc, application](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
+        signals.async_wait([&ioc, &state_serializer](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
             if (!ec) {
-                BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("server exited"sv,
-                                                                        logware::ExitCodeLogData(0));
-                application->SaveGame();
+                BOOST_LOG_TRIVIAL(info) << "Received signal " << signal_number << ", saving state...";
+                if (state_serializer) {
+                    state_serializer->SaveState();
+                }
                 ioc.stop();
             }
         });
@@ -91,16 +107,23 @@ int main(int argc, const char* argv[]) {
         });
         
         // Эта надпись сообщает тестам о том, что сервер запущен и готов обрабатывать запросы
-        BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("Server has started..."sv,
-                                                                logware::ServerAddressLogData(address.to_string(), port));
+        BOOST_LOG_TRIVIAL(info) << "Server has started...";
 
         // 9. Запускаем обработку асинхронных операций
         RunWorkers(std::max(1u, num_threads), [&ioc] {
             ioc.run();
         });
+        
+        // 10. Сохраняем состояние при нормальном завершении
+        if (state_serializer) {
+            state_serializer->SaveState();
+        }
+        
+        BOOST_LOG_TRIVIAL(info) << "Server stopped";
+        
     } catch (const std::exception& ex) {
-        BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error"sv,
-                                        logware::ExceptionLogData(EXIT_FAILURE, "Server down"sv, ex.what()));
+        BOOST_LOG_TRIVIAL(error) << "Server error: " << ex.what();
         return EXIT_FAILURE;
     }
+    return EXIT_SUCCESS;
 }

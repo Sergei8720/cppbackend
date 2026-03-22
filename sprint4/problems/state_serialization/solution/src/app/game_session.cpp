@@ -1,4 +1,5 @@
 #include "game_session.h"
+#include "player.h"
 #include "random_generators.h"
 #include "support_types.h"
 
@@ -56,9 +57,8 @@ const GameSession::LostObjects& GameSession::GetLostObjects() {
     return lost_objects_;
 };
 
-void GameSession::AddLostObject(model::LostObject lost_object) {
-    auto lost_obj = std::make_shared<model::LostObject>(std::move(lost_object));
-    lost_objects_[lost_obj->GetId()] = lost_obj;
+void GameSession::AddLostObject(std::shared_ptr<model::LostObject> lost_object) {
+    lost_objects_[lost_object->GetId()] = lost_object;
 };
 
 void GameSession::UpdateGameState(const GameSession::TimeInterval& delta_time) {
@@ -161,13 +161,16 @@ void GameSession::DropLoot(const model::ItemDogProvider& provider, size_t item_i
         if(dog->IsEmptyBag()) {
             return;
         }
-        auto office_id = casted_office->GetId();
         dog->DropLostObjectsFromBag();
     }
 };
 
 void GameSession::AddDog(std::shared_ptr<model::Dog> dog) {
     dogs_[dog->GetId()] = dog;
+};
+
+void GameSession::AddPlayer(std::shared_ptr<Player> player) {
+    players_.push_back(player);
 };
 
 }

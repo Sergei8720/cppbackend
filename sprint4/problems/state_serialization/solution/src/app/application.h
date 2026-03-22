@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <functional>
 #include <fstream>
+#include <optional>
 
 namespace app {
 
@@ -45,12 +46,20 @@ public:
     void AddGameSession(std::shared_ptr<GameSession> session);
     std::shared_ptr<GameSession> FindGameSessionBy(const model::Map::Id& id) const noexcept;
     std::shared_ptr<GameSession> FindGameSessionBy(const authentication::Token& token) const noexcept;
-    const std::vector< std::shared_ptr<app::GameSession> >& GetSessions();
+    const std::vector< std::shared_ptr<app::GameSession> >& GetSessions() const { return sessions_; }
+    const std::vector< std::shared_ptr<Player> >& GetAllPlayers() const { return players_; }
     void RestoreGameState(saving::SavingSettings saving_settings);
     void SaveGame();
+    std::optional<authentication::Token> FindTokenByPlayer(const Player::Id& player_id) const;
+    void RestorePlayer(const authentication::Token& token, 
+                       std::shared_ptr<Player> player,
+                       std::shared_ptr<GameSession> session);
+    std::chrono::milliseconds GetTickPeriod() const { return tick_period_; }
+    const model::LootGeneratorConfig& GetLootGeneratorConfig() const { return game_.GetLootGeneratorConfig(); }
+    
 private:
     using GameSessionIdHasher = util::TaggedHasher<GameSession::Id>;
-    using GameSessionIdToIndex = std::unordered_map<GameSession::Id,
+    using GameSessionIdToPlayers = std::unordered_map<GameSession::Id,
                                                     std::vector< std::shared_ptr<Player> >,
                                                     GameSessionIdHasher>;
     using MapIdHasher = util::TaggedHasher<model::Map::Id>;
@@ -61,12 +70,13 @@ private:
                                     authentication::TokenHasher >;
     using GameSessionToTokenPlayerPair = std::unordered_map<std::shared_ptr<GameSession>,
                                                             TokenToPlayer>;
+    using PlayerIdToToken = std::unordered_map<Player::Id, authentication::Token, util::TaggedHasher<Player::Id>>;
 
     model::Game game_;
     std::chrono::milliseconds tick_period_;
     bool randomize_spawn_points_;
     std::vector< std::shared_ptr<Player> > players_;
-    GameSessionIdToIndex session_id_to_players_;
+    GameSessionIdToPlayers session_id_to_players_;
     authentication::PlayerTokens player_tokens_;
     net::io_context& ioc_;
     std::vector< std::shared_ptr<app::GameSession> > sessions_;
@@ -75,6 +85,7 @@ private:
     saving::SavingSettings saving_settings_;
     GameSessionToTokenPlayerPair game_session_to_token_player_pair_;
     std::shared_ptr<time_m::Ticker> save_game_ticker_;
+    PlayerIdToToken player_id_to_token_;
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);
     void BoundPlayerAndGameSession(std::shared_ptr<Player> player,

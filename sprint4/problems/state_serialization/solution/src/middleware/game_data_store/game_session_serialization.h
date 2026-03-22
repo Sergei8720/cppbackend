@@ -16,23 +16,27 @@ public:
     GameSessionSerialization(
         app::GameSession& game_session,
         const std::unordered_map< authentication::Token, std::shared_ptr<app::Player>,
-                                    authentication::TokenHasher >& tokenToPalyer)
+                                    authentication::TokenHasher >& tokenToPlayer)
         : map_id_(*(game_session.GetMap()->GetId())) {
-        std::ranges::transform(tokenToPalyer, std::back_inserter(players_ser_),
+        std::ranges::transform(tokenToPlayer, std::back_inserter(players_ser_),
             [](const auto& token_to_player)->PlayerSerialization {
                 return PlayerSerialization(*token_to_player.second, token_to_player.first);
             }
         );
-        std::ranges::transform(game_session.GetLostObjects(), std::back_inserter(lost_objects_),
-            [](const auto& id_to_lost_object)->LostObjectSerialization {
-                return *id_to_lost_object.second;
-            }
-        );
+        for (const auto& [id, lost_object] : game_session.GetLostObjects()) {
+            lost_objects_.push_back(LostObjectSerialization(*lost_object));
+        }
     };
 
-    [[nodiscard]] model::Map::Id RestoreMapId() const;
-    [[nodiscard]] const std::vector<LostObjectSerialization>& GetLostObjectsSerialize() const;
-    [[nodiscard]] const std::vector<PlayerSerialization>& GetPlayersSerialize() const;
+    [[nodiscard]] model::Map::Id RestoreMapId() const {
+        return model::Map::Id(map_id_);
+    };
+    [[nodiscard]] const std::vector<LostObjectSerialization>& GetLostObjectsSerialize() const {
+        return lost_objects_;
+    };
+    [[nodiscard]] const std::vector<PlayerSerialization>& GetPlayersSerialize() const {
+        return players_ser_;
+    };
 
     template <typename Archive>
     void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {

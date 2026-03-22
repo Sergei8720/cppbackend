@@ -10,7 +10,7 @@ RUN apt update && \
     && \
     pip3 install conan
 
-# Настраиваем профиль Conan (ДОБАВЛЕННЫЕ СТРОКИ)
+# Настраиваем профиль Conan (обязательно для conan install)
 RUN conan profile detect --force
 
 # копируем conanfile.txt в контейнер и запускаем conan install
@@ -22,26 +22,40 @@ RUN mkdir /app/build && cd /app/build && \
 COPY ./src /app/src
 COPY ./data /app/data
 COPY ./static /app/static
-COPY ./tests /app/tests
-COPY CMakeLists.txt /app/
+COPY ./CMakeLists.txt /app/
 
 RUN cd /app/build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
     cmake --build .
-    
-    
+
+
 # Второй контейнер в том же докерфайле
 FROM ubuntu:22.04 AS run
 
+# Устанавливаем необходимые библиотеки для запуска
+RUN apt update && apt install -y \
+    libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Создадим пользователя www
 RUN groupadd -r www && useradd -r -g www www
-USER www
 
-# Скопируем приложение со сборочного контейнера в директорию /app.
-# Не забываем также папку data, она пригодится.
-COPY --from=build /app/build/bin/game_server /app/
+# Скопируем приложение со сборочного контейнера
+COPY --from=build /app/build/bin/game_server /app/game_server
+
+# Копируем данные и статику
 COPY ./data /app/data
 COPY ./static /app/static
 
-# Запускаем игровой сервер
-ENTRYPOINT ["/app/game_server", "/app/data/config.json", "/app/static"]
+# Создаем директорию для state файла
+RUN mkdir -p /tmp/volume && chown www:www /tmp/volume
+
+USER www
+
+# Запускаем игровой сервер с правильными аргументами
+# --tick-period 0 означает ручное управление временем (для тестов)
+ENTRYPOINT ["/app/game_server", \
+            "--config-file", "/app/data/config.json", \
+            "--www-root", "/app/static", \
+            "--tick-period", "0", \
+            "--state-file", "/tmp/volume/state"]
