@@ -19,14 +19,12 @@ StateSerializer::StateSerializer(Application& application,
 void StateSerializer::SaveState() {
     if (state_file_.empty()) return;
     
-    // Предотвращаем одновременное сохранение
     bool expected = false;
     if (!is_saving_.compare_exchange_strong(expected, true)) {
         BOOST_LOG_TRIVIAL(warning) << "Save already in progress, skipping";
         return;
     }
     
-    // Небольшая задержка для завершения операций ввода-вывода
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     
     try {
@@ -34,7 +32,6 @@ void StateSerializer::SaveState() {
         
         GameState game_state;
         
-        // Собираем данные для сохранения
         for (const auto& session : app_.GetSessions()) {
             std::unordered_map<authentication::Token, std::shared_ptr<Player>, 
                                authentication::TokenHasher> token_to_player;
@@ -51,7 +48,6 @@ void StateSerializer::SaveState() {
         
         BOOST_LOG_TRIVIAL(info) << "Saving " << game_state.sessions.size() << " sessions to " << state_file_.string();
         
-        // Сохраняем во временный файл
         std::ofstream ofs(temp_file_, std::ios::out | std::ios::trunc);
         if (!ofs.is_open()) {
             BOOST_LOG_TRIVIAL(error) << "Failed to open temporary state file: " << temp_file_;
@@ -65,7 +61,6 @@ void StateSerializer::SaveState() {
         }
         ofs.close();
         
-        // Атомарно переименовываем
         std::error_code ec;
         std::filesystem::rename(temp_file_, state_file_, ec);
         if (ec) {
@@ -77,7 +72,6 @@ void StateSerializer::SaveState() {
         
     } catch (const std::exception& e) {
         BOOST_LOG_TRIVIAL(error) << "Failed to save game state: " << e.what();
-        // Удаляем временный файл в случае ошибки
         if (!temp_file_.empty() && std::filesystem::exists(temp_file_)) {
             std::error_code ec;
             std::filesystem::remove(temp_file_, ec);
@@ -94,7 +88,6 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             return false;
         }
         
-        // Проверяем, что файл не пустой
         if (std::filesystem::file_size(state_file_) == 0) {
             BOOST_LOG_TRIVIAL(warning) << "State file is empty: " << state_file_.string();
             return false;
@@ -117,7 +110,6 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
         
         BOOST_LOG_TRIVIAL(info) << "Loaded " << game_state.sessions.size() << " sessions from state file";
         
-        // Восстанавливаем сессии
         for (const auto& session_ser : game_state.sessions) {
             auto map_id = session_ser.RestoreMapId();
             auto map = app_.FindMap(map_id);
@@ -129,7 +121,6 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             auto session = std::make_shared<GameSession>(map, app_.GetTickPeriod(), 
                                                         app_.GetLootGeneratorConfig(), ioc);
             
-            // Восстанавливаем lost objects
             size_t lost_objects_restored = 0;
             for (const auto& lost_obj_ser : session_ser.GetLostObjectsSerialize()) {
                 session->AddLostObject(std::make_shared<model::LostObject>(lost_obj_ser.Restore()));
@@ -137,17 +128,12 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             }
             BOOST_LOG_TRIVIAL(info) << "Restored " << lost_objects_restored << " lost objects for map " << *map_id;
             
-            // Восстанавливаем игроков
             for (const auto& player_ser : session_ser.GetPlayersSerialize()) {
                 auto player = std::make_shared<Player>(player_ser.Restore());
                 auto dog = std::make_shared<model::Dog>(player_ser.RestoreDog());
                 
-                // Восстанавливаем связь player-dog
                 player->SetDog(dog);
                 
-                // НЕ вызываем session->AddDog(dog) здесь - это будет сделано в RestorePlayer
-                
-                // Восстанавливаем токен
                 auto token = player_ser.RestoreToken();
                 app_.RestorePlayer(token, player, session);
                 
@@ -165,6 +151,12 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
         BOOST_LOG_TRIVIAL(info) << "Game state loaded successfully from " << state_file_.string();
         return true;
         
+    } catch (const boost::archive::archive_exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "Archive error while loading game state: " << e.what();
+        return false;
+    } catch (const std::ifstream::failure& e) {
+        BOOST_LOG_TRIVIAL(error) << "File I/O error while loading game state: " << e.what();
+        return false;
     } catch (const std::exception& e) {
         BOOST_LOG_TRIVIAL(error) << "Failed to load game state: " << e.what();
         return false;

@@ -2,6 +2,7 @@
 #include "model_key_storage.h"
 #include "json_key_storage.h"
 #include "json_model_converter.h"
+#include "logger.h"
 
 #include <map>
 #include <sstream>
