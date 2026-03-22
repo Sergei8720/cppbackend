@@ -115,7 +115,7 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
         }
         ifs.close();
         
-        BOOST_LOG_TRIVIAL(info) << "Loaded " << game_state.sessions.size() << " sessions from state file");
+        BOOST_LOG_TRIVIAL(info) << "Loaded " << game_state.sessions.size() << " sessions from state file";
         
         // Восстанавливаем сессии
         for (const auto& session_ser : game_state.sessions) {
