@@ -8,15 +8,16 @@ RUN apt update && \
       python3-pip \
       cmake \
     && \
-    pip3 install conan
+    pip3 install conan==1.*
 
 # Настраиваем профиль Conan (обязательно для conan install)
-RUN conan profile detect --force
+RUN conan profile new default --detect --force && \
+    conan profile update settings.compiler.libcxx=libstdc++11 default
 
 # копируем conanfile.txt в контейнер и запускаем conan install
 COPY conanfile.txt /app/
 RUN mkdir /app/build && cd /app/build && \
-    conan install .. --build=missing -s compiler.libcxx=libstdc++11 -s build_type=Release
+    conan install .. --build=missing -s build_type=Release
 
 # только после этого копируем остальные исходники
 COPY ./src /app/src
@@ -58,4 +59,5 @@ ENTRYPOINT ["/app/game_server", \
             "--config-file", "/app/data/config.json", \
             "--www-root", "/app/static", \
             "--tick-period", "0", \
-            "--state-file", "/tmp/volume/state"]
+            "--state-file", "/tmp/volume/state", \
+            "--save-state-period", "1000"]
