@@ -30,9 +30,17 @@ public:
         );
     };
 
-    [[nodiscard]] model::Map::Id RestoreMapId() const;
-    [[nodiscard]] const std::vector<LostObjectSerialization>& GetLostObjectsSerialize() const;
-    [[nodiscard]] const std::vector<PlayerSerialization>& GetPlayersSerialize() const;
+    [[nodiscard]] model::Map::Id RestoreMapId() const {
+        return model::Map::Id(map_id_);
+    };
+    
+    [[nodiscard]] const std::vector<LostObjectSerialization>& GetLostObjectsSerialize() const {
+        return lost_objects_;
+    };
+    
+    [[nodiscard]] const std::vector<PlayerSerialization>& GetPlayersSerialize() const {
+        return players_ser_;
+    };
 
     template <typename Archive>
     void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {

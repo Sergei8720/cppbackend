@@ -105,10 +105,6 @@ add_executable(game_server
     src/middleware/program_options/program_options.cpp
     src/middleware/time_management/ticker.cpp
     src/middleware/error_handling/error_report.cpp
-    src/middleware/game_data_store/lost_object_serialization.cpp
-    src/middleware/game_data_store/dog_serialization.cpp
-    src/middleware/game_data_store/player_serialization.cpp
-    src/middleware/game_data_store/game_session_serialization.cpp
     src/app/state_serializer.cpp
 )
 

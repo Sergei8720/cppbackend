@@ -24,7 +24,16 @@ public:
             );
         };
 
-    [[nodiscard]] model::Dog Restore() const;
+    [[nodiscard]] model::Dog Restore() const {
+        model::Dog dog(model::Dog::Id{id_}, name_, bag_capacity_);
+        dog.SetDirection(static_cast<model::Direction>(direction_));
+        dog.SetPosition(position_);
+        dog.SetScore(score_);  // Добавлено: восстанавливаем очки
+        for (const auto& lost_obj_ser : bag_) {
+            dog.CollectLostObject(std::make_shared<model::LostObject>(lost_obj_ser.Restore()));
+        }
+        return dog;
+    };
 
     template <typename Archive>
     void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {

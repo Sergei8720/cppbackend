@@ -13,7 +13,6 @@
 
 namespace model {
 
-
 class Dog {
     inline static size_t max_id_cont_ = 0;
 public:
@@ -61,6 +60,7 @@ public:
     void DropLostObjectsFromBag();
 
     const size_t GetScore() const;
+    void SetScore(size_t score) { score_ = score; }  // ДОБАВЛЕНО
 
     const collision_detector::Gatherer& AsGatherer() const;
 private:

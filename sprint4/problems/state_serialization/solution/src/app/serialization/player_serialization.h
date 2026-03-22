@@ -21,9 +21,17 @@ public:
     };
     PlayerSerialization(PlayerSerialization&& other) = default;        
 
-    [[nodiscard]] app::Player Restore() const;
-    [[nodiscard]] model::Dog RestoreDog() const;
-    [[nodiscard]] authentication::Token RestoreToken() const;
+    [[nodiscard]] app::Player Restore() const {
+        return app::Player(app::Player::Id{id_}, name_);
+    };
+    
+    [[nodiscard]] model::Dog RestoreDog() const {
+        return dog_ser_.Restore();
+    };
+    
+    [[nodiscard]] authentication::Token RestoreToken() const {
+        return authentication::Token(token_);
+    };
 
     template <typename Archive>
     void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {
