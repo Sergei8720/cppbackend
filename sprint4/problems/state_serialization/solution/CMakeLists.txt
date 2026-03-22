@@ -44,6 +44,7 @@ else()
 endif()
 
 set(CMAKE_PREFIX_PATH ${CONAN_BOOST_ROOT} ${CMAKE_PREFIX_PATH})
+set(Catch2_DIR ${CONAN_CATCH2_ROOT}/lib/cmake/Catch2)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
@@ -132,75 +133,23 @@ target_link_libraries(game_server PRIVATE Threads::Threads CONAN_PKG::boost game
 # ============= ТЕСТЫ =============
 include(CTest)
 
-# Получаем пути к Catch2 от Conan
-if(DEFINED CONAN_INCLUDE_DIRS_CATCH2)
-    message(STATUS "Catch2 include dirs: ${CONAN_INCLUDE_DIRS_CATCH2}")
-    set(CATCH2_INCLUDE_DIR ${CONAN_INCLUDE_DIRS_CATCH2})
-else()
-    # Пробуем найти Catch2 в стандартных местах
-    find_path(CATCH2_INCLUDE_DIR catch2/catch_test_macros.hpp
-        PATHS
-        /usr/local/include
-        /usr/include
-        ${CONAN_CATCH2_ROOT}/include
-        ${CMAKE_SOURCE_DIR}/build/install/include
-    )
-    message(STATUS "Catch2 include dir found: ${CATCH2_INCLUDE_DIR}")
-endif()
-
-# Тесты
-add_executable(loot_generator_tests
+# Объединенный тест
+add_executable(game_tests
     tests/loot-generator-tests.cpp
-)
-
-target_include_directories(loot_generator_tests PRIVATE
-    src
-    src/model
-    ${CATCH2_INCLUDE_DIR}
-)
-
-target_link_libraries(loot_generator_tests PRIVATE
-    game_model_lib
-    Threads::Threads
-    CONAN_PKG::catch2
-    m
-)
-
-target_compile_features(loot_generator_tests PRIVATE cxx_std_20)
-
-add_executable(collision_detector_tests
     tests/collision-detector-tests.cpp
-)
-
-target_include_directories(collision_detector_tests PRIVATE
-    src
-    src/model/physics
-    ${CATCH2_INCLUDE_DIR}
-)
-
-target_link_libraries(collision_detector_tests PRIVATE
-    collision_detection_lib
-    Threads::Threads
-    CONAN_PKG::catch2
-    m
-)
-
-target_compile_features(collision_detector_tests PRIVATE cxx_std_20)
-
-add_executable(state_serialization_tests
     tests/state-serialization-tests.cpp
 )
 
-target_include_directories(state_serialization_tests PRIVATE
+target_include_directories(game_tests PRIVATE
     src
     src/model
     src/model/physics
     src/middleware
     src/middleware/game_data_store
-    ${CATCH2_INCLUDE_DIR}
+    ${CONAN_INCLUDE_DIRS_CATCH2}
 )
 
-target_link_libraries(state_serialization_tests PRIVATE
+target_link_libraries(game_tests PRIVATE
     game_model_lib
     collision_detection_lib
     Threads::Threads
@@ -208,51 +157,98 @@ target_link_libraries(state_serialization_tests PRIVATE
     m
 )
 
-target_compile_features(state_serialization_tests PRIVATE cxx_std_20)
+target_compile_features(game_tests PRIVATE cxx_std_20)
+
+# Отдельные тесты
+add_executable(collision_tests
+    tests/collision-detector-tests.cpp
+)
+
+target_include_directories(collision_tests PRIVATE
+    src
+    src/model/physics
+    ${CONAN_INCLUDE_DIRS_CATCH2}
+)
+
+target_link_libraries(collision_tests PRIVATE
+    game_model_lib
+    collision_detection_lib
+    Threads::Threads
+    CONAN_PKG::catch2
+    m
+)
+
+target_compile_features(collision_tests PRIVATE cxx_std_20)
+
+add_executable(state_tests
+    tests/state-serialization-tests.cpp
+)
+
+target_include_directories(state_tests PRIVATE
+    src
+    src/model
+    src/model/physics
+    src/middleware
+    src/middleware/game_data_store
+    ${CONAN_INCLUDE_DIRS_CATCH2}
+)
+
+target_link_libraries(state_tests PRIVATE
+    game_model_lib
+    collision_detection_lib
+    Threads::Threads
+    CONAN_PKG::catch2
+    m
+)
+
+target_compile_features(state_tests PRIVATE cxx_std_20)
 
 if(BUILD_TESTING)
-    add_test(NAME loot_generator_tests COMMAND loot_generator_tests)
-    add_test(NAME collision_detector_tests COMMAND collision_detector_tests)
-    add_test(NAME state_serialization_tests COMMAND state_serialization_tests)
+    add_test(NAME game_tests COMMAND game_tests)
+    add_test(NAME collision_tests COMMAND collision_tests)
+    add_test(NAME state_tests COMMAND state_tests)
 endif()
 
-# Добавляем цели для запуска тестов
-add_custom_target(run_loot_tests
-    COMMAND loot_generator_tests
-    DEPENDS loot_generator_tests
+add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
+add_compile_definitions(BOOST_THREAD_PROVIDES_FUTURE)
+
+# Цели для запуска тестов
+add_custom_target(run_all_tests
+    COMMAND game_tests && collision_tests && state_tests
+    DEPENDS game_tests collision_tests state_tests
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    COMMENT "🚀 Running loot generator tests..."
+    COMMENT "🚀 Running all tests..."
+)
+
+add_custom_target(run_game_tests
+    COMMAND game_tests
+    DEPENDS game_tests
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    COMMENT "🚀 Running game tests..."
 )
 
 add_custom_target(run_collision_tests
-    COMMAND collision_detector_tests
-    DEPENDS collision_detector_tests
+    COMMAND collision_tests
+    DEPENDS collision_tests
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     COMMENT "🚀 Running collision detection tests..."
 )
 
 add_custom_target(run_state_tests
-    COMMAND state_serialization_tests
-    DEPENDS state_serialization_tests
+    COMMAND state_tests
+    DEPENDS state_tests
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     COMMENT "🚀 Running state serialization tests..."
-)
-
-add_custom_target(run_all_tests
-    COMMAND loot_generator_tests && collision_detector_tests && state_serialization_tests
-    DEPENDS loot_generator_tests collision_detector_tests state_serialization_tests
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    COMMENT "🚀 Running all tests..."
 )
 
 message(STATUS "🎮 Build targets:")
 message(STATUS "   - game_server (main executable)")
 message(STATUS "   - collision_detection_lib (static library)")
 message(STATUS "   - game_model_lib (game model library)")
-message(STATUS "   - loot_generator_tests (loot generator tests)")
-message(STATUS "   - collision_detector_tests (collision tests)")
-message(STATUS "   - state_serialization_tests (state serialization tests)")
-message(STATUS "   - run_loot_tests (run loot generator tests)")
-message(STATUS "   - run_collision_tests (run collision detection tests)")
-message(STATUS "   - run_state_tests (run state serialization tests)")
+message(STATUS "   - game_tests (unified game tests)")
+message(STATUS "   - collision_tests (collision tests)")
+message(STATUS "   - state_tests (state serialization tests)")
 message(STATUS "   - run_all_tests (run all tests)")
+message(STATUS "   - run_game_tests (run game tests)")
+message(STATUS "   - run_collision_tests (run collision tests)")
+message(STATUS "   - run_state_tests (run state serialization tests)")

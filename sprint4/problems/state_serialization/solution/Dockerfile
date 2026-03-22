@@ -1,8 +1,7 @@
-# Создать образ на основе базового слоя gcc (там будет ОС и сам компилятор).
-# 11.3 — используемая версия gcc.
+# Используем многоступенчатую сборку
 FROM gcc:11.3 AS build
 
-# Выполнить установку зависимостей внутри контейнера.
+# Устанавливаем необходимые пакеты
 RUN apt update && \
     apt install -y \
       python3-pip \
@@ -10,30 +9,30 @@ RUN apt update && \
     && \
     pip3 install conan==1.*
 
-# Настраиваем профиль Conan (обязательно для conan install)
+# Настраиваем Conan
 RUN conan profile new default --detect --force && \
     conan profile update settings.compiler.libcxx=libstdc++11 default
 
-# копируем conanfile.txt в контейнер и запускаем conan install
-COPY conanfile.txt /app/
-RUN mkdir -p /app/build && cd /app/build && \
-    conan install .. --build=missing -s build_type=Release
-
-# только после этого копируем остальные исходники
+# Копируем исходный код
 COPY ./src /app/src
+COPY ./tests /app/tests
+COPY ./CMakeLists.txt /app/
+COPY ./conanfile.txt /app/
 COPY ./data /app/data
 COPY ./static /app/static
-COPY ./CMakeLists.txt /app/
 
-# Собираем проект
-RUN cd /app/build && \
-    # Проверяем наличие conanbuildinfo.cmake
-    ls -la /app/build/ && \
-    cmake -DCMAKE_BUILD_TYPE=Release .. && \
-    cmake --build .
+# Создаем директорию для сборки
+RUN mkdir -p /app/build
+WORKDIR /app/build
 
+# Устанавливаем зависимости через Conan
+RUN conan install .. --build=missing -s build_type=Release
 
-# Второй контейнер в том же докерфайле
+# Собираем только основной сервер (без тестов)
+RUN cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF && \
+    cmake --build . -j$(nproc)
+
+# Финальный образ для запуска сервера
 FROM ubuntu:22.04 AS run
 
 # Устанавливаем необходимые библиотеки для запуска
@@ -41,13 +40,13 @@ RUN apt update && apt install -y \
     libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
-# Создадим пользователя www
+# Создаем пользователя www
 RUN groupadd -r www && useradd -r -g www www
 
-# Скопируем приложение со сборочного контейнера
+# Копируем собранный сервер
 COPY --from=build /app/build/bin/game_server /app/game_server
 
-# Копируем данные и статику
+# Копируем конфигурационные файлы и статику
 COPY ./data /app/data
 COPY ./static /app/static
 
@@ -56,8 +55,7 @@ RUN mkdir -p /tmp/volume && chown www:www /tmp/volume
 
 USER www
 
-# Запускаем игровой сервер с правильными аргументами
-# --tick-period 0 означает ручное управление временем (для тестов)
+# Запускаем сервер
 ENTRYPOINT ["/app/game_server", \
             "--config-file", "/app/data/config.json", \
             "--www-root", "/app/static", \
