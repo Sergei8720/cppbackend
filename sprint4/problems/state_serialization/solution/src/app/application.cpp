@@ -1,9 +1,11 @@
 #include "application.h"
+#include "logger.h"  // ДОБАВИТЬ для BOOST_LOG_TRIVIAL
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/thread/future.hpp>
 #include <iostream>
+#include <filesystem>  // ДОБАВИТЬ для std::filesystem
 
 namespace app {
 
@@ -22,7 +24,8 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
         const model::Map::Id& id) {
     auto player = CreatePlayer(player_name);
     auto token = player_tokens_.AddPlayer(player);
-    player_id_to_token_[*player->GetId()] = token;
+    // ИСПРАВЛЕНО: создаем Player::Id из size_t
+    player_id_to_token_[Player::Id(*player->GetId())] = token;
     std::shared_ptr<GameSession> game_session = FindGameSessionBy(id);
     if(!game_session){
         game_session = std::make_shared<GameSession>(game_.FindMap(id), tick_period_, game_.GetLootGeneratorConfig(), ioc_);
@@ -137,7 +140,8 @@ void Application::RestorePlayer(const authentication::Token& token,
                                  std::shared_ptr<Player> player,
                                  std::shared_ptr<GameSession> session) {
     player_tokens_.AddTokenPlayerPair(token, player);
-    player_id_to_token_[*player->GetId()] = token;
+    // ИСПРАВЛЕНО: создаем Player::Id из size_t
+    player_id_to_token_[Player::Id(*player->GetId())] = token;
     player->SetGameSession(session);
     session_id_to_players_[session->GetId()].push_back(player);
     auth_token_to_session_index_[token] = session;
@@ -192,6 +196,7 @@ void Application::SaveGame() {
             oarchive << sessions_ser;
         }
         output_fstream.close();
+        // ИСПРАВЛЕНО: используем std::filesystem::rename
         std::filesystem::rename(temp_file, saving_settings_.state_file_path.value());
     }
 };
@@ -241,6 +246,7 @@ void Application::RestoreGame() {
         iarchive >> sessions_ser;
         input_fstream.close();
     } catch (const std::exception& e) {
+        // ИСПРАВЛЕНО: используем BOOST_LOG_TRIVIAL с правильным заголовком
         BOOST_LOG_TRIVIAL(error) << "Failed to parse state file: " << e.what();
         throw;
     }
