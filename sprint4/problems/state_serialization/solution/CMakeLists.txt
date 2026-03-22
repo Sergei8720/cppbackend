@@ -90,21 +90,18 @@ target_include_directories(game_server PRIVATE
 )
 target_link_libraries(game_server PRIVATE Threads::Threads game_model_lib)
 
-# Поиск Catch2 (работает с cmake_find_package генератором)
-find_package(Catch2 3.1.0 REQUIRED)
-include(Catch)
-
+# Используем Catch2 через Conan (не через find_package)
+# Catch2 уже настроен через conan_basic_setup
 add_executable(game_server_tests
 	tests/loot-generator-tests.cpp
 )
-target_link_libraries(game_server_tests PRIVATE Catch2::Catch2 game_model_lib)
-catch_discover_tests(game_server_tests)
+target_link_libraries(game_server_tests PRIVATE game_model_lib)
+# Catch2 будет добавлен через conan_basic_setup
 
 add_executable(collision_detection_tests
 	tests/collision-detector-tests.cpp
 )
-target_link_libraries(collision_detection_tests PRIVATE Catch2::Catch2 collision_detection_lib)
-catch_discover_tests(collision_detection_tests)
+target_link_libraries(collision_detection_tests PRIVATE collision_detection_lib)
 
 add_executable(state_serialization_tests
 	tests/state-serialization-tests.cpp
@@ -115,7 +112,15 @@ target_include_directories(state_serialization_tests PRIVATE
 	src/middleware/game_data_store
 	src/model/physics
 )
-target_link_libraries(state_serialization_tests PRIVATE Catch2::Catch2 collision_detection_lib)
+target_link_libraries(state_serialization_tests PRIVATE collision_detection_lib)
+
+# Включаем Catch2 тесты через Conan
+if(CONAN_CATCH2_ROOT)
+    include(${CONAN_CATCH2_ROOT}/Catch.cmake)
+endif()
+
+catch_discover_tests(game_server_tests)
+catch_discover_tests(collision_detection_tests)
 catch_discover_tests(state_serialization_tests)
 
 # Boost.Beast будет использовать std::string_view вместо boost::string_view
