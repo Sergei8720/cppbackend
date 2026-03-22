@@ -150,23 +150,6 @@ void Application::RestorePlayer(const authentication::Token& token,
     session->AddPlayer(player);
 };
 
-void Application::RestoreGameState(saving::SavingSettings saving_settings) {
-    saving_settings_ = std::move(saving_settings);
-    RestoreGame();
-    if(!(saving_settings_.state_file_path
-        && saving_settings_.period) || IsManualTimeManagement()) {
-        return;
-    }
-    save_game_ticker_ = std::make_shared<time_m::Ticker>(
-        ioc_,
-        saving_settings_.period.value(),
-        [self = shared_from_this()](const std::chrono::milliseconds& delta_time) {
-            self->SaveGame();
-        }
-    );
-    save_game_ticker_->Start();
-};
-
 void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
     static int period = saving_settings_.period
         ? saving_settings_.period.value().count() : 0;
@@ -226,50 +209,6 @@ std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedD
         sessions_ser.push_back(std::move(res_future.get()));
     };
     return sessions_ser;
-};
-
-void Application::RestoreGame() {
-    using game_data_ser::GameSessionSerialization;
-    if(!saving_settings_.state_file_path){
-        return;
-    }
-    std::vector<GameSessionSerialization> sessions_ser;
-
-    std::fstream input_fstream;
-    input_fstream.open(saving_settings_.state_file_path.value(), std::ios_base::in);
-    if(!input_fstream.is_open()) {
-        return;
-    }
-    
-    try {
-        boost::archive::text_iarchive iarchive{input_fstream};
-        iarchive >> sessions_ser;
-        input_fstream.close();
-    } catch (const std::exception& e) {
-        // ИСПРАВЛЕНО: используем BOOST_LOG_TRIVIAL с правильным заголовком
-        BOOST_LOG_TRIVIAL(error) << "Failed to parse state file: " << e.what();
-        throw;
-    }
-    
-    for(auto& item : sessions_ser) {
-        auto game_session = std::make_shared<GameSession>(game_.FindMap(item.RestoreMapId())
-                                                        , tick_period_
-                                                        , game_.GetLootGeneratorConfig()
-                                                        , ioc_);
-        for(auto& lost_obj_ser : item.GetLostObjectsSerialize()) {
-            game_session->AddLostObject(std::make_shared<model::LostObject>(lost_obj_ser.Restore()));
-        }
-        for(auto& player_ser : item.GetPlayersSerialize()) {
-            auto player = std::make_shared<app::Player>(std::move(player_ser.Restore()));
-            auto dog = std::make_shared<model::Dog>(std::move(player_ser.RestoreDog()));
-            game_session->AddDog(dog);
-            player->SetDog(dog);
-            auto token = player_ser.RestoreToken();
-            RestorePlayer(token, player, game_session);
-        }
-        AddGameSession(game_session);
-        game_session->Run();
-    }
 };
 
 }

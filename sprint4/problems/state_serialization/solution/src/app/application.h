@@ -48,7 +48,6 @@ public:
     std::shared_ptr<GameSession> FindGameSessionBy(const authentication::Token& token) const noexcept;
     const std::vector< std::shared_ptr<app::GameSession> >& GetSessions() const { return sessions_; }
     const std::vector< std::shared_ptr<Player> >& GetAllPlayers() const { return players_; }
-    void RestoreGameState(saving::SavingSettings saving_settings);
     void SaveGame();
     std::optional<authentication::Token> FindTokenByPlayer(const Player::Id& player_id) const;
     void RestorePlayer(const authentication::Token& token, 
@@ -92,7 +91,6 @@ private:
                                     std::shared_ptr<GameSession> session);
     void SaveGameState(const std::chrono::milliseconds& delta_time);
     std::vector<game_data_ser::GameSessionSerialization> GetSerializedData();
-    void RestoreGame();
 };
 
 }

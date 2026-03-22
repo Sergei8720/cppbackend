@@ -33,6 +33,7 @@ public:
     void SaveState();
     bool LoadState(net::io_context& ioc);
     void StartPeriodicSaving(net::io_context& ioc);
+    void SetSavingSettings(const saving::SavingSettings& settings);
 
 private:
     Application& app_;
@@ -40,6 +41,7 @@ private:
     std::chrono::milliseconds save_period_;
     std::shared_ptr<time_m::Ticker> save_ticker_;
     std::string temp_file_;
+    saving::SavingSettings saving_settings_;
 };
 
 } // namespace app
