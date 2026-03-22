@@ -19,7 +19,7 @@ public:
         bag_capacity_(dog.GetBagCapacity()) {
             std::ranges::transform(dog.GetBag(), std::back_inserter(bag_),
                 [](std::shared_ptr<model::LostObject> lost_object)->LostObjectSerialization {
-                    return *lost_object;
+                    return LostObjectSerialization(*lost_object);
                 }
             );
         };

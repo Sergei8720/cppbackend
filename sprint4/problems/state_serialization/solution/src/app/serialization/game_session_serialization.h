@@ -16,16 +16,16 @@ public:
     GameSessionSerialization(
         app::GameSession& game_session,
         const std::unordered_map< authentication::Token, std::shared_ptr<app::Player>,
-                                    authentication::TokenHasher >& tokenToPalyer)
+                                    authentication::TokenHasher >& tokenToPlayer)
         : map_id_(*(game_session.GetMap()->GetId())) {
-        std::ranges::transform(tokenToPalyer, std::back_inserter(players_ser_),
+        std::ranges::transform(tokenToPlayer, std::back_inserter(players_ser_),
             [](const auto& token_to_player)->PlayerSerialization {
                 return PlayerSerialization(*token_to_player.second, token_to_player.first);
             }
         );
         std::ranges::transform(game_session.GetLostObjects(), std::back_inserter(lost_objects_),
             [](const auto& id_to_lost_object)->LostObjectSerialization {
-                return *id_to_lost_object.second;
+                return LostObjectSerialization(*id_to_lost_object.second);
             }
         );
     };

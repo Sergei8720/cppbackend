@@ -77,8 +77,10 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             return false;
         }
         
-        boost::archive::text_iarchive ia(ifs);
-        ia >> game_state;
+        {
+            boost::archive::text_iarchive ia(ifs);
+            ia >> game_state;
+        }
         ifs.close();
         
         // Восстанавливаем сессии

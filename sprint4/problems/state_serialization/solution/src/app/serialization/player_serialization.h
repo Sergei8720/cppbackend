@@ -13,8 +13,12 @@ public:
     PlayerSerialization(app::Player& player, const authentication::Token& token):
         id_(*player.GetId()),
         name_(player.GetName()),
-        dog_ser_(*player.GetDog().lock()),
-        token_(*token) {};
+        token_(*token) {
+        auto dog_ptr = player.GetDog().lock();
+        if (dog_ptr) {
+            dog_ser_ = DogSerialization(*dog_ptr);
+        }
+    };
     PlayerSerialization(PlayerSerialization&& other) = default;        
 
     [[nodiscard]] app::Player Restore() const;

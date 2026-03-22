@@ -24,8 +24,8 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
         const model::Map::Id& id) {
     auto player = CreatePlayer(player_name);
     auto token = player_tokens_.AddPlayer(player);
-    // ИСПРАВЛЕНО: создаем Player::Id из size_t
-    player_id_to_token_[Player::Id(*player->GetId())] = token;
+    // ИСПРАВЛЕНО: используем emplace вместо operator[]
+    player_id_to_token_.emplace(Player::Id(*player->GetId()), token);
     std::shared_ptr<GameSession> game_session = FindGameSessionBy(id);
     if(!game_session){
         game_session = std::make_shared<GameSession>(game_.FindMap(id), tick_period_, game_.GetLootGeneratorConfig(), ioc_);
@@ -140,8 +140,8 @@ void Application::RestorePlayer(const authentication::Token& token,
                                  std::shared_ptr<Player> player,
                                  std::shared_ptr<GameSession> session) {
     player_tokens_.AddTokenPlayerPair(token, player);
-    // ИСПРАВЛЕНО: создаем Player::Id из size_t
-    player_id_to_token_[Player::Id(*player->GetId())] = token;
+    // ИСПРАВЛЕНО: используем emplace вместо operator[]
+    player_id_to_token_.emplace(Player::Id(*player->GetId()), token);
     player->SetGameSession(session);
     session_id_to_players_[session->GetId()].push_back(player);
     auth_token_to_session_index_[token] = session;
