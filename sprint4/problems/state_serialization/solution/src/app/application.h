@@ -27,7 +27,8 @@ public:
             game_{std::move(game)},
             tick_period_{tick_period},
             randomize_spawn_points_{randomize_spawn_points},
-            ioc_{ioc} {
+            ioc_{ioc},
+            save_period_counter_{0} {
     };
     Application(const Application& other) = delete;
     Application(Application&& other) = delete;
@@ -86,6 +87,7 @@ private:
     GameSessionToTokenPlayerPair game_session_to_token_player_pair_;
     std::shared_ptr<time_m::Ticker> save_game_ticker_;
     PlayerIdToToken player_id_to_token_;
+    int save_period_counter_{0};  // Добавлено
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);
     void BoundPlayerAndGameSession(std::shared_ptr<Player> player,

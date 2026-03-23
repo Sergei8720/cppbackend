@@ -155,15 +155,16 @@ void Application::RestorePlayer(const authentication::Token& token,
 };
 
 void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
-    static int period = saving_settings_.period
-        ? saving_settings_.period.value().count() : 0;
     if(!saving_settings_.period) {
         return;
     }
-    period -= delta_time.count();
-    if(period <= 0) {
+    if (save_period_counter_ == 0) {
+        save_period_counter_ = saving_settings_.period.value().count();
+    }
+    save_period_counter_ -= delta_time.count();
+    if(save_period_counter_ <= 0) {
         SaveGame();
-        period = saving_settings_.period.value().count();
+        save_period_counter_ = saving_settings_.period.value().count();
     }
 };
 
@@ -173,46 +174,40 @@ void Application::SaveGame() {
         return;
     }
     
-    BOOST_LOG_TRIVIAL(info) << "Saving game state to " << saving_settings_.state_file_path.value();
-    
-    std::vector<GameSessionSerialization> sessions_ser;
-    try {
-        sessions_ser = GetSerializedData();
-        BOOST_LOG_TRIVIAL(info) << "Serialized " << sessions_ser.size() << " sessions";
-    } catch (const std::exception& e) {
-        BOOST_LOG_TRIVIAL(error) << "Failed to get serialized data: " << e.what();
+    static bool is_saving = false;
+    if (is_saving) {
+        BOOST_LOG_TRIVIAL(warning) << "Save already in progress, skipping";
         return;
     }
+    is_saving = true;
+    
+    try {
+        std::vector<GameSessionSerialization> sessions_ser = GetSerializedData();
 
-    std::string temp_file = saving_settings_.state_file_path.value() + ".tmp";
-    std::fstream output_fstream;
-    output_fstream.open(temp_file, std::ios_base::out | std::ios_base::trunc);
-    if (!output_fstream.is_open()) {
-        BOOST_LOG_TRIVIAL(error) << "Failed to open temporary state file: " << temp_file;
-        return;
-    }
-    
-    try {
-        {
-            boost::archive::text_oarchive oarchive{output_fstream};
-            oarchive << sessions_ser;
-        }
-        output_fstream.close();
-        
-        std::error_code ec;
-        std::filesystem::rename(temp_file, saving_settings_.state_file_path.value(), ec);
-        if (ec) {
-            BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
-            std::filesystem::remove(temp_file, ec);
+        std::string temp_file = saving_settings_.state_file_path.value() + ".tmp";
+        std::fstream output_fstream;
+        output_fstream.open(temp_file, std::ios_base::out | std::ios_base::trunc);
+        if (output_fstream.is_open()) {
+            {
+                boost::archive::text_oarchive oarchive{output_fstream};
+                oarchive << sessions_ser;
+            }
+            output_fstream.close();
+            std::error_code ec;
+            std::filesystem::rename(temp_file, saving_settings_.state_file_path.value(), ec);
+            if (ec) {
+                BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
+            } else {
+                BOOST_LOG_TRIVIAL(info) << "Game state saved to " << saving_settings_.state_file_path.value();
+            }
         } else {
-            BOOST_LOG_TRIVIAL(info) << "Game state saved successfully to " << saving_settings_.state_file_path.value();
+            BOOST_LOG_TRIVIAL(error) << "Failed to open temporary state file: " << temp_file;
         }
     } catch (const std::exception& e) {
         BOOST_LOG_TRIVIAL(error) << "Failed to save game state: " << e.what();
-        output_fstream.close();
-        std::error_code ec;
-        std::filesystem::remove(temp_file, ec);
     }
+    
+    is_saving = false;
 };
 
 std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedData() {
