@@ -64,7 +64,7 @@ bool BadRequestActivator(const Request& req) {
                     url[3] != "player" &&
                     url[3] != "tick" &&
                     (url.size() == SIZE_OF_FIVE_SEGMENT_URL && url[4] != "action"))
-            ); // todo: need refactor
+            );
 };
 
 template <typename Request, typename Send>
@@ -523,7 +523,7 @@ std::optional<size_t> TimeTickInvalidMsgHandler(
         std::shared_ptr<app::Application> application,
         Send&& send) {
     if(!application->IsManualTimeManagement()) {
-        return 0;
+        return std::nullopt;
     }
     StringResponse response(http::status::bad_request, req.version());
     response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
@@ -547,7 +547,7 @@ std::optional<size_t> TimeTickHandler(
         std::shared_ptr<app::Application> application,
         Send&& send) {
     if(!application->IsManualTimeManagement()) {
-        return 0;
+        return std::nullopt;
     }
     std::chrono::milliseconds dtime(json_converter::ParseSetDeltaTimeRequest(req.body()).value());
     application->UpdateGameState(dtime);
