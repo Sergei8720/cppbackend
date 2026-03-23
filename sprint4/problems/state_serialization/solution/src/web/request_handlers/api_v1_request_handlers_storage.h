@@ -136,7 +136,7 @@ template <typename Request, typename Send>
 std::optional<size_t> MapNotFoundHandler(
         const Request& req,
         std::shared_ptr<app::Application> application,
-        Send&& send)                                                                                                                                                                          {
+        Send&& send) {
     StringResponse response(http::status::not_found, req.version());
     response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
     response.set(http::field::cache_control, NO_CACHE_CONTROL);
@@ -523,6 +523,13 @@ std::optional<size_t> TimeTickInvalidMsgHandler(
         std::shared_ptr<app::Application> application,
         Send&& send) {
     if(!application->IsManualTimeManagement()) {
+        StringResponse response(http::status::bad_request, req.version());
+        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
+        response.set(http::field::cache_control, NO_CACHE_CONTROL);
+        response.body() = json_converter::CreateBadRequestResponse();
+        response.content_length(response.body().size());
+        response.keep_alive(req.keep_alive());
+        send(response);
         return std::nullopt;
     }
     StringResponse response(http::status::bad_request, req.version());
@@ -547,6 +554,13 @@ std::optional<size_t> TimeTickHandler(
         std::shared_ptr<app::Application> application,
         Send&& send) {
     if(!application->IsManualTimeManagement()) {
+        StringResponse response(http::status::bad_request, req.version());
+        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
+        response.set(http::field::cache_control, NO_CACHE_CONTROL);
+        response.body() = json_converter::CreateBadRequestResponse();
+        response.content_length(response.body().size());
+        response.keep_alive(req.keep_alive());
+        send(response);
         return std::nullopt;
     }
     std::chrono::milliseconds dtime(json_converter::ParseSetDeltaTimeRequest(req.body()).value());
