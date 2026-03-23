@@ -147,7 +147,6 @@ void Application::RestorePlayer(const authentication::Token& token,
     players_.push_back(player);
     session->AddPlayer(player);
     
-    // Добавляем собаку в сессию, если она есть
     auto dog = player->GetDog().lock();
     if (dog) {
         session->AddDog(dog);
@@ -158,7 +157,7 @@ void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
     if(!saving_settings_.period) {
         return;
     }
-    if (save_period_counter_ == 0) {
+    if (save_period_counter_ <= 0) {
         save_period_counter_ = saving_settings_.period.value().count();
     }
     save_period_counter_ -= delta_time.count();
@@ -185,26 +184,36 @@ void Application::SaveGame() {
         std::vector<GameSessionSerialization> sessions_ser = GetSerializedData();
 
         std::string temp_file = saving_settings_.state_file_path.value() + ".tmp";
-        std::fstream output_fstream;
-        output_fstream.open(temp_file, std::ios_base::out | std::ios_base::trunc);
-        if (output_fstream.is_open()) {
-            {
-                boost::archive::text_oarchive oarchive{output_fstream};
-                oarchive << sessions_ser;
-            }
-            output_fstream.close();
-            std::error_code ec;
-            std::filesystem::rename(temp_file, saving_settings_.state_file_path.value(), ec);
-            if (ec) {
-                BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
-            } else {
-                BOOST_LOG_TRIVIAL(info) << "Game state saved to " << saving_settings_.state_file_path.value();
-            }
-        } else {
+        std::ofstream ofs(temp_file, std::ios::out | std::ios::trunc);
+        if (!ofs.is_open()) {
             BOOST_LOG_TRIVIAL(error) << "Failed to open temporary state file: " << temp_file;
+            is_saving = false;
+            return;
         }
+        
+        {
+            boost::archive::text_oarchive oa(ofs);
+            oa << sessions_ser;
+        }
+        
+        ofs.flush();
+        ofs.close();
+        
+        std::error_code ec;
+        std::filesystem::rename(temp_file, saving_settings_.state_file_path.value(), ec);
+        if (ec) {
+            BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
+            std::filesystem::remove(temp_file, ec);
+        } else {
+            BOOST_LOG_TRIVIAL(info) << "Game state saved to " << saving_settings_.state_file_path.value();
+        }
+        
     } catch (const std::exception& e) {
         BOOST_LOG_TRIVIAL(error) << "Failed to save game state: " << e.what();
+        if (!temp_file.empty() && std::filesystem::exists(temp_file)) {
+            std::error_code ec;
+            std::filesystem::remove(temp_file, ec);
+        }
     }
     
     is_saving = false;

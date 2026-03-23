@@ -87,7 +87,7 @@ private:
     GameSessionToTokenPlayerPair game_session_to_token_player_pair_;
     std::shared_ptr<time_m::Ticker> save_game_ticker_;
     PlayerIdToToken player_id_to_token_;
-    int save_period_counter_{0};  // Добавлено
+    int save_period_counter_{0};
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);
     void BoundPlayerAndGameSession(std::shared_ptr<Player> player,

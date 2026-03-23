@@ -25,8 +25,6 @@ void StateSerializer::SaveState() {
         return;
     }
     
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    
     try {
         temp_file_ = state_file_.string() + ".tmp";
         
@@ -59,6 +57,8 @@ void StateSerializer::SaveState() {
             boost::archive::text_oarchive oa(ofs);
             oa << game_state;
         }
+        
+        ofs.flush();
         ofs.close();
         
         std::error_code ec;
