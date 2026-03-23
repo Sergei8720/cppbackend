@@ -169,7 +169,8 @@ void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
 
 void Application::SaveGame() {
     using game_data_ser::GameSessionSerialization;
-    if(!saving_settings_.state_file_path){
+    
+    if (!saving_settings_.state_file_path) {
         return;
     }
     
@@ -178,13 +179,14 @@ void Application::SaveGame() {
         BOOST_LOG_TRIVIAL(warning) << "Save already in progress, skipping";
         return;
     }
+    
     is_saving = true;
+    std::string temp_file = saving_settings_.state_file_path.value() + ".tmp";
     
     try {
         std::vector<GameSessionSerialization> sessions_ser = GetSerializedData();
-
-        std::string temp_file = saving_settings_.state_file_path.value() + ".tmp";
-        std::ofstream ofs(temp_file, std::ios::out | std::ios::trunc);
+        
+        std::ofstream ofs(temp_file, std::ios::out | std::ios::trunc | std::ios::binary);
         if (!ofs.is_open()) {
             BOOST_LOG_TRIVIAL(error) << "Failed to open temporary state file: " << temp_file;
             is_saving = false;
@@ -222,30 +224,30 @@ void Application::SaveGame() {
 std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedData() {
     using game_data_ser::GameSessionSerialization;
     std::vector<GameSessionSerialization> sessions_ser;
-    for(auto session_ptr : sessions_){
+    sessions_ser.reserve(sessions_.size());
+    
+    for(auto session_ptr : sessions_) {
         boost::promise<GameSessionSerialization> promise;
         auto res_future = promise.get_future();
         net::dispatch(*(session_ptr->GetStrand()),
-        [self = shared_from_this()
-        , &promise
-        , session_ptr] {
-            std::unordered_map<authentication::Token, std::shared_ptr<app::Player>,
-                                authentication::TokenHasher> token_to_player;
-            for (const auto& player : session_ptr->GetPlayers()) {
-                auto token = self->FindTokenByPlayer(player->GetId());
-                if (token.has_value()) {
-                    token_to_player[token.value()] = player;
-                } else {
-                    BOOST_LOG_TRIVIAL(warning) << "Player " << *player->GetId() 
-                                               << " has no token, skipping from serialization";
+            [self = shared_from_this(), &promise, session_ptr] {
+                std::unordered_map<authentication::Token, std::shared_ptr<app::Player>,
+                                    authentication::TokenHasher> token_to_player;
+                for (const auto& player : session_ptr->GetPlayers()) {
+                    auto token = self->FindTokenByPlayer(player->GetId());
+                    if (token.has_value()) {
+                        token_to_player[token.value()] = player;
+                    } else {
+                        BOOST_LOG_TRIVIAL(warning) << "Player " << *player->GetId() 
+                                                   << " has no token, skipping from serialization";
+                    }
                 }
-            }
-            promise.set_value(
-                GameSessionSerialization(*session_ptr, token_to_player)
-            );
-        });
-        sessions_ser.push_back(std::move(res_future.get()));
-    };
+                promise.set_value(
+                    GameSessionSerialization(*session_ptr, token_to_player)
+                );
+            });
+        sessions_ser.push_back(res_future.get());
+    }
     return sessions_ser;
 };
 
