@@ -92,7 +92,16 @@ int main(int argc, const char* argv[]) {
             if (!ec) {
                 BOOST_LOG_TRIVIAL(info) << "Received signal " << signal_number << ", saving state...";
                 if (state_serializer) {
-                    state_serializer->SaveState();
+                    try {
+                        state_serializer->SaveState();
+                        BOOST_LOG_TRIVIAL(info) << "State saved successfully";
+                        // Даем время на запись на диск
+                        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                    } catch (const std::exception& e) {
+                        BOOST_LOG_TRIVIAL(error) << "Failed to save state: " << e.what();
+                    }
+                } else {
+                    BOOST_LOG_TRIVIAL(warning) << "No state serializer, skipping save";
                 }
                 ioc.stop();
             }

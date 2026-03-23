@@ -46,7 +46,7 @@ void StateSerializer::SaveState() {
         
         BOOST_LOG_TRIVIAL(info) << "Saving " << game_state.sessions.size() << " sessions to " << state_file_.string();
         
-        std::ofstream ofs(temp_file_, std::ios::out | std::ios::trunc);
+        std::ofstream ofs(temp_file_, std::ios::out | std::ios::trunc | std::ios::binary);
         if (!ofs.is_open()) {
             BOOST_LOG_TRIVIAL(error) << "Failed to open temporary state file: " << temp_file_;
             is_saving_ = false;
@@ -61,13 +61,21 @@ void StateSerializer::SaveState() {
         ofs.flush();
         ofs.close();
         
+        // Принудительная синхронизация с диском
         std::error_code ec;
+        std::filesystem::resize_file(temp_file_, std::filesystem::file_size(temp_file_), ec);
+        
         std::filesystem::rename(temp_file_, state_file_, ec);
         if (ec) {
             BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
             std::filesystem::remove(temp_file_, ec);
         } else {
             BOOST_LOG_TRIVIAL(info) << "Game state saved to " << state_file_.string();
+            // Синхронизация директории
+            std::filesystem::path parent = state_file_.parent_path();
+            if (!parent.empty()) {
+                std::filesystem::sync(parent, ec);
+            }
         }
         
     } catch (const std::exception& e) {

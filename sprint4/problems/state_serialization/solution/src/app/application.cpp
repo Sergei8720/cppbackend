@@ -201,13 +201,21 @@ void Application::SaveGame() {
         ofs.flush();
         ofs.close();
         
+        // Принудительная синхронизация с диском
         std::error_code ec;
+        std::filesystem::resize_file(temp_file, std::filesystem::file_size(temp_file), ec);
+        
         std::filesystem::rename(temp_file, saving_settings_.state_file_path.value(), ec);
         if (ec) {
             BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
             std::filesystem::remove(temp_file, ec);
         } else {
             BOOST_LOG_TRIVIAL(info) << "Game state saved to " << saving_settings_.state_file_path.value();
+            // Синхронизация директории
+            std::filesystem::path parent = std::filesystem::path(saving_settings_.state_file_path.value()).parent_path();
+            if (!parent.empty()) {
+                std::filesystem::sync(parent, ec);
+            }
         }
         
     } catch (const std::exception& e) {
