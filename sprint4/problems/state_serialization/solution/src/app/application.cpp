@@ -1,5 +1,6 @@
 #include "application.h"
 #include "logger.h"
+#include "state_serializer.h"
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
@@ -19,7 +20,6 @@ void Application::SetSavingSettings(const saving::SavingSettings& settings) {
                            << ", period=" << (saving_settings_.period.has_value() ? 
                                std::to_string(saving_settings_.period.value().count()) : "none");
     
-    // Инициализируем счетчик, если период задан
     if (saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0) {
         save_period_counter_ = saving_settings_.period.value().count();
         BOOST_LOG_TRIVIAL(info) << "Save period counter initialized to " << save_period_counter_;
@@ -30,11 +30,90 @@ bool Application::ShouldSaveState() const {
     bool has_period = saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0;
     bool has_file = saving_settings_.state_file_path.has_value() && !saving_settings_.state_file_path.value().empty();
     
-    BOOST_LOG_TRIVIAL(info) << "ShouldSaveState: has_period=" << has_period 
-                            << ", has_file=" << has_file
-                            << ", period_value=" << (has_period ? saving_settings_.period.value().count() : 0);
-    
+    BOOST_LOG_TRIVIAL(debug) << "ShouldSaveState: has_period=" << has_period 
+                            << ", has_file=" << has_file;
     return has_period && has_file;
+}
+
+void Application::SetStateFilePath(const std::string& path) {
+    state_file_path_ = path;
+    BOOST_LOG_TRIVIAL(info) << "State file path set to: " << path;
+}
+
+std::string Application::GetStateFilePath() const {
+    return state_file_path_;
+}
+
+void Application::SetSavePeriod(std::chrono::milliseconds period) {
+    save_period_ = period;
+    BOOST_LOG_TRIVIAL(info) << "Save period set to: " << period.count() << " ms";
+}
+
+bool Application::LoadGameStateFromFile() {
+    if (state_file_path_.empty()) {
+        BOOST_LOG_TRIVIAL(warning) << "Cannot load state: state file path is empty";
+        return false;
+    }
+    
+    if (!std::filesystem::exists(state_file_path_)) {
+        BOOST_LOG_TRIVIAL(info) << "State file does not exist: " << state_file_path_;
+        return false;
+    }
+    
+    try {
+        BOOST_LOG_TRIVIAL(info) << "Loading game state from: " << state_file_path_;
+        
+        std::ifstream ifs(state_file_path_);
+        if (!ifs.is_open()) {
+            BOOST_LOG_TRIVIAL(error) << "Failed to open state file for reading";
+            return false;
+        }
+        
+        std::vector<game_data_ser::GameSessionSerialization> sessions_ser;
+        {
+            boost::archive::text_iarchive ia(ifs);
+            ia >> sessions_ser;
+        }
+        ifs.close();
+        
+        // Восстанавливаем сессии
+        for (const auto& session_ser : sessions_ser) {
+            auto map_id = session_ser.RestoreMapId();
+            auto map = game_.FindMap(map_id);
+            if (!map) {
+                BOOST_LOG_TRIVIAL(error) << "Map not found: " << *map_id;
+                continue;
+            }
+            
+            auto session = std::make_shared<GameSession>(map, tick_period_, game_.GetLootGeneratorConfig(), ioc_);
+            
+            // Восстанавливаем потерянные объекты
+            for (const auto& lost_obj_ser : session_ser.GetLostObjectsSerialize()) {
+                session->AddLostObject(std::make_shared<model::LostObject>(lost_obj_ser.Restore()));
+            }
+            
+            // Восстанавливаем игроков
+            for (const auto& player_ser : session_ser.GetPlayersSerialize()) {
+                auto player = std::make_shared<Player>(player_ser.Restore());
+                auto dog = std::make_shared<model::Dog>(player_ser.RestoreDog());
+                player->SetDog(dog);
+                session->AddDog(dog);
+                
+                auto token = player_ser.RestoreToken();
+                RestorePlayer(token, player, session);
+            }
+            
+            AddGameSession(session);
+            session->Run();
+        }
+        
+        BOOST_LOG_TRIVIAL(info) << "Game state loaded successfully";
+        return true;
+        
+    } catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "Failed to load game state: " << e.what();
+        return false;
+    }
 }
 
 const model::Game::Maps& Application::ListMap() const noexcept {
@@ -96,9 +175,7 @@ const std::vector< std::shared_ptr<Player> >& Application::GetPlayersFromGameSes
 };
 
 bool Application::IsExistPlayer(const authentication::Token& token) {
-    bool exists = static_cast<bool>(player_tokens_.FindPlayerBy(token));
-    BOOST_LOG_TRIVIAL(debug) << "IsExistPlayer for token " << *token << ": " << exists;
-    return exists;
+    return static_cast<bool>(player_tokens_.FindPlayerBy(token));
 };
 
 void Application::SetPlayerAction(const authentication::Token& token, model::Direction direction) {
@@ -108,8 +185,6 @@ void Application::SetPlayerAction(const authentication::Token& token, model::Dir
     if (!dog) return;
     double velocity = player->GetGameSession()->GetMap()->GetDogVelocity();
     dog->SetAction(direction, velocity);
-    BOOST_LOG_TRIVIAL(debug) << "Set player action: token=" << *token 
-                             << ", direction=" << static_cast<int>(direction);
 };
 
 bool Application::IsManualTimeManagement() {
@@ -179,75 +254,39 @@ void Application::RestorePlayer(const authentication::Token& token,
                             << " (id: " << *player->GetId() 
                             << ", token: " << *token << ")";
     
-    // 1. Добавляем связь token -> player в PlayerTokens
     player_tokens_.AddTokenPlayerPair(token, player);
-    BOOST_LOG_TRIVIAL(debug) << "Added token->player mapping";
-    
-    // 2. Добавляем связь player_id -> token
     player_id_to_token_.emplace(Player::Id(*player->GetId()), token);
-    BOOST_LOG_TRIVIAL(debug) << "Added player_id->token mapping";
-    
-    // 3. Устанавливаем сессию игроку
     player->SetGameSession(session);
-    BOOST_LOG_TRIVIAL(debug) << "Set player session";
-    
-    // 4. Добавляем игрока в список игроков сессии
     session_id_to_players_[session->GetId()].push_back(player);
-    BOOST_LOG_TRIVIAL(debug) << "Added player to session players list";
-    
-    // 5. Добавляем связь token -> session
     auth_token_to_session_index_[token] = session;
-    BOOST_LOG_TRIVIAL(debug) << "Added token->session mapping";
-    
-    // 6. Добавляем связь session -> token -> player
     game_session_to_token_player_pair_[session][token] = player;
-    BOOST_LOG_TRIVIAL(debug) << "Added session->token->player mapping";
-    
-    // 7. Добавляем игрока в общий список
     players_.push_back(player);
-    BOOST_LOG_TRIVIAL(debug) << "Added player to global players list";
-    
-    // 8. Добавляем игрока в сессию
     session->AddPlayer(player);
-    BOOST_LOG_TRIVIAL(debug) << "Added player to session";
     
-    // 9. Восстанавливаем собаку
     auto dog = player->GetDog().lock();
     if (dog) {
         session->AddDog(dog);
-        BOOST_LOG_TRIVIAL(debug) << "Added dog to session";
     }
     
     BOOST_LOG_TRIVIAL(info) << "Player " << player->GetName() << " restored successfully";
 };
 
 void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
-    BOOST_LOG_TRIVIAL(info) << "SaveGameState called: delta=" << delta_time.count() 
-                             << "ms, counter=" << save_period_counter_
-                             << ", period=" << (saving_settings_.period.has_value() ? 
-                                 std::to_string(saving_settings_.period.value().count()) : "none");
-    
     if (!ShouldSaveState()) {
-        BOOST_LOG_TRIVIAL(info) << "SaveGameState: ShouldSaveState returned false, skipping";
         return;
     }
     
-    // Если счетчик еще не инициализирован (хотя должен быть из SetSavingSettings)
     if (save_period_counter_ <= 0) {
         save_period_counter_ = saving_settings_.period.value().count();
-        BOOST_LOG_TRIVIAL(info) << "SaveGameState: counter was <=0, initialized to " << save_period_counter_;
-        // НЕ СОХРАНЯЕМ СРАЗУ - ждем следующий тик
         return;
     }
     
     save_period_counter_ -= delta_time.count();
-    BOOST_LOG_TRIVIAL(info) << "SaveGameState: counter after subtract = " << save_period_counter_;
     
     if (save_period_counter_ <= 0) {
         BOOST_LOG_TRIVIAL(info) << "SaveGameState: TRIGGERING SAVE!";
         SaveGame();
         save_period_counter_ = saving_settings_.period.value().count();
-        BOOST_LOG_TRIVIAL(info) << "SaveGameState: counter reset to " << save_period_counter_;
     }
 };
 
@@ -255,13 +294,12 @@ void Application::SaveGame() {
     using game_data_ser::GameSessionSerialization;
     
     if (!saving_settings_.state_file_path) {
-        BOOST_LOG_TRIVIAL(warning) << "SaveGame: state_file_path is empty, skipping";
         return;
     }
     
     static std::atomic<bool> is_saving{false};
     if (is_saving.exchange(true)) {
-        BOOST_LOG_TRIVIAL(warning) << "SaveGame: already in progress, skipping";
+        BOOST_LOG_TRIVIAL(warning) << "Save already in progress, skipping";
         return;
     }
     
@@ -271,39 +309,22 @@ void Application::SaveGame() {
     BOOST_LOG_TRIVIAL(info) << "SaveGame: saving state to " << state_file;
     
     try {
-        // Создаем директорию, если её нет
         std::error_code ec;
         auto parent_path = std::filesystem::path(temp_file).parent_path();
         if (!parent_path.empty() && !std::filesystem::exists(parent_path)) {
-            BOOST_LOG_TRIVIAL(info) << "SaveGame: creating directory " << parent_path.string();
             std::filesystem::create_directories(parent_path, ec);
             if (ec) {
-                BOOST_LOG_TRIVIAL(error) << "SaveGame: failed to create directory " << parent_path.string() 
-                                        << " - " << ec.message();
+                BOOST_LOG_TRIVIAL(error) << "Failed to create directory: " << ec.message();
                 is_saving = false;
                 return;
-            }
-            
-            // Проверяем права после создания
-            BOOST_LOG_TRIVIAL(info) << "SaveGame: directory created, checking permissions";
-            std::ofstream test_file(parent_path / "test.tmp");
-            if (test_file.is_open()) {
-                test_file << "test";
-                test_file.close();
-                std::filesystem::remove(parent_path / "test.tmp");
-                BOOST_LOG_TRIVIAL(info) << "SaveGame: directory is writable";
-            } else {
-                BOOST_LOG_TRIVIAL(error) << "SaveGame: directory is NOT writable!";
             }
         }
         
         std::vector<GameSessionSerialization> sessions_ser = GetSerializedData();
-        BOOST_LOG_TRIVIAL(info) << "SaveGame: serialized " << sessions_ser.size() << " sessions";
         
         std::ofstream ofs(temp_file, std::ios::out | std::ios::trunc | std::ios::binary);
         if (!ofs.is_open()) {
-            BOOST_LOG_TRIVIAL(error) << "SaveGame: failed to open temporary file " << temp_file
-                                    << " (errno: " << errno << ")";
+            BOOST_LOG_TRIVIAL(error) << "Failed to open temporary state file: " << temp_file;
             is_saving = false;
             return;
         }
@@ -316,38 +337,25 @@ void Application::SaveGame() {
         ofs.flush();
         ofs.close();
         
-        // Проверяем, что файл записан
-        if (!std::filesystem::exists(temp_file)) {
-            BOOST_LOG_TRIVIAL(error) << "SaveGame: temporary file does not exist after write: " << temp_file;
-            is_saving = false;
-            return;
-        }
-        
-        auto file_size = std::filesystem::file_size(temp_file);
-        if (file_size == 0) {
-            BOOST_LOG_TRIVIAL(error) << "SaveGame: temporary file is empty: " << temp_file;
+        if (std::filesystem::file_size(temp_file) == 0) {
+            BOOST_LOG_TRIVIAL(error) << "Temporary state file is empty";
             std::filesystem::remove(temp_file);
             is_saving = false;
             return;
         }
         
-        BOOST_LOG_TRIVIAL(info) << "SaveGame: temporary file written, size=" << file_size;
-        
-        // Атомарное переименование
         std::filesystem::rename(temp_file, state_file, ec);
         if (ec) {
-            BOOST_LOG_TRIVIAL(error) << "SaveGame: failed to rename file: " << ec.message();
+            BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
             std::filesystem::remove(temp_file, ec);
         } else {
-            BOOST_LOG_TRIVIAL(info) << "SaveGame: saved successfully to " << state_file
-                                   << " (size=" << std::filesystem::file_size(state_file) << ")";
+            BOOST_LOG_TRIVIAL(info) << "Game state saved successfully";
         }
         
     } catch (const std::exception& e) {
-        BOOST_LOG_TRIVIAL(error) << "SaveGame: exception: " << e.what();
+        BOOST_LOG_TRIVIAL(error) << "Failed to save game state: " << e.what();
         if (!temp_file.empty() && std::filesystem::exists(temp_file)) {
-            std::error_code ec;
-            std::filesystem::remove(temp_file, ec);
+            std::filesystem::remove(temp_file);
         }
     }
     
@@ -359,8 +367,6 @@ std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedD
     std::vector<GameSessionSerialization> sessions_ser;
     sessions_ser.reserve(sessions_.size());
     
-    BOOST_LOG_TRIVIAL(debug) << "GetSerializedData: serializing " << sessions_.size() << " sessions";
-    
     for(auto session_ptr : sessions_) {
         boost::promise<GameSessionSerialization> promise;
         auto res_future = promise.get_future();
@@ -368,28 +374,18 @@ std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedD
             [self = shared_from_this(), &promise, session_ptr] {
                 std::unordered_map<authentication::Token, std::shared_ptr<app::Player>,
                                     authentication::TokenHasher> token_to_player;
-                
-                int player_count = 0;
                 for (const auto& player : session_ptr->GetPlayers()) {
                     auto token = self->FindTokenByPlayer(player->GetId());
                     if (token.has_value()) {
                         token_to_player[token.value()] = player;
-                        player_count++;
-                        BOOST_LOG_TRIVIAL(debug) << "GetSerializedData: player " << player->GetName() 
-                                                << " (id=" << *player->GetId() 
-                                                << ") with token " << *token.value();
-                    } else {
-                        BOOST_LOG_TRIVIAL(warning) << "GetSerializedData: player " << *player->GetId() 
-                                                   << " has no token, skipping";
                     }
                 }
-                BOOST_LOG_TRIVIAL(debug) << "GetSerializedData: serialized " << player_count << " players for session";
-                promise.set_value(GameSessionSerialization(*session_ptr, token_to_player));
+                promise.set_value(
+                    GameSessionSerialization(*session_ptr, token_to_player)
+                );
             });
         sessions_ser.push_back(res_future.get());
     }
-    
-    BOOST_LOG_TRIVIAL(debug) << "GetSerializedData: completed, " << sessions_ser.size() << " sessions serialized";
     return sessions_ser;
 };
 
