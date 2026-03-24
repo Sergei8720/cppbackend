@@ -16,6 +16,17 @@ StateSerializer::StateSerializer(Application& application,
     app_.SetSavingSettings(saving_settings_);
 }
 
+void StateSerializer::FinalSave() {
+    if (is_final_save_done_.exchange(true)) {
+        return;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "Performing final save...";
+    SaveState();
+    // Даем время на запись
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+}
+
 void StateSerializer::SaveState() {
     if (state_file_.empty()) return;
     
@@ -44,8 +55,10 @@ void StateSerializer::SaveState() {
             game_state.sessions.emplace_back(*session, token_to_player);
         }
         
-        BOOST_LOG_TRIVIAL(info) << "Saving " << game_state.sessions.size() << " sessions to " << state_file_.string();
+        BOOST_LOG_TRIVIAL(info) << "Saving " << game_state.sessions.size() 
+                               << " sessions to " << state_file_.string();
         
+        // Создаем временный файл
         std::ofstream ofs(temp_file_, std::ios::out | std::ios::trunc | std::ios::binary);
         if (!ofs.is_open()) {
             BOOST_LOG_TRIVIAL(error) << "Failed to open temporary state file: " << temp_file_;
@@ -61,6 +74,15 @@ void StateSerializer::SaveState() {
         ofs.flush();
         ofs.close();
         
+        // Проверяем, что файл записан
+        if (std::filesystem::file_size(temp_file_) == 0) {
+            BOOST_LOG_TRIVIAL(error) << "Temporary state file is empty: " << temp_file_;
+            std::filesystem::remove(temp_file_);
+            is_saving_ = false;
+            return;
+        }
+        
+        // Атомарное переименование
         std::error_code ec;
         std::filesystem::rename(temp_file_, state_file_, ec);
         if (ec) {
@@ -108,7 +130,8 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
         }
         ifs.close();
         
-        BOOST_LOG_TRIVIAL(info) << "Loaded " << game_state.sessions.size() << " sessions from state file";
+        BOOST_LOG_TRIVIAL(info) << "Loaded " << game_state.sessions.size() 
+                               << " sessions from state file";
         
         for (const auto& session_ser : game_state.sessions) {
             auto map_id = session_ser.RestoreMapId();
@@ -126,7 +149,8 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 session->AddLostObject(std::make_shared<model::LostObject>(lost_obj_ser.Restore()));
                 lost_objects_restored++;
             }
-            BOOST_LOG_TRIVIAL(info) << "Restored " << lost_objects_restored << " lost objects for map " << *map_id;
+            BOOST_LOG_TRIVIAL(info) << "Restored " << lost_objects_restored 
+                                   << " lost objects for map " << *map_id;
             
             for (const auto& player_ser : session_ser.GetPlayersSerialize()) {
                 auto player = std::make_shared<Player>(player_ser.Restore());

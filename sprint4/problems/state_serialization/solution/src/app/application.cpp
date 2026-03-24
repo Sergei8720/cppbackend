@@ -154,14 +154,20 @@ void Application::RestorePlayer(const authentication::Token& token,
 };
 
 void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
-    if(!saving_settings_.period) {
+    // Проверяем, нужно ли сохранять состояние
+    if (!ShouldSaveState()) {
         return;
     }
+    
+    // Обновляем счетчик
     if (save_period_counter_ <= 0) {
         save_period_counter_ = saving_settings_.period.value().count();
     }
+    
     save_period_counter_ -= delta_time.count();
-    if(save_period_counter_ <= 0) {
+    
+    // Сохраняем, если время вышло
+    if (save_period_counter_ <= 0) {
         SaveGame();
         save_period_counter_ = saving_settings_.period.value().count();
     }
@@ -174,16 +180,17 @@ void Application::SaveGame() {
         return;
     }
     
-    static bool is_saving = false;
-    if (is_saving) {
+    static std::atomic<bool> is_saving{false};
+    if (is_saving.exchange(true)) {
         BOOST_LOG_TRIVIAL(warning) << "Save already in progress, skipping";
         return;
     }
     
-    is_saving = true;
     std::string temp_file = saving_settings_.state_file_path.value() + ".tmp";
     
     try {
+        BOOST_LOG_TRIVIAL(info) << "Saving game state to " << saving_settings_.state_file_path.value();
+        
         std::vector<GameSessionSerialization> sessions_ser = GetSerializedData();
         
         std::ofstream ofs(temp_file, std::ios::out | std::ios::trunc | std::ios::binary);
@@ -201,13 +208,14 @@ void Application::SaveGame() {
         ofs.flush();
         ofs.close();
         
+        // Атомарное переименование
         std::error_code ec;
         std::filesystem::rename(temp_file, saving_settings_.state_file_path.value(), ec);
         if (ec) {
             BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
             std::filesystem::remove(temp_file, ec);
         } else {
-            BOOST_LOG_TRIVIAL(info) << "Game state saved to " << saving_settings_.state_file_path.value();
+            BOOST_LOG_TRIVIAL(info) << "Game state saved successfully";
         }
         
     } catch (const std::exception& e) {

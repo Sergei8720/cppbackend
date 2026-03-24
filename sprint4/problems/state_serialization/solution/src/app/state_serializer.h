@@ -32,9 +32,14 @@ public:
                     const std::filesystem::path& state_file,
                     std::chrono::milliseconds save_period);
     
+    ~StateSerializer() = default;
+    
     void SaveState();
     bool LoadState(net::io_context& ioc);
     void StartPeriodicSaving(net::io_context& ioc);
+    
+    // Добавляем метод для финального сохранения
+    void FinalSave();
 
 private:
     Application& app_;
@@ -44,6 +49,7 @@ private:
     std::string temp_file_;
     saving::SavingSettings saving_settings_;
     std::atomic<bool> is_saving_{false};
+    std::atomic<bool> is_final_save_done_{false};
 };
 
 } // namespace app

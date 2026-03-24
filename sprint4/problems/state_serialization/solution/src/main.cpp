@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <chrono>
 #include <memory>
+#include <atomic>
 
 using namespace std::literals;
 namespace net = boost::asio;
@@ -41,6 +42,9 @@ int main(int argc, const char* argv[]) {
     // 0. Инициализация логгера.
     logware::InitLogger();
     prog_opt::Args args = prog_opt::ParseCommandLine(argc, argv);
+    
+    std::atomic<bool> final_save_done{false};
+    
     try {
         // 1. Загружаем карту из файла и построить модель игры
         model::Game game = json_loader::LoadGame(args.config_file);
@@ -88,14 +92,13 @@ int main(int argc, const char* argv[]) {
 
         // 6. Добавляем асинхронный обработчик сигналов SIGINT и SIGTERM
         net::signal_set signals(ioc, SIGINT, SIGTERM);
-        signals.async_wait([&ioc, &state_serializer](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
-            if (!ec) {
+        signals.async_wait([&ioc, &state_serializer, &final_save_done](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
+            if (!ec && !final_save_done.exchange(true)) {
                 BOOST_LOG_TRIVIAL(info) << "Received signal " << signal_number << ", saving state...";
                 if (state_serializer) {
                     try {
-                        state_serializer->SaveState();
+                        state_serializer->FinalSave();
                         BOOST_LOG_TRIVIAL(info) << "State saved successfully";
-                        std::this_thread::sleep_for(std::chrono::milliseconds(500));
                     } catch (const std::exception& e) {
                         BOOST_LOG_TRIVIAL(error) << "Failed to save state: " << e.what();
                     }
@@ -122,10 +125,10 @@ int main(int argc, const char* argv[]) {
             ioc.run();
         });
         
-        // 10. Сохраняем состояние при нормальном завершении
-        if (state_serializer) {
+        // 10. Сохраняем состояние при нормальном завершении (если не было сохранено по сигналу)
+        if (state_serializer && !final_save_done.exchange(true)) {
             BOOST_LOG_TRIVIAL(info) << "Normal shutdown, saving final state...";
-            state_serializer->SaveState();
+            state_serializer->FinalSave();
         }
         
         BOOST_LOG_TRIVIAL(info) << "Server stopped";
