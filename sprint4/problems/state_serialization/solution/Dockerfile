@@ -6,6 +6,7 @@ RUN apt update && \
     apt install -y \
       python3-pip \
       cmake \
+      curl \
     && \
     pip3 install conan==1.*
 
@@ -38,6 +39,7 @@ FROM ubuntu:22.04 AS run
 # Устанавливаем необходимые библиотеки для запуска
 RUN apt update && apt install -y \
     libstdc++6 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Создаем пользователя www
@@ -53,12 +55,20 @@ COPY ./static /app/static
 # Создаем директорию для state файла
 RUN mkdir -p /tmp/volume && chown www:www /tmp/volume
 
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Переключаемся на непривилегированного пользователя
 USER www
 
-# Запускаем сервер
-ENTRYPOINT ["/app/game_server", \
-            "--config-file", "/app/data/config.json", \
-            "--www-root", "/app/static", \
-            "--tick-period", "0", \
-            "--state-file", "/tmp/volume/state", \
-            "--save-state-period", "1000"]
+# Healthcheck для мониторинга
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8080/api/v1/maps || exit 1
+
+# Запускаем сервер с параметрами по умолчанию
+ENTRYPOINT ["/app/game_server"]
+CMD ["--config-file", "/app/data/config.json", \
+     "--www-root", "/app/static", \
+     "--tick-period", "0", \
+     "--state-file", "/tmp/volume/state", \
+     "--save-state-period", "1000"]
