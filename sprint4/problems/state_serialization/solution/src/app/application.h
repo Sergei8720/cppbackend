@@ -57,10 +57,8 @@ public:
                        std::shared_ptr<GameSession> session);
     std::chrono::milliseconds GetTickPeriod() const { return tick_period_; }
     const model::LootGeneratorConfig& GetLootGeneratorConfig() const { return game_.GetLootGeneratorConfig(); }
-    void SetSavingSettings(const saving::SavingSettings& settings) { saving_settings_ = settings; }
-    
-    // Добавляем метод для проверки необходимости сохранения
-    bool ShouldSaveState() const { return saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0; }
+    void SetSavingSettings(const saving::SavingSettings& settings);
+    bool ShouldSaveState() const;
     
 private:
     using GameSessionIdHasher = util::TaggedHasher<GameSession::Id>;
