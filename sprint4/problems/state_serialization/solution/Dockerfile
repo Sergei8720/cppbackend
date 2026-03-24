@@ -52,8 +52,19 @@ COPY --from=build /app/build/bin/game_server /app/game_server
 COPY ./data /app/data
 COPY ./static /app/static
 
-# Создаем директорию для state файла
-RUN mkdir -p /tmp/volume && chown www:www /tmp/volume
+# Создаем директорию для state файла с правильными правами
+# Используем /var/lib/game для постоянного хранения
+RUN mkdir -p /var/lib/game && \
+    chown -R www:www /var/lib/game && \
+    chmod 755 /var/lib/game
+
+# Создаем временную директорию с правильными правами
+RUN mkdir -p /tmp/volume && \
+    chown -R www:www /tmp/volume && \
+    chmod 777 /tmp/volume
+
+# Проверяем права
+RUN ls -la /tmp/volume && ls -la /var/lib/game
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
