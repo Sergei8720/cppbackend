@@ -37,8 +37,6 @@ public:
     void SaveState();
     bool LoadState(net::io_context& ioc);
     void StartPeriodicSaving(net::io_context& ioc);
-    
-    // Добавляем метод для финального сохранения
     void FinalSave();
 
 private:

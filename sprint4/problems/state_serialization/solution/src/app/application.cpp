@@ -22,22 +22,19 @@ void Application::SetSavingSettings(const saving::SavingSettings& settings) {
     // Инициализируем счетчик, если период задан
     if (saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0) {
         save_period_counter_ = saving_settings_.period.value().count();
-        BOOST_LOG_TRIVIAL(debug) << "Save period counter initialized to " << save_period_counter_;
+        BOOST_LOG_TRIVIAL(info) << "Save period counter initialized to " << save_period_counter_;
     }
 }
 
 bool Application::ShouldSaveState() const {
-    bool result = saving_settings_.period.has_value() && 
-                  saving_settings_.period.value().count() > 0 &&
-                  saving_settings_.state_file_path.has_value() &&
-                  !saving_settings_.state_file_path.value().empty();
+    bool has_period = saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0;
+    bool has_file = saving_settings_.state_file_path.has_value() && !saving_settings_.state_file_path.value().empty();
     
-    BOOST_LOG_TRIVIAL(debug) << "ShouldSaveState: " << result 
-                             << " (period exists=" << saving_settings_.period.has_value()
-                             << ", period value=" << (saving_settings_.period.has_value() ? 
-                                 std::to_string(saving_settings_.period.value().count()) : "0")
-                             << ", state_file exists=" << saving_settings_.state_file_path.has_value() << ")";
-    return result;
+    BOOST_LOG_TRIVIAL(info) << "ShouldSaveState: has_period=" << has_period 
+                            << ", has_file=" << has_file
+                            << ", period_value=" << (has_period ? saving_settings_.period.value().count() : 0);
+    
+    return has_period && has_file;
 }
 
 const model::Game::Maps& Application::ListMap() const noexcept {
@@ -225,31 +222,32 @@ void Application::RestorePlayer(const authentication::Token& token,
 };
 
 void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
-    BOOST_LOG_TRIVIAL(debug) << "SaveGameState called: delta=" << delta_time.count() 
+    BOOST_LOG_TRIVIAL(info) << "SaveGameState called: delta=" << delta_time.count() 
                              << "ms, counter=" << save_period_counter_
                              << ", period=" << (saving_settings_.period.has_value() ? 
                                  std::to_string(saving_settings_.period.value().count()) : "none");
     
     if (!ShouldSaveState()) {
-        BOOST_LOG_TRIVIAL(debug) << "SaveGameState: ShouldSaveState returned false, skipping";
+        BOOST_LOG_TRIVIAL(info) << "SaveGameState: ShouldSaveState returned false, skipping";
         return;
     }
     
     // Если счетчик еще не инициализирован (хотя должен быть из SetSavingSettings)
     if (save_period_counter_ <= 0) {
         save_period_counter_ = saving_settings_.period.value().count();
-        BOOST_LOG_TRIVIAL(warning) << "SaveGameState: counter was <=0, reinitialized to " << save_period_counter_;
+        BOOST_LOG_TRIVIAL(info) << "SaveGameState: counter was <=0, initialized to " << save_period_counter_;
+        // НЕ СОХРАНЯЕМ СРАЗУ - ждем следующий тик
         return;
     }
     
     save_period_counter_ -= delta_time.count();
-    BOOST_LOG_TRIVIAL(debug) << "SaveGameState: counter after subtract = " << save_period_counter_;
+    BOOST_LOG_TRIVIAL(info) << "SaveGameState: counter after subtract = " << save_period_counter_;
     
     if (save_period_counter_ <= 0) {
         BOOST_LOG_TRIVIAL(info) << "SaveGameState: TRIGGERING SAVE!";
         SaveGame();
         save_period_counter_ = saving_settings_.period.value().count();
-        BOOST_LOG_TRIVIAL(debug) << "SaveGameState: counter reset to " << save_period_counter_;
+        BOOST_LOG_TRIVIAL(info) << "SaveGameState: counter reset to " << save_period_counter_;
     }
 };
 
@@ -277,7 +275,7 @@ void Application::SaveGame() {
         std::error_code ec;
         auto parent_path = std::filesystem::path(temp_file).parent_path();
         if (!parent_path.empty() && !std::filesystem::exists(parent_path)) {
-            BOOST_LOG_TRIVIAL(debug) << "SaveGame: creating directory " << parent_path.string();
+            BOOST_LOG_TRIVIAL(info) << "SaveGame: creating directory " << parent_path.string();
             std::filesystem::create_directories(parent_path, ec);
             if (ec) {
                 BOOST_LOG_TRIVIAL(error) << "SaveGame: failed to create directory " << parent_path.string() 
@@ -285,14 +283,27 @@ void Application::SaveGame() {
                 is_saving = false;
                 return;
             }
+            
+            // Проверяем права после создания
+            BOOST_LOG_TRIVIAL(info) << "SaveGame: directory created, checking permissions";
+            std::ofstream test_file(parent_path / "test.tmp");
+            if (test_file.is_open()) {
+                test_file << "test";
+                test_file.close();
+                std::filesystem::remove(parent_path / "test.tmp");
+                BOOST_LOG_TRIVIAL(info) << "SaveGame: directory is writable";
+            } else {
+                BOOST_LOG_TRIVIAL(error) << "SaveGame: directory is NOT writable!";
+            }
         }
         
         std::vector<GameSessionSerialization> sessions_ser = GetSerializedData();
-        BOOST_LOG_TRIVIAL(debug) << "SaveGame: serialized " << sessions_ser.size() << " sessions";
+        BOOST_LOG_TRIVIAL(info) << "SaveGame: serialized " << sessions_ser.size() << " sessions";
         
         std::ofstream ofs(temp_file, std::ios::out | std::ios::trunc | std::ios::binary);
         if (!ofs.is_open()) {
-            BOOST_LOG_TRIVIAL(error) << "SaveGame: failed to open temporary file " << temp_file;
+            BOOST_LOG_TRIVIAL(error) << "SaveGame: failed to open temporary file " << temp_file
+                                    << " (errno: " << errno << ")";
             is_saving = false;
             return;
         }
@@ -306,15 +317,21 @@ void Application::SaveGame() {
         ofs.close();
         
         // Проверяем, что файл записан
-        if (std::filesystem::file_size(temp_file) == 0) {
+        if (!std::filesystem::exists(temp_file)) {
+            BOOST_LOG_TRIVIAL(error) << "SaveGame: temporary file does not exist after write: " << temp_file;
+            is_saving = false;
+            return;
+        }
+        
+        auto file_size = std::filesystem::file_size(temp_file);
+        if (file_size == 0) {
             BOOST_LOG_TRIVIAL(error) << "SaveGame: temporary file is empty: " << temp_file;
             std::filesystem::remove(temp_file);
             is_saving = false;
             return;
         }
         
-        BOOST_LOG_TRIVIAL(debug) << "SaveGame: temporary file written, size=" 
-                                 << std::filesystem::file_size(temp_file);
+        BOOST_LOG_TRIVIAL(info) << "SaveGame: temporary file written, size=" << file_size;
         
         // Атомарное переименование
         std::filesystem::rename(temp_file, state_file, ec);
@@ -322,7 +339,8 @@ void Application::SaveGame() {
             BOOST_LOG_TRIVIAL(error) << "SaveGame: failed to rename file: " << ec.message();
             std::filesystem::remove(temp_file, ec);
         } else {
-            BOOST_LOG_TRIVIAL(info) << "SaveGame: state saved successfully to " << state_file;
+            BOOST_LOG_TRIVIAL(info) << "SaveGame: saved successfully to " << state_file
+                                   << " (size=" << std::filesystem::file_size(state_file) << ")";
         }
         
     } catch (const std::exception& e) {
