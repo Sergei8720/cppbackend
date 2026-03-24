@@ -1,7 +1,7 @@
 #pragma once
 #include "player.h"
 #include "dog_serialization.h"
-#include "player_tokens.h"
+#include "token_generator.h"
 
 #include <boost/serialization/vector.hpp>
 
@@ -13,23 +13,13 @@ public:
     PlayerSerialization(app::Player& player, const authentication::Token& token):
         id_(*player.GetId()),
         name_(player.GetName()),
-        token_(*token) {
-        auto dog = player.GetDog().lock();
-        if (dog) {
-            dog_ser_ = DogSerialization(*dog);
-        }
-    };
+        dog_ser_(*player.GetDog().lock()),
+        token_(*token) {};
     PlayerSerialization(PlayerSerialization&& other) = default;        
 
-    [[nodiscard]] app::Player Restore() const {
-        return app::Player(app::Player::Id{id_}, name_);
-    };
-    [[nodiscard]] model::Dog RestoreDog() const {
-        return dog_ser_.Restore();
-    };
-    [[nodiscard]] authentication::Token RestoreToken() const {
-        return authentication::Token(token_);
-    };
+    [[nodiscard]] app::Player Restore() const;
+    [[nodiscard]] model::Dog RestoreDog() const;
+    [[nodiscard]] authentication::Token RestoreToken() const;
 
     template <typename Archive>
     void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {
