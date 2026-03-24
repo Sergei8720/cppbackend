@@ -39,6 +39,19 @@ void StateSerializer::SaveState() {
     try {
         temp_file_ = state_file_.string() + ".tmp";
         
+        // Создаем директорию, если её нет
+        std::error_code ec;
+        auto parent_path = std::filesystem::path(temp_file_).parent_path();
+        if (!parent_path.empty() && !std::filesystem::exists(parent_path)) {
+            std::filesystem::create_directories(parent_path, ec);
+            if (ec) {
+                BOOST_LOG_TRIVIAL(error) << "Failed to create directory: " << parent_path.string() << " - " << ec.message();
+                is_saving_ = false;
+                return;
+            }
+            BOOST_LOG_TRIVIAL(debug) << "Created directory: " << parent_path.string();
+        }
+        
         GameState game_state;
         
         for (const auto& session : app_.GetSessions()) {
@@ -49,6 +62,11 @@ void StateSerializer::SaveState() {
                 auto token = app_.FindTokenByPlayer(player->GetId());
                 if (token.has_value()) {
                     token_to_player[token.value()] = player;
+                    BOOST_LOG_TRIVIAL(debug) << "Saving player " << player->GetName() 
+                                             << " with token " << *token.value();
+                } else {
+                    BOOST_LOG_TRIVIAL(warning) << "Player " << *player->GetId() 
+                                               << " has no token, skipping from serialization";
                 }
             }
             
@@ -83,7 +101,6 @@ void StateSerializer::SaveState() {
         }
         
         // Атомарное переименование
-        std::error_code ec;
         std::filesystem::rename(temp_file_, state_file_, ec);
         if (ec) {
             BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
@@ -144,6 +161,7 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             auto session = std::make_shared<GameSession>(map, app_.GetTickPeriod(), 
                                                         app_.GetLootGeneratorConfig(), ioc);
             
+            // Восстанавливаем потерянные объекты
             size_t lost_objects_restored = 0;
             for (const auto& lost_obj_ser : session_ser.GetLostObjectsSerialize()) {
                 session->AddLostObject(std::make_shared<model::LostObject>(lost_obj_ser.Restore()));
@@ -152,18 +170,22 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             BOOST_LOG_TRIVIAL(info) << "Restored " << lost_objects_restored 
                                    << " lost objects for map " << *map_id;
             
+            // Восстанавливаем игроков
             for (const auto& player_ser : session_ser.GetPlayersSerialize()) {
                 auto player = std::make_shared<Player>(player_ser.Restore());
                 auto dog = std::make_shared<model::Dog>(player_ser.RestoreDog());
                 
                 player->SetDog(dog);
+                session->AddDog(dog);
                 
                 auto token = player_ser.RestoreToken();
-                app_.RestorePlayer(token, player, session);
                 
-                BOOST_LOG_TRIVIAL(info) << "Restored player " << player->GetName() 
+                BOOST_LOG_TRIVIAL(info) << "Restoring player " << player->GetName() 
                                        << " (id: " << *player->GetId() 
                                        << ", token: " << *token << ")";
+                
+                // ВАЖНО: Восстанавливаем все связи
+                app_.RestorePlayer(token, player, session);
             }
             
             app_.AddGameSession(session);
