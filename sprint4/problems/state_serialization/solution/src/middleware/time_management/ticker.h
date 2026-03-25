@@ -6,8 +6,6 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
 
-namespace time_m {
-
 using Strand = boost::asio::strand<boost::asio::io_context::executor_type>;
 
 template<typename Handler>
@@ -17,16 +15,8 @@ public:
         : period_(period), handler_(handler), strand_(strand) {
     }
     
-    Ticker(boost::asio::io_context& ioc, std::chrono::milliseconds period, Handler handler)
-        : period_(period), handler_(handler), timer_(ioc) {
-    }
-    
     void Start() {
-        if (strand_) {
-            strand_->execute([this] { ScheduleTick(); });
-        } else {
-            ScheduleTick();
-        }
+        strand_.execute([this] { ScheduleTick(); });
     }
     
     void SingleShot() {
@@ -53,11 +43,9 @@ private:
         ScheduleTick();
     }
 
-    std::shared_ptr<Strand> strand_;
-    boost::asio::steady_timer timer_{strand_ ? *strand_ : boost::asio::make_strand(timer_.get_executor())};
+    Strand strand_;
+    boost::asio::steady_timer timer_{strand_};
     std::chrono::milliseconds period_;
     Handler handler_;
     std::chrono::time_point<std::chrono::steady_clock> last_tick_;
 };
-
-} // namespace time_m

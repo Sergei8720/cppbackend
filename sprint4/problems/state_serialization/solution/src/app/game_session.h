@@ -52,7 +52,6 @@ public:
                 loot_gen_cfg.probability),
             period_of_update_game_state_(period_of_update_game_state) {
     };
-    
     void Run();
     
     const Id& GetId() const noexcept;
@@ -97,4 +96,4 @@ private:
     void DropLoot(const model::ItemDogProvider& provider, size_t item_id, size_t gatherer_id);
 };
 
-} // namespace app
+}
