@@ -36,8 +36,8 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
     game_session_to_token_player_pair_[game_session][token] = player;
     game_session->AddPlayer(player);
     
-    BOOST_LOG_TRIVIAL(debug) << "Player " << player_name << " joined with token " << *token 
-                             << " and id " << *player->GetId();
+    BOOST_LOG_TRIVIAL(info) << "Player " << player_name << " joined with token " << *token 
+                            << " and id " << *player->GetId();
     
     return std::tie(token, player->GetId());
 };
@@ -70,7 +70,9 @@ const std::vector< std::shared_ptr<Player> >& Application::GetPlayersFromGameSes
 };
 
 bool Application::IsExistPlayer(const authentication::Token& token) {
-    return static_cast<bool>(player_tokens_.FindPlayerBy(token));
+    bool exists = static_cast<bool>(player_tokens_.FindPlayerBy(token));
+    BOOST_LOG_TRIVIAL(debug) << "IsExistPlayer: token=" << *token << " exists=" << exists;
+    return exists;
 };
 
 void Application::SetPlayerAction(const authentication::Token& token, model::Direction direction) {
@@ -142,40 +144,51 @@ std::optional<authentication::Token> Application::FindTokenByPlayer(const Player
 void Application::RestorePlayer(const authentication::Token& token, 
                                  std::shared_ptr<Player> player,
                                  std::shared_ptr<GameSession> session) {
+    BOOST_LOG_TRIVIAL(info) << "=== RestorePlayer called ===";
+    BOOST_LOG_TRIVIAL(info) << "  Player: " << player->GetName() << " id=" << *player->GetId();
+    BOOST_LOG_TRIVIAL(info) << "  Token: " << *token;
+    BOOST_LOG_TRIVIAL(info) << "  Session: " << *session->GetId();
+    
     // 1. Добавляем связь token -> player в PlayerTokens
     player_tokens_.AddTokenPlayerPair(token, player);
+    BOOST_LOG_TRIVIAL(info) << "  Added token->player mapping";
     
     // 2. Добавляем связь player_id -> token
     player_id_to_token_.emplace(Player::Id(*player->GetId()), token);
+    BOOST_LOG_TRIVIAL(info) << "  Added player_id->token mapping";
     
     // 3. Устанавливаем сессию игроку
     player->SetGameSession(session);
+    BOOST_LOG_TRIVIAL(info) << "  Set game session for player";
     
     // 4. Добавляем игрока в список игроков сессии
     session_id_to_players_[session->GetId()].push_back(player);
+    BOOST_LOG_TRIVIAL(info) << "  Added to session players list";
     
     // 5. Добавляем связь token -> session
     auth_token_to_session_index_[token] = session;
+    BOOST_LOG_TRIVIAL(info) << "  Added token->session mapping";
     
     // 6. Добавляем связь session -> token -> player
     game_session_to_token_player_pair_[session][token] = player;
+    BOOST_LOG_TRIVIAL(info) << "  Added session->token->player mapping";
     
     // 7. Добавляем игрока в общий список
     players_.push_back(player);
+    BOOST_LOG_TRIVIAL(info) << "  Added to global players list";
     
     // 8. Добавляем игрока в сессию
     session->AddPlayer(player);
+    BOOST_LOG_TRIVIAL(info) << "  Added to session";
     
     // 9. Восстанавливаем собаку
     auto dog = player->GetDog().lock();
     if (dog) {
         session->AddDog(dog);
+        BOOST_LOG_TRIVIAL(info) << "  Added dog to session";
     }
     
-    BOOST_LOG_TRIVIAL(info) << "Restored player " << player->GetName() 
-                            << " (id: " << *player->GetId() 
-                            << ", token: " << *token 
-                            << ") in session " << *session->GetId();
+    BOOST_LOG_TRIVIAL(info) << "=== RestorePlayer completed ===";
 };
 
 void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
