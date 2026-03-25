@@ -32,7 +32,8 @@ public:
             if(item.GetActivator()(req)){
                     auto res = item.GetHandler(req.method())(req, application, std::forward<Send>(send));
                     while(res.has_value()){
-                        res = item.GetEmergeHandlerByIndex(res.value())(req, application, std::forward<Send>(send));
+                        res = item.GetEmergeHandlerByIndex(res.value())
+                            .value()(req, application, std::forward<Send>(send));
                     }
                 return true;
             }
@@ -71,6 +72,11 @@ private:
                                                         {{http::verb::post, JoinToGameHandler}},
                                                         OnlyPostMethodAllowedHandler,
                                                         {JoinToGameMapNotFoundHandler}),
+
+        RequestHandlerNode<ActivatorType, HandlerType>(GetRecordsActivator,
+                                                        {{http::verb::get, GetRecordsHandler}},
+                                                        InvalidMethodHandler,
+                                                        {BadRequestHandler}),
 
         RequestHandlerNode<ActivatorType, HandlerType>(EmptyAuthorizationActivator,
                                                         {{http::verb::get, EmptyAuthorizationHandler},
