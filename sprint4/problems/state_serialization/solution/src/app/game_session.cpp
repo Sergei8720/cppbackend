@@ -8,7 +8,7 @@ namespace app {
 void GameSession::Run() {
     if(period_of_update_game_state_.count() != 0){
         update_game_state_ticker_ = std::make_shared<time_m::Ticker>(
-            *strand_,
+            strand_,
             period_of_update_game_state_,
             [self = shared_from_this()](const TimeInterval& delta_time) {
                 self->UpdateGameState(delta_time);
@@ -17,14 +17,14 @@ void GameSession::Run() {
         update_game_state_ticker_->Start();
     }
     generate_loot_ticker_ = std::make_shared<time_m::Ticker>(
-        *strand_,
+        strand_,
         loot_generator_.GetPeriod(),
         [self = shared_from_this()](const TimeInterval& delta_time) {
                 self->GenerateLoot(delta_time);
         }
     );
     generate_loot_ticker_->Start();
-}
+};
 
 const GameSession::Id& GameSession::GetId() const noexcept {
     return id_;

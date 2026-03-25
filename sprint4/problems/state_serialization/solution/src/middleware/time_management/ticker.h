@@ -2,7 +2,6 @@
 
 #include "sdk.h"
 #include <chrono>
-#include <functional>
 #include <boost/asio/strand.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -14,32 +13,27 @@ using Strand = boost::asio::strand<boost::asio::io_context::executor_type>;
 template<typename Handler>
 class Ticker : public std::enable_shared_from_this<Ticker<Handler>> {
 public:
-    // Конструктор для использования со strand
     Ticker(Strand strand, std::chrono::milliseconds period, Handler handler) 
-        : period_(period), handler_(handler), strand_(std::make_shared<Strand>(strand)), timer_(*this->strand_) {
+        : period_(period), handler_(handler), strand_(strand) {
     }
     
-    // Конструктор без strand
     Ticker(boost::asio::io_context& ioc, std::chrono::milliseconds period, Handler handler)
-        : period_(period), handler_(handler), strand_(nullptr), timer_(ioc) {
+        : period_(period), handler_(handler), timer_(ioc) {
     }
     
     void Start() {
         if (strand_) {
-            boost::asio::dispatch(*strand_, [self = this->shared_from_this()] {
-                self->ScheduleTick();
-            });
+            strand_->execute([this] { ScheduleTick(); });
         } else {
             ScheduleTick();
         }
     }
     
     void SingleShot() {
-        auto self = this->shared_from_this();
         timer_.expires_after(period_);
-        timer_.async_wait([self](boost::system::error_code ec) {
+        timer_.async_wait([this](boost::system::error_code ec) {
             if (!ec) {
-                self->handler_();
+                handler_();
             }
         });
     }
@@ -47,11 +41,8 @@ public:
 private:
     void ScheduleTick() {
         last_tick_ = std::chrono::steady_clock::now();
-        auto self = this->shared_from_this();
         timer_.expires_after(period_);
-        timer_.async_wait([self](boost::system::error_code ec) {
-            self->OnTick(ec);
-        });
+        timer_.async_wait([this](boost::system::error_code ec) { OnTick(ec); });
     }
     
     void OnTick(boost::system::error_code ec) {
@@ -63,7 +54,7 @@ private:
     }
 
     std::shared_ptr<Strand> strand_;
-    boost::asio::steady_timer timer_;
+    boost::asio::steady_timer timer_{strand_ ? *strand_ : boost::asio::make_strand(timer_.get_executor())};
     std::chrono::milliseconds period_;
     Handler handler_;
     std::chrono::time_point<std::chrono::steady_clock> last_tick_;

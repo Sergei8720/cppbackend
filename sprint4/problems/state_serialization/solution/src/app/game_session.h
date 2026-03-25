@@ -12,6 +12,7 @@
 #include <chrono>
 #include <vector>
 #include <memory>
+#include <chrono>
 #include <unordered_map>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
@@ -20,7 +21,7 @@ namespace app {
 
 namespace net = boost::asio;
 
-class Player;
+class Player;  // forward declaration
 
 class GameSession : public std::enable_shared_from_this<GameSession>  {
 public:
@@ -50,7 +51,7 @@ public:
                 ),
                 loot_gen_cfg.probability),
             period_of_update_game_state_(period_of_update_game_state) {
-    }
+    };
     
     void Run();
     
