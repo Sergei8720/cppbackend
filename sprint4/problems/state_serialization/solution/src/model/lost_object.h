@@ -16,7 +16,7 @@ public:
         : Item({0,0}, width)
         , id_(Id{LostObject::max_id_cont_++}) {};
   
-  // ✅ КОНСТРУКТОР ДЛЯ ВОССТАНОВЛЕНИЯ
+  // ✅ НОВЫЙ КОНСТРУКТОР ДЛЯ ВОССТАНОВЛЕНИЯ
   LostObject(Id id, double width = LOOT_WIDTH)
         : Item({0,0}, width)
         , id_(id) {

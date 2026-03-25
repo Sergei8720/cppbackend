@@ -100,7 +100,7 @@ void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
         );
         res_future.get();
     }
-    SaveGameState(delta_time);
+    // Сохранение теперь только через StateSerializer
 };
 
 void Application::AddGameSession(std::shared_ptr<GameSession> session) {
@@ -181,9 +181,8 @@ void Application::RestorePlayer(const authentication::Token& token,
 void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
     // ⚠️ УДАЛЕНО: сохранение теперь только через StateSerializer
     // Эта функция оставлена пустой, чтобы не нарушать существующие вызовы
-    // Весь код сохранения перенесен в StateSerializer::SaveState
     return;
-}
+};
 
 void Application::SaveGame() {
     using game_data_ser::GameSessionSerialization;

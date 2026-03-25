@@ -60,7 +60,7 @@ public:
     void DropLostObjectsFromBag();
 
     const size_t GetScore() const;
-    void SetScore(size_t score) { score_ = score; }  // ✅ УЖЕ ЕСТЬ
+    void SetScore(size_t score) { score_ = score; }
 
     const collision_detector::Gatherer& AsGatherer() const;
     

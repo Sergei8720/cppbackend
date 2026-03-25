@@ -53,7 +53,7 @@ void StateSerializer::SaveState() {
         
         GameState game_state;
         
-        // ✅ СОХРАНЯЕМ СЧЕТЧИКИ ID
+        // Сохраняем счетчики ID
         game_state.max_player_id = Player::GetMaxId();
         game_state.max_dog_id = model::Dog::GetMaxId();
         game_state.max_loot_id = model::LostObject::GetMaxId();
@@ -159,7 +159,7 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
         BOOST_LOG_TRIVIAL(info) << "Loaded " << game_state.sessions.size() 
                                << " sessions from state file";
         
-        // ✅ ВОССТАНАВЛИВАЕМ СЧЕТЧИКИ ID
+        // Восстанавливаем счетчики ID
         Player::ResetMaxId(game_state.max_player_id);
         model::Dog::ResetMaxId(game_state.max_dog_id);
         model::LostObject::ResetMaxId(game_state.max_loot_id);
