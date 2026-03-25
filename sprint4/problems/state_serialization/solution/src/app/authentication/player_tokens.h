@@ -14,17 +14,20 @@ struct TokenTag {};
 using Token = util::Tagged<std::string, TokenTag>;
 using TokenHasher = util::TaggedHasher<Token>;
 
-class TokenGenerator {
+class PlayerTokens {
 public:
-    TokenGenerator() = default;
-    TokenGenerator(const TokenGenerator& other) = default;
-    TokenGenerator(TokenGenerator&& other) = default;
-    TokenGenerator& operator = (const TokenGenerator& other) = default;
-    TokenGenerator& operator = (TokenGenerator&& other) = default;
-    virtual ~TokenGenerator() = default;
+    PlayerTokens() = default;
+    PlayerTokens(const PlayerTokens& other) = default;
+    PlayerTokens(PlayerTokens&& other) = default;
+    PlayerTokens& operator = (const PlayerTokens& other) = default;
+    PlayerTokens& operator = (PlayerTokens&& other) = default;
+    virtual ~PlayerTokens() = default;
 
-    Token GenerateToken();
+    Token AddPlayer(std::shared_ptr<app::Player> player);
+    void AddTokenPlayerPair(Token token, std::shared_ptr<app::Player> player);
+    std::shared_ptr<app::Player> FindPlayerBy(Token token);
 private:
+    std::unordered_map< Token, std::shared_ptr<app::Player>, TokenHasher > tokenToPalyer_;
     std::random_device random_device_;
     std::mt19937_64 generator1_{[this] {
         std::uniform_int_distribution<std::mt19937_64::result_type> dist;

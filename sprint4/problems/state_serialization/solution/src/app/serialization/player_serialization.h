@@ -14,9 +14,9 @@ public:
         id_(*player.GetId()),
         name_(player.GetName()),
         token_(*token) {
-        auto dog = player.GetDog().lock();
-        if (dog) {
-            dog_ser_ = DogSerialization(*dog);
+        auto dog_ptr = player.GetDog().lock();
+        if (dog_ptr) {
+            dog_ser_ = DogSerialization(*dog_ptr);
         }
     };
     PlayerSerialization(PlayerSerialization&& other) = default;        
@@ -24,9 +24,11 @@ public:
     [[nodiscard]] app::Player Restore() const {
         return app::Player(app::Player::Id{id_}, name_);
     };
+    
     [[nodiscard]] model::Dog RestoreDog() const {
         return dog_ser_.Restore();
     };
+    
     [[nodiscard]] authentication::Token RestoreToken() const {
         return authentication::Token(token_);
     };

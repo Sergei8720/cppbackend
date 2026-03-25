@@ -15,11 +15,11 @@ public:
     void AddMap(const Map& map);
     void AddMaps(const std::vector<Map>& maps);
     const Maps& GetMaps() const noexcept;
-    std::optional<std::shared_ptr<const Map>> FindMap(const Map::Id& id) const noexcept;
+    const std::shared_ptr<Map> FindMap(const Map::Id& id) const noexcept;
     void SetDefaultDogVelocity(double velocity);
     double GetDefaultDogVelocity() const noexcept;
     void AddLootGeneratorConfig(LootGeneratorConfig cfg);
-    const LootGeneratorConfig& GetLootGeneratorConfig();
+    const LootGeneratorConfig& GetLootGeneratorConfig() const;  // ИСПРАВЛЕНО: добавлен const
     void SetDefaultBagCapacity(size_t default_bag_capacity);
     size_t GetDefaultBagCapacity() const noexcept;
 private:

@@ -1,16 +1,14 @@
 #include "game_session.h"
+#include "player.h"
 #include "random_generators.h"
 #include "support_types.h"
-
-#include <ranges>
-#include <algorithm>
 
 namespace app {
 
 void GameSession::Run() {
     if(period_of_update_game_state_.count() != 0){
         update_game_state_ticker_ = std::make_shared<time_m::Ticker>(
-            strand_,
+            *strand_,
             period_of_update_game_state_,
             [self = shared_from_this()](const TimeInterval& delta_time) {
                 self->UpdateGameState(delta_time);
@@ -19,20 +17,20 @@ void GameSession::Run() {
         update_game_state_ticker_->Start();
     }
     generate_loot_ticker_ = std::make_shared<time_m::Ticker>(
-        strand_,
+        *strand_,
         loot_generator_.GetPeriod(),
         [self = shared_from_this()](const TimeInterval& delta_time) {
                 self->GenerateLoot(delta_time);
         }
     );
     generate_loot_ticker_->Start();
-};
+}
 
 const GameSession::Id& GameSession::GetId() const noexcept {
     return id_;
 }
 
-const std::shared_ptr<const model::Map> GameSession::GetMap() {
+const std::shared_ptr<model::Map> GameSession::GetMap() {
     return map_;
 };
 
@@ -59,9 +57,12 @@ const GameSession::LostObjects& GameSession::GetLostObjects() {
     return lost_objects_;
 };
 
-void GameSession::AddLostObject(model::LostObject lost_object) {
-    auto lost_obj = std::make_shared<model::LostObject>(std::move(lost_object));
-    lost_objects_[lost_obj->GetId()] = lost_obj;
+void GameSession::AddLostObject(std::shared_ptr<model::LostObject> lost_object) {
+    lost_objects_[lost_object->GetId()] = lost_object;
+};
+
+void GameSession::AddDog(std::shared_ptr<model::Dog> dog) {
+    dogs_[dog->GetId()] = dog;
 };
 
 void GameSession::UpdateGameState(const GameSession::TimeInterval& delta_time) {
@@ -71,10 +72,10 @@ void GameSession::UpdateGameState(const GameSession::TimeInterval& delta_time) {
             dog->CalculateNewPosition(delta_time),
             dog->GetVelocity()
         );
-        dog->MakeDogAction(new_position, new_velocity, delta_time);
+        dog->SetPosition(new_position);
+        dog->SetVelocity(new_velocity);
     }
     HandleLoot();
-    RemoveInactiveDogs();
 };
 
 void GameSession::GenerateLoot(const GameSession::TimeInterval& delta_time) {
@@ -164,54 +165,12 @@ void GameSession::DropLoot(const model::ItemDogProvider& provider, size_t item_i
         if(dog->IsEmptyBag()) {
             return;
         }
-        auto office_id = casted_office->GetId();
         dog->DropLostObjectsFromBag();
     }
 };
 
-void GameSession::AddDog(std::shared_ptr<model::Dog> dog) {
-    dogs_[dog->GetId()] = dog;
-};
-
-void GameSession::AddRemoveInactivePlayersHandler(
-        std::function<void(const GameSession::Id&)> handler) {
-    remove_inactive_players_sig.connect(handler);
-};
-
-void GameSession::AddHandlingFinishedPlayersEvent(
-    std::function<void(const std::vector<domain::PlayerRecord>&)> handler) {
-    handle_finished_players_sig.connect(handler);
-};
-
-void GameSession::RemoveInactiveDogs() {
-    std::vector<domain::PlayerRecord> player_records;
-
-    std::ranges::copy(
-        dogs_
-        | std::views::values
-        | std::views::filter(
-            [](auto dog) {
-                return static_cast<bool>(dog->GetPlayTime());
-            }
-        ) | std::views::transform(
-            [](auto dog)->domain::PlayerRecord {
-                return domain::PlayerRecord{dog->GetName(),
-                                        dog->GetScore(),
-                                        dog->GetPlayTime().value().count()};
-            }
-        ), std::back_inserter(player_records)
-    );
-
-    if(player_records.empty()) {
-        return;
-    }
-
-    std::erase_if(dogs_, [](const auto& item) {
-        auto const& [dog_id, dog] = item;
-        return dog->GetPlayTime();
-    });
-    handle_finished_players_sig(std::move(player_records));
-    remove_inactive_players_sig(id_);
+void GameSession::AddPlayer(std::shared_ptr<Player> player) {
+    players_.push_back(player);
 };
 
 }

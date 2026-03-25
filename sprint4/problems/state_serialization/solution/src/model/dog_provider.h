@@ -5,6 +5,7 @@
 
 #include <unordered_map>
 #include <memory>
+#include <stdexcept>
 
 namespace model {
 
@@ -41,6 +42,9 @@ public:
     };
 
     collision_detector::Item GetItem(size_t idx) const override {
+        if (idx >= items_.size()) {
+            throw std::out_of_range("GetItem: index out of range");
+        }
         return items_[idx]->AsItem();
     };
     
@@ -49,14 +53,23 @@ public:
     };
 
     collision_detector::Gatherer GetGatherer(size_t idx) const override {
+        if (idx >= dogs_.size()) {
+            throw std::out_of_range("GetGatherer: index out of range");
+        }
         return dogs_[idx]->AsGatherer();
     };
 
     const Id& GetItemId(size_t idx) const {
+        if (idx >= items_.size()) {
+            throw std::out_of_range("GetItemId: index out of range");
+        }
         return items_[idx]->GetId();
     };
 
     const Dog::Id& GetDogId(size_t idx) const {
+        if (idx >= dogs_.size()) {
+            throw std::out_of_range("GetDogId: index out of range");
+        }
         return dogs_[idx]->GetId();
     };
 

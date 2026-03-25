@@ -33,8 +33,7 @@ class Tagged {
 public:
     using ValueType = Value;
     using TagType = Tag;
-    explicit Tagged(){
-    }
+
     explicit Tagged(Value&& v)
         : value_(std::move(v)) {
     }
