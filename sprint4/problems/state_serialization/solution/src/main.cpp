@@ -41,24 +41,12 @@ void RunWorkers(size_t n, const Fn& fn) {
 int main(int argc, const char* argv[]) {
     // 0. Инициализация логгера.
     logware::InitLogger();
-    
-    BOOST_LOG_TRIVIAL(info) << "Game server starting...";
-    
     prog_opt::Args args = prog_opt::ParseCommandLine(argc, argv);
-    
-    BOOST_LOG_TRIVIAL(info) << "Command line arguments:"
-                            << " config-file=" << args.config_file
-                            << " www-root=" << args.www_root
-                            << " tick-period=" << args.tick_period
-                            << " randomize-spawn-points=" << args.randomize_spawn_points
-                            << " state-file=" << (args.state_file.empty() ? "none" : args.state_file)
-                            << " save-state-period=" << args.save_state_period;
     
     std::atomic<bool> final_save_done{false};
     
     try {
         // 1. Загружаем карту из файла и построить модель игры
-        BOOST_LOG_TRIVIAL(info) << "Loading game config from " << args.config_file;
         model::Game game = json_loader::LoadGame(args.config_file);
 
         // 2. Устанавливаем путь до статического контента.
@@ -66,7 +54,6 @@ int main(int argc, const char* argv[]) {
 
         // 3. Инициализируем io_context
         const unsigned num_threads = std::thread::hardware_concurrency();
-        BOOST_LOG_TRIVIAL(info) << "Using " << num_threads << " threads";
         net::io_context ioc(num_threads);
 
         // 4. Создание application
@@ -82,9 +69,6 @@ int main(int argc, const char* argv[]) {
                 ? std::chrono::milliseconds(args.save_state_period)
                 : std::chrono::milliseconds(0);
             
-            BOOST_LOG_TRIVIAL(info) << "State serialization enabled: state_file=" << args.state_file
-                                   << ", save_period=" << save_period.count() << "ms";
-            
             state_serializer = std::make_unique<app::StateSerializer>(
                 *application, 
                 args.state_file, 
@@ -92,8 +76,7 @@ int main(int argc, const char* argv[]) {
             );
             
             // Восстанавливаем состояние
-            bool load_success = state_serializer->LoadState(ioc);
-            if (!load_success) {
+            if (!state_serializer->LoadState(ioc)) {
                 // Если файл существует, но произошла ошибка - завершаем работу
                 if (std::filesystem::exists(args.state_file)) {
                     BOOST_LOG_TRIVIAL(error) << "Failed to load game state from " << args.state_file;
@@ -104,14 +87,7 @@ int main(int argc, const char* argv[]) {
             }
             
             // Запускаем периодическое сохранение
-            if (save_period.count() > 0) {
-                state_serializer->StartPeriodicSaving(ioc);
-                BOOST_LOG_TRIVIAL(info) << "Periodic saving started with period " << save_period.count() << "ms";
-            } else {
-                BOOST_LOG_TRIVIAL(info) << "Periodic saving disabled (period=0)";
-            }
-        } else {
-            BOOST_LOG_TRIVIAL(info) << "State serialization disabled (no state-file specified)";
+            state_serializer->StartPeriodicSaving(ioc);
         }
 
         // 6. Добавляем асинхронный обработчик сигналов SIGINT и SIGTERM
@@ -122,12 +98,11 @@ int main(int argc, const char* argv[]) {
                 if (state_serializer) {
                     try {
                         state_serializer->FinalSave();
-                        BOOST_LOG_TRIVIAL(info) << "State saved successfully on signal";
+                        BOOST_LOG_TRIVIAL(info) << "State saved successfully";
                     } catch (const std::exception& e) {
-                        BOOST_LOG_TRIVIAL(error) << "Failed to save state on signal: " << e.what();
+                        BOOST_LOG_TRIVIAL(error) << "Failed to save state: " << e.what();
                     }
                 }
-                BOOST_LOG_TRIVIAL(info) << "Stopping io_context...";
                 ioc.stop();
             }
         });
@@ -138,7 +113,6 @@ int main(int argc, const char* argv[]) {
         // 8. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
         const auto address = net::ip::make_address("0.0.0.0");
         constexpr net::ip::port_type port = 8080;
-        BOOST_LOG_TRIVIAL(info) << "Starting HTTP server on " << address << ":" << port;
         http_server::ServeHttp(ioc, {address, port}, [&handler](auto&& req, auto&& send) {
             handler(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
         });
