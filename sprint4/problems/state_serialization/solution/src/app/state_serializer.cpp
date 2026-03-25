@@ -23,7 +23,6 @@ void StateSerializer::FinalSave() {
     
     BOOST_LOG_TRIVIAL(info) << "Performing final save...";
     SaveState();
-    // Даем время на запись
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
@@ -54,6 +53,15 @@ void StateSerializer::SaveState() {
         
         GameState game_state;
         
+        // ✅ СОХРАНЯЕМ СЧЕТЧИКИ ID
+        game_state.max_player_id = Player::GetMaxId();
+        game_state.max_dog_id = model::Dog::GetMaxId();
+        game_state.max_loot_id = model::LostObject::GetMaxId();
+        
+        BOOST_LOG_TRIVIAL(debug) << "Saving counters: player_max=" << game_state.max_player_id
+                                 << ", dog_max=" << game_state.max_dog_id
+                                 << ", loot_max=" << game_state.max_loot_id;
+        
         for (const auto& session : app_.GetSessions()) {
             std::unordered_map<authentication::Token, std::shared_ptr<Player>, 
                                authentication::TokenHasher> token_to_player;
@@ -63,7 +71,8 @@ void StateSerializer::SaveState() {
                 if (token.has_value()) {
                     token_to_player[token.value()] = player;
                     BOOST_LOG_TRIVIAL(debug) << "Saving player " << player->GetName() 
-                                             << " with token " << *token.value();
+                                             << " with token " << *token.value()
+                                             << " and id " << *player->GetId();
                 } else {
                     BOOST_LOG_TRIVIAL(warning) << "Player " << *player->GetId() 
                                                << " has no token, skipping from serialization";
@@ -150,6 +159,15 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
         BOOST_LOG_TRIVIAL(info) << "Loaded " << game_state.sessions.size() 
                                << " sessions from state file";
         
+        // ✅ ВОССТАНАВЛИВАЕМ СЧЕТЧИКИ ID
+        Player::ResetMaxId(game_state.max_player_id);
+        model::Dog::ResetMaxId(game_state.max_dog_id);
+        model::LostObject::ResetMaxId(game_state.max_loot_id);
+        
+        BOOST_LOG_TRIVIAL(info) << "Restored counters: player_max=" << game_state.max_player_id
+                                << ", dog_max=" << game_state.max_dog_id
+                                << ", loot_max=" << game_state.max_loot_id;
+        
         for (const auto& session_ser : game_state.sessions) {
             auto map_id = session_ser.RestoreMapId();
             auto map = app_.FindMap(map_id);
@@ -164,7 +182,8 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             // Восстанавливаем потерянные объекты
             size_t lost_objects_restored = 0;
             for (const auto& lost_obj_ser : session_ser.GetLostObjectsSerialize()) {
-                session->AddLostObject(std::make_shared<model::LostObject>(lost_obj_ser.Restore()));
+                auto lost_obj = std::make_shared<model::LostObject>(lost_obj_ser.Restore());
+                session->AddLostObject(lost_obj);
                 lost_objects_restored++;
             }
             BOOST_LOG_TRIVIAL(info) << "Restored " << lost_objects_restored 
@@ -184,7 +203,7 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                                        << " (id: " << *player->GetId() 
                                        << ", token: " << *token << ")";
                 
-                // ВАЖНО: Восстанавливаем все связи
+                // Восстанавливаем все связи
                 app_.RestorePlayer(token, player, session);
             }
             

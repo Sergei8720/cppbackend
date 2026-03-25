@@ -179,28 +179,11 @@ void Application::RestorePlayer(const authentication::Token& token,
 };
 
 void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
-    // Проверяем, нужно ли сохранять состояние
-    if (!ShouldSaveState()) {
-        return;
-    }
-    
-    // Если счетчик еще не инициализирован, инициализируем его
-    if (save_period_counter_ <= 0) {
-        save_period_counter_ = saving_settings_.period.value().count();
-        // Не сохраняем сразу, просто устанавливаем счетчик
-        return;
-    }
-    
-    save_period_counter_ -= delta_time.count();
-    
-    // Сохраняем, если время вышло
-    if (save_period_counter_ <= 0) {
-        BOOST_LOG_TRIVIAL(debug) << "Triggering SaveGame() after " 
-                                 << saving_settings_.period.value().count() << "ms period";
-        SaveGame();
-        save_period_counter_ = saving_settings_.period.value().count();
-    }
-};
+    // ⚠️ УДАЛЕНО: сохранение теперь только через StateSerializer
+    // Эта функция оставлена пустой, чтобы не нарушать существующие вызовы
+    // Весь код сохранения перенесен в StateSerializer::SaveState
+    return;
+}
 
 void Application::SaveGame() {
     using game_data_ser::GameSessionSerialization;

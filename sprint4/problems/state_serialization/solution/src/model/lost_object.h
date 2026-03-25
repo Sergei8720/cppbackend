@@ -15,12 +15,27 @@ public:
   LostObject(double width = LOOT_WIDTH)
         : Item({0,0}, width)
         , id_(Id{LostObject::max_id_cont_++}) {};
+  
+  // ✅ КОНСТРУКТОР ДЛЯ ВОССТАНОВЛЕНИЯ
+  LostObject(Id id, double width = LOOT_WIDTH)
+        : Item({0,0}, width)
+        , id_(id) {
+        if(*id_ >= LostObject::max_id_cont_){
+            LostObject::max_id_cont_ = *id_ + 1;
+        }
+    };
+    
   const Id& GetId() const;
   void SetId(const Id& id);
   size_t GetType() const;
   void SetType(size_t type);
   size_t GetValue() const;
   void SetValue(size_t value);
+  
+  // ✅ НОВЫЕ МЕТОДЫ для работы со счетчиком
+  static size_t GetMaxId() { return max_id_cont_; }
+  static void ResetMaxId(size_t new_max) { max_id_cont_ = new_max; }
+  
 private:
   Id id_;
   size_t type_;

@@ -16,8 +16,8 @@ public:
         position_(lost_object.GetPosition()) {};
 
     [[nodiscard]] model::LostObject Restore() const {
-        model::LostObject lost_object;
-        lost_object.SetId(model::LostObject::Id{id_});
+        // ✅ ИСПРАВЛЕНО: используем конструктор с ID
+        model::LostObject lost_object(model::LostObject::Id{id_});
         lost_object.SetType(type_);
         lost_object.SetValue(value_);
         lost_object.SetPosition(position_);

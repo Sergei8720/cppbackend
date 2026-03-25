@@ -17,12 +17,19 @@ namespace app {
 
 namespace net = boost::asio;
 
+// ✅ ИСПРАВЛЕНО: добавляем поля для счетчиков ID
 struct GameState {
     std::vector<game_data_ser::GameSessionSerialization> sessions;
+    uint64_t max_player_id{0};
+    uint64_t max_dog_id{0};
+    uint64_t max_loot_id{0};
     
     template <typename Archive>
     void serialize(Archive& ar, [[maybe_unused]] const unsigned int version) {
         ar& sessions;
+        ar& max_player_id;
+        ar& max_dog_id;
+        ar& max_loot_id;
     }
 };
 
@@ -37,8 +44,6 @@ public:
     void SaveState();
     bool LoadState(net::io_context& ioc);
     void StartPeriodicSaving(net::io_context& ioc);
-    
-    // Добавляем метод для финального сохранения
     void FinalSave();
 
 private:

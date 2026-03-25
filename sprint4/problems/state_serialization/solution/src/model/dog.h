@@ -60,9 +60,14 @@ public:
     void DropLostObjectsFromBag();
 
     const size_t GetScore() const;
-    void SetScore(size_t score) { score_ = score; }  // ДОБАВЛЕНО
+    void SetScore(size_t score) { score_ = score; }  // ✅ УЖЕ ЕСТЬ
 
     const collision_detector::Gatherer& AsGatherer() const;
+    
+    // ✅ НОВЫЕ МЕТОДЫ для работы со счетчиком
+    static size_t GetMaxId() { return max_id_cont_; }
+    static void ResetMaxId(size_t new_max) { max_id_cont_ = new_max; }
+    
 private:
     Id id_;
     std::string name_;
