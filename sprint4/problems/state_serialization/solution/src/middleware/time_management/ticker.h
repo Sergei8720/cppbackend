@@ -1,51 +1,44 @@
 #pragma once
 
-#include "sdk.h"
+#include <memory>
 #include <chrono>
+#include <functional>
 #include <boost/asio/strand.hpp>
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/steady_timer.hpp>
+#include <boost/asio.hpp>
 
-using Strand = boost::asio::strand<boost::asio::io_context::executor_type>;
+namespace time_m {
 
-template<typename Handler>
-class Ticker : public std::enable_shared_from_this<Ticker<Handler>> {
+namespace net = boost::asio;
+namespace sys = boost::system;
+
+class Ticker : public std::enable_shared_from_this<Ticker> {
 public:
-    Ticker(Strand strand, std::chrono::milliseconds period, Handler handler) 
-        : period_(period), handler_(handler), strand_(strand) {
-    }
-    
-    void Start() {
-        strand_.execute([this] { ScheduleTick(); });
-    }
-    
-    void SingleShot() {
-        timer_.expires_after(period_);
-        timer_.async_wait([this](boost::system::error_code ec) {
-            if (!ec) {
-                handler_();
-            }
-        });
-    }
+    using Strand = net::strand<net::io_context::executor_type>;
+    using Handler = std::function<void(const std::chrono::milliseconds& delta)>;
 
+    Ticker(std::shared_ptr<Strand> strand, const std::chrono::milliseconds& period, Handler handler):
+        period_{period},
+        handler_{handler},
+        strand_{strand},
+        timer_{*strand_}{
+    };
+    Ticker(net::io_context& ioc, const std::chrono::milliseconds& period, Handler handler):
+        period_{period},
+        handler_{handler},
+        timer_(ioc){
+    };
+    ~Ticker() = default;
+
+    void Start();
 private:
-    void ScheduleTick() {
-        last_tick_ = std::chrono::steady_clock::now();
-        timer_.expires_after(period_);
-        timer_.async_wait([this](boost::system::error_code ec) { OnTick(ec); });
-    }
-    
-    void OnTick(boost::system::error_code ec) {
-        if (ec) return;
-        auto current_tick = std::chrono::steady_clock::now();
-        handler_(std::chrono::duration_cast<std::chrono::milliseconds>(current_tick - last_tick_));
-        last_tick_ = current_tick;
-        ScheduleTick();
-    }
-
-    Strand strand_;
-    boost::asio::steady_timer timer_{strand_};
     std::chrono::milliseconds period_;
     Handler handler_;
+    std::shared_ptr<Strand> strand_;;
+    net::steady_timer timer_;
     std::chrono::time_point<std::chrono::steady_clock> last_tick_;
-};
+
+    void ScheduleTick();
+    void OnTick(sys::error_code ec);
+}; 
+
+}

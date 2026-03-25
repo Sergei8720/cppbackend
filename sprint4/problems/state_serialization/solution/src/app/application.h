@@ -60,12 +60,6 @@ public:
     void SetSavingSettings(const saving::SavingSettings& settings);
     bool ShouldSaveState() const;
     
-    // Новые методы для сериализации
-    void SetStateFilePath(const std::string& path);
-    std::string GetStateFilePath() const;
-    void SetSavePeriod(std::chrono::milliseconds period);
-    bool LoadGameStateFromFile();
-    
 private:
     using GameSessionIdHasher = util::TaggedHasher<GameSession::Id>;
     using GameSessionIdToPlayers = std::unordered_map<GameSession::Id,
@@ -96,10 +90,6 @@ private:
     std::shared_ptr<time_m::Ticker> save_game_ticker_;
     PlayerIdToToken player_id_to_token_;
     int save_period_counter_{0};
-    
-    // Новые поля для сериализации
-    std::string state_file_path_;
-    std::chrono::milliseconds save_period_{0};
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);
     void BoundPlayerAndGameSession(std::shared_ptr<Player> player,

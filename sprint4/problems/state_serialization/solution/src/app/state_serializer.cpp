@@ -27,6 +27,7 @@ void StateSerializer::FinalSave() {
     
     BOOST_LOG_TRIVIAL(info) << "FinalSave: performing final save to " << state_file_.string();
     SaveState();
+    // Даем время на запись
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
@@ -47,39 +48,68 @@ void StateSerializer::SaveState() {
     try {
         temp_file_ = state_file_.string() + ".tmp";
         
+        // Создаем директорию, если её нет
         std::error_code ec;
         auto parent_path = std::filesystem::path(temp_file_).parent_path();
         if (!parent_path.empty() && !std::filesystem::exists(parent_path)) {
+            BOOST_LOG_TRIVIAL(info) << "SaveState: creating directory " << parent_path.string();
             std::filesystem::create_directories(parent_path, ec);
             if (ec) {
-                BOOST_LOG_TRIVIAL(error) << "SaveState: failed to create directory: " << ec.message();
+                BOOST_LOG_TRIVIAL(error) << "SaveState: failed to create directory " << parent_path.string() 
+                                        << " - " << ec.message();
                 is_saving_ = false;
                 return;
+            }
+            
+            // Проверяем права после создания
+            BOOST_LOG_TRIVIAL(info) << "SaveState: directory created, checking permissions";
+            std::ofstream test_file(parent_path / "test.tmp");
+            if (test_file.is_open()) {
+                test_file << "test";
+                test_file.close();
+                std::filesystem::remove(parent_path / "test.tmp");
+                BOOST_LOG_TRIVIAL(info) << "SaveState: directory is writable";
+            } else {
+                BOOST_LOG_TRIVIAL(error) << "SaveState: directory is NOT writable!";
             }
         }
         
         GameState game_state;
         
+        int session_count = 0;
         for (const auto& session : app_.GetSessions()) {
             std::unordered_map<authentication::Token, std::shared_ptr<Player>, 
                                authentication::TokenHasher> token_to_player;
             
+            int player_count = 0;
             for (const auto& player : session->GetPlayers()) {
                 auto token = app_.FindTokenByPlayer(player->GetId());
                 if (token.has_value()) {
                     token_to_player[token.value()] = player;
+                    player_count++;
+                    BOOST_LOG_TRIVIAL(debug) << "SaveState: saving player " << player->GetName() 
+                                            << " with token " << *token.value();
+                } else {
+                    BOOST_LOG_TRIVIAL(warning) << "SaveState: player " << *player->GetId() 
+                                               << " has no token, skipping";
                 }
             }
             
             game_state.sessions.emplace_back(*session, token_to_player);
+            session_count++;
+            BOOST_LOG_TRIVIAL(info) << "SaveState: session " << session_count 
+                                   << " has " << player_count << " players, "
+                                   << token_to_player.size() << " tokens";
         }
         
-        BOOST_LOG_TRIVIAL(info) << "SaveState: saving " << game_state.sessions.size() 
+        BOOST_LOG_TRIVIAL(info) << "SaveState: saving " << session_count 
                                << " sessions to " << state_file_.string();
         
+        // Создаем временный файл
         std::ofstream ofs(temp_file_, std::ios::out | std::ios::trunc | std::ios::binary);
         if (!ofs.is_open()) {
-            BOOST_LOG_TRIVIAL(error) << "SaveState: failed to open temporary file: " << temp_file_;
+            BOOST_LOG_TRIVIAL(error) << "SaveState: failed to open temporary file: " << temp_file_
+                                    << " (errno: " << errno << ")";
             is_saving_ = false;
             return;
         }
@@ -92,19 +122,31 @@ void StateSerializer::SaveState() {
         ofs.flush();
         ofs.close();
         
-        if (std::filesystem::file_size(temp_file_) == 0) {
-            BOOST_LOG_TRIVIAL(error) << "SaveState: temporary file is empty";
+        // Проверяем, что файл записан
+        if (!std::filesystem::exists(temp_file_)) {
+            BOOST_LOG_TRIVIAL(error) << "SaveState: temporary file does not exist after write: " << temp_file_;
+            is_saving_ = false;
+            return;
+        }
+        
+        auto file_size = std::filesystem::file_size(temp_file_);
+        if (file_size == 0) {
+            BOOST_LOG_TRIVIAL(error) << "SaveState: temporary file is empty: " << temp_file_;
             std::filesystem::remove(temp_file_);
             is_saving_ = false;
             return;
         }
         
+        BOOST_LOG_TRIVIAL(info) << "SaveState: temporary file written, size=" << file_size;
+        
+        // Атомарное переименование
         std::filesystem::rename(temp_file_, state_file_, ec);
         if (ec) {
             BOOST_LOG_TRIVIAL(error) << "SaveState: failed to rename file: " << ec.message();
             std::filesystem::remove(temp_file_, ec);
         } else {
-            BOOST_LOG_TRIVIAL(info) << "SaveState: saved successfully to " << state_file_.string();
+            BOOST_LOG_TRIVIAL(info) << "SaveState: saved successfully to " << state_file_.string()
+                                   << " (size=" << std::filesystem::file_size(state_file_) << ")";
         }
         
     } catch (const std::exception& e) {
@@ -153,6 +195,7 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                                << " sessions from file";
         
         int restored_players_total = 0;
+        int restored_lost_objects_total = 0;
         
         for (const auto& session_ser : game_state.sessions) {
             auto map_id = session_ser.RestoreMapId();
@@ -162,15 +205,22 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 continue;
             }
             
+            BOOST_LOG_TRIVIAL(debug) << "LoadState: creating session for map " << *map_id;
             auto session = std::make_shared<GameSession>(map, app_.GetTickPeriod(), 
                                                         app_.GetLootGeneratorConfig(), ioc);
             
             // Восстанавливаем потерянные объекты
+            int lost_objects_restored = 0;
             for (const auto& lost_obj_ser : session_ser.GetLostObjectsSerialize()) {
                 session->AddLostObject(std::make_shared<model::LostObject>(lost_obj_ser.Restore()));
+                lost_objects_restored++;
             }
+            restored_lost_objects_total += lost_objects_restored;
+            BOOST_LOG_TRIVIAL(debug) << "LoadState: restored " << lost_objects_restored 
+                                    << " lost objects for map " << *map_id;
             
             // Восстанавливаем игроков
+            int players_restored = 0;
             for (const auto& player_ser : session_ser.GetPlayersSerialize()) {
                 auto player = std::make_shared<Player>(player_ser.Restore());
                 auto dog = std::make_shared<model::Dog>(player_ser.RestoreDog());
@@ -185,19 +235,30 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                                         << ", token: " << *token << ")";
                 
                 app_.RestorePlayer(token, player, session);
-                restored_players_total++;
+                players_restored++;
             }
+            restored_players_total += players_restored;
+            BOOST_LOG_TRIVIAL(debug) << "LoadState: restored " << players_restored 
+                                    << " players for map " << *map_id;
             
             app_.AddGameSession(session);
             session->Run();
             
-            BOOST_LOG_TRIVIAL(info) << "LoadState: session for map " << *map_id << " restored";
+            BOOST_LOG_TRIVIAL(info) << "LoadState: session for map " << *map_id 
+                                   << " restored and started with " << players_restored << " players";
         }
         
         BOOST_LOG_TRIVIAL(info) << "LoadState: completed successfully - restored " 
-                               << restored_players_total << " players";
+                               << restored_players_total << " players and "
+                               << restored_lost_objects_total << " lost objects";
         return true;
         
+    } catch (const boost::archive::archive_exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "LoadState: archive error: " << e.what();
+        return false;
+    } catch (const std::ifstream::failure& e) {
+        BOOST_LOG_TRIVIAL(error) << "LoadState: file I/O error: " << e.what();
+        return false;
     } catch (const std::exception& e) {
         BOOST_LOG_TRIVIAL(error) << "LoadState: exception: " << e.what();
         return false;
