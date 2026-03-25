@@ -36,6 +36,13 @@ public:
   static size_t GetMaxId() { return max_id_cont_; }
   static void ResetMaxId(size_t new_max) { max_id_cont_ = new_max; }
   
+  // ✅ НОВЫЙ МЕТОД: обновляет счетчик при восстановлении
+  void UpdateLootCounter() {
+      if (*id_ >= max_id_cont_) {
+          max_id_cont_ = *id_ + 1;
+      }
+  }
+  
 private:
   Id id_;
   size_t type_;
