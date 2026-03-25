@@ -14,9 +14,9 @@ public:
         id_(*player.GetId()),
         name_(player.GetName()),
         token_(*token) {
-        auto dog_ptr = player.GetDog().lock();
-        if (dog_ptr) {
-            dog_ser_ = DogSerialization(*dog_ptr);
+        auto dog = player.GetDog().lock();
+        if (dog) {
+            dog_ser_ = DogSerialization(*dog);
         }
     };
     
@@ -50,7 +50,7 @@ public:
         ar& token_;
     }
     
-    // Геттеры для отладки (опционально)
+    // Геттеры
     size_t GetId() const { return id_; }
     const std::string& GetName() const { return name_; }
     const std::string& GetToken() const { return token_; }

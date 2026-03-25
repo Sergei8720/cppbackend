@@ -17,12 +17,18 @@ namespace app {
 
 namespace net = boost::asio;
 
-// ✅ Используем game_data_ser::GameSerialization напрямую
 struct GameState {
     game_data_ser::GameSerialization data;
     uint64_t max_player_id{0};
     uint64_t max_dog_id{0};
     uint64_t max_loot_id{0};
+    
+    // Конструкторы для корректной работы с векторами
+    GameState() = default;
+    GameState(const GameState& other) = default;
+    GameState(GameState&& other) = default;
+    GameState& operator=(const GameState& other) = default;
+    GameState& operator=(GameState&& other) = default;
     
     template <typename Archive>
     void serialize(Archive& ar, [[maybe_unused]] const unsigned int version) {
