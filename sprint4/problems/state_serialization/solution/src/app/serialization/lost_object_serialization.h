@@ -15,8 +15,17 @@ public:
         value_(lost_object.GetValue()),
         position_(lost_object.GetPosition()) {};
 
+    // ✅ Добавляем конструктор копирования
+    LostObjectSerialization(const LostObjectSerialization& other) = default;
+    
+    // ✅ Добавляем move конструктор
+    LostObjectSerialization(LostObjectSerialization&& other) = default;
+    
+    // ✅ Добавляем оператор присваивания
+    LostObjectSerialization& operator=(const LostObjectSerialization& other) = default;
+    LostObjectSerialization& operator=(LostObjectSerialization&& other) = default;
+
     [[nodiscard]] model::LostObject Restore() const {
-        // ✅ ИСПРАВЛЕНО: используем конструктор с ID
         model::LostObject lost_object(model::LostObject::Id{id_});
         lost_object.SetType(type_);
         lost_object.SetValue(value_);

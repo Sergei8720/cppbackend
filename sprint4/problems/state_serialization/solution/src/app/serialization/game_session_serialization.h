@@ -30,6 +30,16 @@ public:
         );
     };
 
+    // ✅ Добавляем конструктор копирования
+    GameSessionSerialization(const GameSessionSerialization& other) = default;
+    
+    // ✅ Добавляем move конструктор
+    GameSessionSerialization(GameSessionSerialization&& other) = default;
+    
+    // ✅ Добавляем оператор присваивания
+    GameSessionSerialization& operator=(const GameSessionSerialization& other) = default;
+    GameSessionSerialization& operator=(GameSessionSerialization&& other) = default;
+
     [[nodiscard]] model::Map::Id RestoreMapId() const {
         return model::Map::Id(map_id_);
     };

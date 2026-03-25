@@ -19,7 +19,16 @@ public:
             dog_ser_ = DogSerialization(*dog_ptr);
         }
     };
-    PlayerSerialization(PlayerSerialization&& other) = default;        
+    
+    // ✅ Добавляем конструктор копирования
+    PlayerSerialization(const PlayerSerialization& other) = default;
+    
+    // ✅ Добавляем move конструктор
+    PlayerSerialization(PlayerSerialization&& other) = default;
+    
+    // ✅ Добавляем оператор присваивания
+    PlayerSerialization& operator=(const PlayerSerialization& other) = default;
+    PlayerSerialization& operator=(PlayerSerialization&& other) = default;
 
     [[nodiscard]] app::Player Restore() const {
         return app::Player(app::Player::Id{id_}, name_);
