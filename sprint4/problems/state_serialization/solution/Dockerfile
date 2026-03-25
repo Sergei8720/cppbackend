@@ -53,18 +53,18 @@ COPY ./data /app/data
 COPY ./static /app/static
 
 # Создаем директорию для state файла с правильными правами
-# Используем несколько директорий для совместимости
-RUN mkdir -p /tmp/volume && \
-    mkdir -p /var/lib/game && \
-    chown -R www:www /tmp/volume && \
+# Используем /var/lib/game для постоянного хранения
+RUN mkdir -p /var/lib/game && \
     chown -R www:www /var/lib/game && \
-    chmod 777 /tmp/volume && \
     chmod 755 /var/lib/game
 
+# Создаем временную директорию с правильными правами
+RUN mkdir -p /tmp/volume && \
+    chown -R www:www /tmp/volume && \
+    chmod 777 /tmp/volume
+
 # Проверяем права
-RUN echo "Checking permissions:" && \
-    ls -la /tmp/volume && \
-    ls -la /var/lib/game
+RUN ls -la /tmp/volume && ls -la /var/lib/game
 
 # Устанавливаем рабочую директорию
 WORKDIR /app

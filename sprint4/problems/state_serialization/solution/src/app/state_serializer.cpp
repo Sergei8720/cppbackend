@@ -52,25 +52,13 @@ void StateSerializer::SaveState() {
         std::error_code ec;
         auto parent_path = std::filesystem::path(temp_file_).parent_path();
         if (!parent_path.empty() && !std::filesystem::exists(parent_path)) {
-            BOOST_LOG_TRIVIAL(info) << "SaveState: creating directory " << parent_path.string();
+            BOOST_LOG_TRIVIAL(debug) << "SaveState: creating directory " << parent_path.string();
             std::filesystem::create_directories(parent_path, ec);
             if (ec) {
                 BOOST_LOG_TRIVIAL(error) << "SaveState: failed to create directory " << parent_path.string() 
                                         << " - " << ec.message();
                 is_saving_ = false;
                 return;
-            }
-            
-            // Проверяем права после создания
-            BOOST_LOG_TRIVIAL(info) << "SaveState: directory created, checking permissions";
-            std::ofstream test_file(parent_path / "test.tmp");
-            if (test_file.is_open()) {
-                test_file << "test";
-                test_file.close();
-                std::filesystem::remove(parent_path / "test.tmp");
-                BOOST_LOG_TRIVIAL(info) << "SaveState: directory is writable";
-            } else {
-                BOOST_LOG_TRIVIAL(error) << "SaveState: directory is NOT writable!";
             }
         }
         
@@ -97,9 +85,9 @@ void StateSerializer::SaveState() {
             
             game_state.sessions.emplace_back(*session, token_to_player);
             session_count++;
-            BOOST_LOG_TRIVIAL(info) << "SaveState: session " << session_count 
-                                   << " has " << player_count << " players, "
-                                   << token_to_player.size() << " tokens";
+            BOOST_LOG_TRIVIAL(debug) << "SaveState: session " << session_count 
+                                     << " has " << player_count << " players, "
+                                     << token_to_player.size() << " tokens";
         }
         
         BOOST_LOG_TRIVIAL(info) << "SaveState: saving " << session_count 
@@ -108,8 +96,7 @@ void StateSerializer::SaveState() {
         // Создаем временный файл
         std::ofstream ofs(temp_file_, std::ios::out | std::ios::trunc | std::ios::binary);
         if (!ofs.is_open()) {
-            BOOST_LOG_TRIVIAL(error) << "SaveState: failed to open temporary file: " << temp_file_
-                                    << " (errno: " << errno << ")";
+            BOOST_LOG_TRIVIAL(error) << "SaveState: failed to open temporary file: " << temp_file_;
             is_saving_ = false;
             return;
         }
@@ -123,21 +110,15 @@ void StateSerializer::SaveState() {
         ofs.close();
         
         // Проверяем, что файл записан
-        if (!std::filesystem::exists(temp_file_)) {
-            BOOST_LOG_TRIVIAL(error) << "SaveState: temporary file does not exist after write: " << temp_file_;
-            is_saving_ = false;
-            return;
-        }
-        
-        auto file_size = std::filesystem::file_size(temp_file_);
-        if (file_size == 0) {
+        if (std::filesystem::file_size(temp_file_) == 0) {
             BOOST_LOG_TRIVIAL(error) << "SaveState: temporary file is empty: " << temp_file_;
             std::filesystem::remove(temp_file_);
             is_saving_ = false;
             return;
         }
         
-        BOOST_LOG_TRIVIAL(info) << "SaveState: temporary file written, size=" << file_size;
+        BOOST_LOG_TRIVIAL(debug) << "SaveState: temporary file written, size=" 
+                                 << std::filesystem::file_size(temp_file_);
         
         // Атомарное переименование
         std::filesystem::rename(temp_file_, state_file_, ec);
@@ -145,8 +126,7 @@ void StateSerializer::SaveState() {
             BOOST_LOG_TRIVIAL(error) << "SaveState: failed to rename file: " << ec.message();
             std::filesystem::remove(temp_file_, ec);
         } else {
-            BOOST_LOG_TRIVIAL(info) << "SaveState: saved successfully to " << state_file_.string()
-                                   << " (size=" << std::filesystem::file_size(state_file_) << ")";
+            BOOST_LOG_TRIVIAL(info) << "SaveState: saved successfully to " << state_file_.string();
         }
         
     } catch (const std::exception& e) {
