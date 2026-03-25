@@ -30,13 +30,13 @@ public:
         );
     };
 
-    // ✅ Добавляем конструктор копирования
+    // Конструктор копирования
     GameSessionSerialization(const GameSessionSerialization& other) = default;
     
-    // ✅ Добавляем move конструктор
+    // Move конструктор
     GameSessionSerialization(GameSessionSerialization&& other) = default;
     
-    // ✅ Добавляем оператор присваивания
+    // Операторы присваивания
     GameSessionSerialization& operator=(const GameSessionSerialization& other) = default;
     GameSessionSerialization& operator=(GameSessionSerialization&& other) = default;
 
@@ -58,6 +58,7 @@ public:
         ar& players_ser_;
         ar& lost_objects_;
     }
+    
 private:
     std::string map_id_;
     std::vector<PlayerSerialization> players_ser_;

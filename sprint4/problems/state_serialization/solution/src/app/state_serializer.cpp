@@ -63,6 +63,7 @@ void StateSerializer::SaveState() {
                                  << ", dog_max=" << game_state.max_dog_id
                                  << ", loot_max=" << game_state.max_loot_id;
         
+        // Сохраняем сессии
         for (const auto& session : app_.GetSessions()) {
             std::unordered_map<authentication::Token, std::shared_ptr<Player>, 
                                authentication::TokenHasher> token_to_player;
@@ -84,10 +85,10 @@ void StateSerializer::SaveState() {
                 }
             }
             
-            game_state.sessions.emplace_back(*session, token_to_player);
+            game_state.data.sessions.emplace_back(*session, token_to_player);
         }
         
-        BOOST_LOG_TRIVIAL(info) << "Total sessions saved: " << game_state.sessions.size();
+        BOOST_LOG_TRIVIAL(info) << "Total sessions saved: " << game_state.data.sessions.size();
         
         // Создаем временный файл
         std::ofstream ofs(temp_file_, std::ios::out | std::ios::trunc | std::ios::binary);
@@ -161,7 +162,7 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
         }
         ifs.close();
         
-        BOOST_LOG_TRIVIAL(info) << "Loaded " << game_state.sessions.size() 
+        BOOST_LOG_TRIVIAL(info) << "Loaded " << game_state.data.sessions.size() 
                                << " sessions from state file";
         
         // Восстанавливаем счетчики ID
@@ -173,7 +174,7 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                                 << ", dog_max=" << game_state.max_dog_id
                                 << ", loot_max=" << game_state.max_loot_id;
         
-        for (const auto& session_ser : game_state.sessions) {
+        for (const auto& session_ser : game_state.data.sessions) {
             auto map_id = session_ser.RestoreMapId();
             BOOST_LOG_TRIVIAL(info) << "Restoring session for map: " << *map_id;
             

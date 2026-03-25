@@ -20,13 +20,13 @@ public:
         }
     };
     
-    // ✅ Добавляем конструктор копирования
+    // Конструктор копирования
     PlayerSerialization(const PlayerSerialization& other) = default;
     
-    // ✅ Добавляем move конструктор
+    // Move конструктор
     PlayerSerialization(PlayerSerialization&& other) = default;
     
-    // ✅ Добавляем оператор присваивания
+    // Операторы присваивания
     PlayerSerialization& operator=(const PlayerSerialization& other) = default;
     PlayerSerialization& operator=(PlayerSerialization&& other) = default;
 
@@ -49,6 +49,12 @@ public:
         ar& dog_ser_;
         ar& token_;
     }
+    
+    // Геттеры для отладки (опционально)
+    size_t GetId() const { return id_; }
+    const std::string& GetName() const { return name_; }
+    const std::string& GetToken() const { return token_; }
+    
 private:
     size_t id_;
     std::string name_;

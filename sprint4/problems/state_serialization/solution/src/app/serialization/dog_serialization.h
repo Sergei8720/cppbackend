@@ -24,13 +24,13 @@ public:
             );
         };
 
-    // ✅ Добавляем конструктор копирования
+    // Конструктор копирования
     DogSerialization(const DogSerialization& other) = default;
     
-    // ✅ Добавляем move конструктор
+    // Move конструктор
     DogSerialization(DogSerialization&& other) = default;
     
-    // ✅ Добавляем оператор присваивания
+    // Операторы присваивания
     DogSerialization& operator=(const DogSerialization& other) = default;
     DogSerialization& operator=(DogSerialization&& other) = default;
 
@@ -57,6 +57,7 @@ public:
         ar& score_;
         ar& bag_capacity_;
     }
+    
 private:
     size_t id_;
     std::string name_;

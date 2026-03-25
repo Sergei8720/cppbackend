@@ -17,16 +17,16 @@ namespace app {
 
 namespace net = boost::asio;
 
-// ✅ ИСПРАВЛЕНО: добавляем поля для счетчиков ID
+// ✅ Используем game_data_ser::GameSerialization напрямую
 struct GameState {
-    std::vector<game_data_ser::GameSessionSerialization> sessions;
+    game_data_ser::GameSerialization data;
     uint64_t max_player_id{0};
     uint64_t max_dog_id{0};
     uint64_t max_loot_id{0};
     
     template <typename Archive>
     void serialize(Archive& ar, [[maybe_unused]] const unsigned int version) {
-        ar& sessions;
+        ar& data;
         ar& max_player_id;
         ar& max_dog_id;
         ar& max_loot_id;

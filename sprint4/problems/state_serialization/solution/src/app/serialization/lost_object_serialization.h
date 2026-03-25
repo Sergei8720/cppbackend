@@ -15,13 +15,13 @@ public:
         value_(lost_object.GetValue()),
         position_(lost_object.GetPosition()) {};
 
-    // ✅ Добавляем конструктор копирования
+    // Конструктор копирования
     LostObjectSerialization(const LostObjectSerialization& other) = default;
     
-    // ✅ Добавляем move конструктор
+    // Move конструктор
     LostObjectSerialization(LostObjectSerialization&& other) = default;
     
-    // ✅ Добавляем оператор присваивания
+    // Операторы присваивания
     LostObjectSerialization& operator=(const LostObjectSerialization& other) = default;
     LostObjectSerialization& operator=(LostObjectSerialization&& other) = default;
 
@@ -40,6 +40,7 @@ public:
         ar& value_;
         ar& position_;
     }
+    
 private:
     size_t id_;
     size_t type_;
