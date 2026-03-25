@@ -1,21 +1,17 @@
 #pragma once
 #include "application.h"
-#include "token_generator.h"
+#include "player_tokens.h"
 #include "json_converter.h"
 #include "request_handlers_utils.h"
 #include "api_url_storage.h"
-#include "url_invariants.h"
 
 #include <vector>
 #include <optional>
 #include <variant>
 #include <chrono>
 #include <unordered_set>
-#include <sstream>
 #include <boost/beast/http.hpp>
 #include <boost/thread/future.hpp>
-#include <boost/url/url_view.hpp>
-#include <boost/url/parse.hpp>
 
 namespace rh_storage{
 
@@ -35,9 +31,7 @@ const std::unordered_set<std::string_view> GAME_API_URLS_WITH_AUTHORIZATION = {
     api_urls::GET_GAME_STATE_API,
     api_urls::GET_GAME_STATE_API + "/",
     api_urls::MAKE_ACTION_API,
-    api_urls::MAKE_ACTION_API + "/",
-    api_urls::GET_RECORDS_API,
-    api_urls::GET_RECORDS_API + "/"
+    api_urls::MAKE_ACTION_API + "/"
 };
 
 const std::unordered_set<std::string_view> GAME_API_URLS_WITH_JSON_REQ = {
@@ -53,7 +47,7 @@ const std::string NO_CACHE_CONTROL = "no-cache";
 
 template <typename Request>
 bool BadRequestActivator(const Request& req) {
-    auto url = SplitUrl(boost::urls::url_view{req.target()}.path());
+    auto url = SplitUrl(req.target());
     return !url.empty() &&
             url[0] == "api" &&
             (
@@ -70,7 +64,7 @@ bool BadRequestActivator(const Request& req) {
                     url[3] != "player" &&
                     url[3] != "tick" &&
                     (url.size() == SIZE_OF_FIVE_SEGMENT_URL && url[4] != "action"))
-            ); // todo: need refactor
+            );
 };
 
 template <typename Request, typename Send>
@@ -125,13 +119,13 @@ std::optional<size_t> GetMapByIdHandler(
         Send&& send) {
     auto id = SplitUrl(req.target())[3];
     auto map = application->FindMap(model::Map::Id(std::string(id)));
-    if(!map) {
+    if(map == nullptr) {
         return 0;
     }
     http::response<http::string_body> response(http::status::ok, req.version());
     response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
     response.set(http::field::cache_control, NO_CACHE_CONTROL);
-    response.body() = json_converter::ConvertMapToJson(**map);
+    response.body() = json_converter::ConvertMapToJson(*map);
     response.content_length(response.body().size());
     response.keep_alive(req.keep_alive());
     send(response);
@@ -142,7 +136,7 @@ template <typename Request, typename Send>
 std::optional<size_t> MapNotFoundHandler(
         const Request& req,
         std::shared_ptr<app::Application> application,
-        Send&& send)                                                                                                                                                                          {
+        Send&& send) {
     StringResponse response(http::status::not_found, req.version());
     response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
     response.set(http::field::cache_control, NO_CACHE_CONTROL);
@@ -216,7 +210,7 @@ std::optional<size_t> JoinToGameHandler(
         std::shared_ptr<app::Application> application,
         Send&& send) {
     auto [player_name, map_id] = json_converter::ParseJoinToGameRequest(req.body()).value();
-    if(!application->FindMap(map_id)) {
+    if(application->FindMap(map_id) == nullptr) {
         return 0;
     }
     StringResponse response(http::status::ok, req.version());
@@ -224,7 +218,7 @@ std::optional<size_t> JoinToGameHandler(
     if(session) {
         boost::promise<std::string> res_promise;
         auto res_future = res_promise.get_future();
-        net::dispatch(*(session.value()->GetStrand()),
+        net::dispatch(*(session->GetStrand()),
             [&res_promise
             , application
             , &player_name
@@ -316,13 +310,12 @@ std::optional<size_t> GetPlayersListHandler(
     }
     boost::promise<std::variant<std::string, size_t>> res_promise;
     auto res_future = res_promise.get_future();
-    net::dispatch(*(application->FindGameSessionBy(token).value()->GetStrand()),
+    net::dispatch(*(application->FindGameSessionBy(token)->GetStrand()),
         [&res_promise
         , &token
         , application]{
-        res_promise.set_value(
-            json_converter::CreatePlayersListOnMapResponse(application->GetPlayersFromGameSession(token))
-        );
+        auto players = application->GetPlayersFromGameSession(token);
+        res_promise.set_value(json_converter::CreatePlayersListOnMapResponse(players));
     });
     auto res = res_future.get();
     if(std::holds_alternative<size_t>(res)){
@@ -369,21 +362,16 @@ std::optional<size_t> GetGameStateHandler(
     if(!application->IsExistPlayer(token)) {
         return 0;
     }
-    
     boost::promise<std::variant<std::string, size_t>> res_promise;
     auto res_future = res_promise.get_future();
-    net::dispatch(*(application->FindGameSessionBy(token).value()->GetStrand()),
+    net::dispatch(*(application->FindGameSessionBy(token)->GetStrand()),
         [&res_promise
         , &token
         , application] {
-        auto session = application->FindGameSessionBy(token);
-        if(!session) {
-            res_promise.set_value(0ul);
-            return;    
-        }
+        auto players = application->GetPlayersFromGameSession(token);
         res_promise.set_value(json_converter::CreateGameStateResponse(
-            application->GetPlayersFromGameSession(token),
-            session.value()->GetLostObjects())
+            players,
+            application->FindGameSessionBy(token)->GetLostObjects())
         );
     });
     auto res = res_future.get();
@@ -465,7 +453,7 @@ std::optional<size_t> PlayerActionHandler(
     }
     boost::promise<std::optional<size_t>> res_promise;
     auto res_future = res_promise.get_future();
-    net::dispatch(*(application->FindGameSessionBy(token).value()->GetStrand()),
+    net::dispatch(*(application->FindGameSessionBy(token)->GetStrand()),
         [&res_promise
         , &token
         , &req
@@ -535,7 +523,14 @@ std::optional<size_t> TimeTickInvalidMsgHandler(
         std::shared_ptr<app::Application> application,
         Send&& send) {
     if(!application->IsManualTimeManagement()) {
-        return 0;
+        StringResponse response(http::status::bad_request, req.version());
+        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
+        response.set(http::field::cache_control, NO_CACHE_CONTROL);
+        response.body() = json_converter::CreateBadRequestResponse();
+        response.content_length(response.body().size());
+        response.keep_alive(req.keep_alive());
+        send(response);
+        return std::nullopt;
     }
     StringResponse response(http::status::bad_request, req.version());
     response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
@@ -559,7 +554,14 @@ std::optional<size_t> TimeTickHandler(
         std::shared_ptr<app::Application> application,
         Send&& send) {
     if(!application->IsManualTimeManagement()) {
-        return 0;
+        StringResponse response(http::status::bad_request, req.version());
+        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
+        response.set(http::field::cache_control, NO_CACHE_CONTROL);
+        response.body() = json_converter::CreateBadRequestResponse();
+        response.content_length(response.body().size());
+        response.keep_alive(req.keep_alive());
+        send(response);
+        return std::nullopt;
     }
     std::chrono::milliseconds dtime(json_converter::ParseSetDeltaTimeRequest(req.body()).value());
     application->UpdateGameState(dtime);
@@ -582,43 +584,6 @@ std::optional<size_t> InvalidEndpointHandler(
     response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
     response.set(http::field::cache_control, NO_CACHE_CONTROL);
     response.body() = json_converter::CreateInvalidEndpointResponse();
-    response.content_length(response.body().size());
-    response.keep_alive(req.keep_alive());
-    send(response);
-    return std::nullopt;
-}
-
-template <typename Request>
-bool GetRecordsActivator(const Request& req) {
-    return IsEqualUrls(api_urls::GET_RECORDS_API, boost::urls::url_view{req.target()}.path());
-}
-
-template <typename Request, typename Send>
-std::optional<size_t> GetRecordsHandler(
-        const Request& req,
-        std::shared_ptr<app::Application> application,
-        Send&& send) {
-    std::optional<size_t> offset;
-    std::optional<size_t> limit;
-    auto params = boost::urls::url_view{req.target()}.params();
-
-    if(params.contains(url_invariants::URL_PARAMETER_START)){
-        offset = GetValueFromUrlParameter<size_t>(params, url_invariants::URL_PARAMETER_START);
-    }
-
-    if(params.contains(url_invariants::URL_PARAMETER_MAX_ITEMS)){
-        limit = GetValueFromUrlParameter<size_t>(params, url_invariants::URL_PARAMETER_MAX_ITEMS);
-    }
-    
-    auto records_table = application->GetRecordsTable(offset, limit);
-    if(!records_table) {
-        return 0 ;    
-    }
-    
-    StringResponse response(http::status::ok, req.version());
-    response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
-    response.set(http::field::cache_control, NO_CACHE_CONTROL);
-    response.body() = json_converter::CreateRecordsTableResponse(*records_table);
     response.content_length(response.body().size());
     response.keep_alive(req.keep_alive());
     send(response);

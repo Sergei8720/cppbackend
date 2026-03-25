@@ -35,11 +35,11 @@ public:
         }
     };
 
-    std::optional<Handler> GetEmergeHandlerByIndex(size_t index) {
+    Handler GetEmergeHandlerByIndex(size_t index) {
         if(index < emerge_handlers_.size()) {
             return emerge_handlers_[index];
         }
-        return std::nullopt;
+        return nullptr;
     };
 
     Activator& GetActivator() {

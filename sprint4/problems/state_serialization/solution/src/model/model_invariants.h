@@ -10,6 +10,5 @@ const size_t INITIAL_BAG_CAPACITY = 3;
 const double DOG_WIDTH = 0.3;
 const double LOOT_WIDTH = 0.0;
 const double BASE_WIDTH = 0.5;
-const size_t ONE_MINUTE_IN_SECONDS = 60;
 
 }

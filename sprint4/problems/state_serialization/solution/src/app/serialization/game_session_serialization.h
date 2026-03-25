@@ -23,17 +23,21 @@ public:
                 return PlayerSerialization(*token_to_player.second, token_to_player.first);
             }
         );
-        for (const auto& [id, lost_object] : game_session.GetLostObjects()) {
-            lost_objects_.push_back(LostObjectSerialization(*lost_object));
-        }
+        std::ranges::transform(game_session.GetLostObjects(), std::back_inserter(lost_objects_),
+            [](const auto& id_to_lost_object)->LostObjectSerialization {
+                return LostObjectSerialization(*id_to_lost_object.second);
+            }
+        );
     };
 
     [[nodiscard]] model::Map::Id RestoreMapId() const {
         return model::Map::Id(map_id_);
     };
+    
     [[nodiscard]] const std::vector<LostObjectSerialization>& GetLostObjectsSerialize() const {
         return lost_objects_;
     };
+    
     [[nodiscard]] const std::vector<PlayerSerialization>& GetPlayersSerialize() const {
         return players_ser_;
     };
