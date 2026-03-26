@@ -8,8 +8,9 @@ namespace game_data_ser {
 struct GameSerialization {
     std::vector<GameSessionSerialization> sessions;
     
-    // Конструкторы
+    // ✅ Явно определяем конструкторы
     GameSerialization() = default;
+    
     GameSerialization(const GameSerialization& other) = default;
     GameSerialization(GameSerialization&& other) = default;
     GameSerialization& operator=(const GameSerialization& other) = default;

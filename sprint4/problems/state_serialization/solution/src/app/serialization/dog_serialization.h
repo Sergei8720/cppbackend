@@ -24,11 +24,53 @@ public:
             });
     }
 
-    // Базовые конструкторы
-    DogSerialization(const DogSerialization&) = default;
-    DogSerialization(DogSerialization&&) = default;
-    DogSerialization& operator=(const DogSerialization&) = default;
-    DogSerialization& operator=(DogSerialization&&) = default;
+    // ✅ Явно определяем конструктор копирования
+    DogSerialization(const DogSerialization& other)
+        : id_(other.id_)
+        , name_(other.name_)
+        , direction_(other.direction_)
+        , position_(other.position_)
+        , score_(other.score_)
+        , bag_capacity_(other.bag_capacity_)
+        , bag_(other.bag_) {}
+
+    // ✅ Явно определяем оператор присваивания копированием
+    DogSerialization& operator=(const DogSerialization& other) {
+        if (this != &other) {
+            id_ = other.id_;
+            name_ = other.name_;
+            direction_ = other.direction_;
+            position_ = other.position_;
+            score_ = other.score_;
+            bag_capacity_ = other.bag_capacity_;
+            bag_ = other.bag_;
+        }
+        return *this;
+    }
+
+    // ✅ Явно определяем конструктор перемещения
+    DogSerialization(DogSerialization&& other) noexcept
+        : id_(std::move(other.id_))
+        , name_(std::move(other.name_))
+        , direction_(other.direction_)
+        , position_(std::move(other.position_))
+        , score_(other.score_)
+        , bag_capacity_(other.bag_capacity_)
+        , bag_(std::move(other.bag_)) {}
+
+    // ✅ Явно определяем оператор присваивания перемещением
+    DogSerialization& operator=(DogSerialization&& other) noexcept {
+        if (this != &other) {
+            id_ = std::move(other.id_);
+            name_ = std::move(other.name_);
+            direction_ = other.direction_;
+            position_ = std::move(other.position_);
+            score_ = other.score_;
+            bag_capacity_ = other.bag_capacity_;
+            bag_ = std::move(other.bag_);
+        }
+        return *this;
+    }
 
     [[nodiscard]] model::Dog Restore() const {
         model::Dog dog(model::Dog::Id{id_}, name_, bag_capacity_);

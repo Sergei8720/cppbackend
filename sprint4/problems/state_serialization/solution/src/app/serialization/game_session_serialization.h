@@ -19,25 +19,47 @@ public:
         const std::unordered_map<authentication::Token, std::shared_ptr<app::Player>,
                                  authentication::TokenHasher>& tokenToPlayer)
         : map_id_(*(game_session.GetMap()->GetId())) {
-        std::ranges::transform(tokenToPlayer, std::back_inserter(players_ser_),
-            [](const auto& token_to_player) -> PlayerSerialization {
-                return PlayerSerialization(*token_to_player.second, token_to_player.first);
-            });
-        std::ranges::transform(game_session.GetLostObjects(), std::back_inserter(lost_objects_),
-            [](const auto& id_to_lost_object) -> LostObjectSerialization {
-                return LostObjectSerialization(*id_to_lost_object.second);
-            });
+        players_ser_.reserve(tokenToPlayer.size());
+        for (const auto& token_to_player : tokenToPlayer) {
+            players_ser_.emplace_back(*token_to_player.second, token_to_player.first);
+        }
+        lost_objects_.reserve(game_session.GetLostObjects().size());
+        for (const auto& id_to_lost_object : game_session.GetLostObjects()) {
+            lost_objects_.emplace_back(*id_to_lost_object.second);
+        }
     }
 
-    // Конструктор копирования
-    GameSessionSerialization(const GameSessionSerialization& other) = default;
-    
-    // Move конструктор
-    GameSessionSerialization(GameSessionSerialization&& other) = default;
-    
-    // Операторы присваивания
-    GameSessionSerialization& operator=(const GameSessionSerialization& other) = default;
-    GameSessionSerialization& operator=(GameSessionSerialization&& other) = default;
+    // ✅ Явно определяем конструктор копирования
+    GameSessionSerialization(const GameSessionSerialization& other)
+        : map_id_(other.map_id_)
+        , players_ser_(other.players_ser_)
+        , lost_objects_(other.lost_objects_) {}
+
+    // ✅ Явно определяем оператор присваивания копированием
+    GameSessionSerialization& operator=(const GameSessionSerialization& other) {
+        if (this != &other) {
+            map_id_ = other.map_id_;
+            players_ser_ = other.players_ser_;
+            lost_objects_ = other.lost_objects_;
+        }
+        return *this;
+    }
+
+    // ✅ Явно определяем конструктор перемещения
+    GameSessionSerialization(GameSessionSerialization&& other) noexcept
+        : map_id_(std::move(other.map_id_))
+        , players_ser_(std::move(other.players_ser_))
+        , lost_objects_(std::move(other.lost_objects_)) {}
+
+    // ✅ Явно определяем оператор присваивания перемещением
+    GameSessionSerialization& operator=(GameSessionSerialization&& other) noexcept {
+        if (this != &other) {
+            map_id_ = std::move(other.map_id_);
+            players_ser_ = std::move(other.players_ser_);
+            lost_objects_ = std::move(other.lost_objects_);
+        }
+        return *this;
+    }
 
     [[nodiscard]] model::Map::Id RestoreMapId() const {
         return model::Map::Id(map_id_);
@@ -64,6 +86,4 @@ private:
     std::vector<LostObjectSerialization> lost_objects_;
 };
 
-} // namespace game_data_ser
-
-BOOST_CLASS_TRACKING(game_data_ser::GameSessionSerialization, boost::serialization::track_never)
+}

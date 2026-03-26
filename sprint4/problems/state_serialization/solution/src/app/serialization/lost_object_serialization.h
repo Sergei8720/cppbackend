@@ -16,11 +16,41 @@ public:
         , value_(lost_object.GetValue())
         , position_(lost_object.GetPosition()) {}
 
-    // Базовые конструкторы
-    LostObjectSerialization(const LostObjectSerialization&) = default;
-    LostObjectSerialization(LostObjectSerialization&&) = default;
-    LostObjectSerialization& operator=(const LostObjectSerialization&) = default;
-    LostObjectSerialization& operator=(LostObjectSerialization&&) = default;
+    // ✅ Явно определяем конструктор копирования
+    LostObjectSerialization(const LostObjectSerialization& other)
+        : id_(other.id_)
+        , type_(other.type_)
+        , value_(other.value_)
+        , position_(other.position_) {}
+
+    // ✅ Явно определяем оператор присваивания копированием
+    LostObjectSerialization& operator=(const LostObjectSerialization& other) {
+        if (this != &other) {
+            id_ = other.id_;
+            type_ = other.type_;
+            value_ = other.value_;
+            position_ = other.position_;
+        }
+        return *this;
+    }
+
+    // ✅ Явно определяем конструктор перемещения
+    LostObjectSerialization(LostObjectSerialization&& other) noexcept
+        : id_(std::move(other.id_))
+        , type_(other.type_)
+        , value_(other.value_)
+        , position_(std::move(other.position_)) {}
+
+    // ✅ Явно определяем оператор присваивания перемещением
+    LostObjectSerialization& operator=(LostObjectSerialization&& other) noexcept {
+        if (this != &other) {
+            id_ = std::move(other.id_);
+            type_ = other.type_;
+            value_ = other.value_;
+            position_ = std::move(other.position_);
+        }
+        return *this;
+    }
 
     [[nodiscard]] model::LostObject Restore() const {
         model::LostObject lost_object(model::LostObject::Id{id_});
