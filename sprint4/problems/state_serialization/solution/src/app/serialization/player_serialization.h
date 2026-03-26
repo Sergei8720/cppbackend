@@ -4,7 +4,6 @@
 #include "player_tokens.h"
 
 #include <boost/serialization/vector.hpp>
-#include <memory>
 
 namespace game_data_ser {
 
@@ -21,44 +20,13 @@ public:
             dog_ser_ = DogSerialization(*dog_ptr);
         }
     }
-    
-    // Конструктор копирования - явно реализован
-    PlayerSerialization(const PlayerSerialization& other)
-        : id_(other.id_)
-        , name_(other.name_)
-        , dog_ser_(other.dog_ser_)
-        , token_(other.token_) {}
-    
-    // Move конструктор
-    PlayerSerialization(PlayerSerialization&& other) noexcept
-        : id_(std::move(other.id_))
-        , name_(std::move(other.name_))
-        , dog_ser_(std::move(other.dog_ser_))
-        , token_(std::move(other.token_)) {}
-    
-    // Оператор присваивания копированием
-    PlayerSerialization& operator=(const PlayerSerialization& other) {
-        if (this != &other) {
-            id_ = other.id_;
-            name_ = other.name_;
-            dog_ser_ = other.dog_ser_;
-            token_ = other.token_;
-        }
-        return *this;
-    }
-    
-    // Оператор присваивания перемещением
-    PlayerSerialization& operator=(PlayerSerialization&& other) noexcept {
-        if (this != &other) {
-            id_ = std::move(other.id_);
-            name_ = std::move(other.name_);
-            dog_ser_ = std::move(other.dog_ser_);
-            token_ = std::move(other.token_);
-        }
-        return *this;
-    }
 
-    // Возвращаем объект по значению - у app::Player должен быть конструктор копирования
+    // Базовые конструкторы
+    PlayerSerialization(const PlayerSerialization&) = default;
+    PlayerSerialization(PlayerSerialization&&) = default;
+    PlayerSerialization& operator=(const PlayerSerialization&) = default;
+    PlayerSerialization& operator=(PlayerSerialization&&) = default;
+
     [[nodiscard]] app::Player Restore() const {
         return app::Player(app::Player::Id{id_}, name_);
     }
@@ -86,7 +54,4 @@ private:
     std::string token_;
 };
 
-} // namespace game_data_ser
-
-// Добавляем макрос для отключения отслеживания
-BOOST_CLASS_TRACKING(game_data_ser::PlayerSerialization, boost::serialization::track_never)
+}

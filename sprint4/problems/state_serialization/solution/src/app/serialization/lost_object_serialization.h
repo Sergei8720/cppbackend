@@ -16,41 +16,11 @@ public:
         , value_(lost_object.GetValue())
         , position_(lost_object.GetPosition()) {}
 
-    // Конструктор копирования
-    LostObjectSerialization(const LostObjectSerialization& other)
-        : id_(other.id_)
-        , type_(other.type_)
-        , value_(other.value_)
-        , position_(other.position_) {}
-    
-    // Move конструктор
-    LostObjectSerialization(LostObjectSerialization&& other) noexcept
-        : id_(std::move(other.id_))
-        , type_(std::move(other.type_))
-        , value_(std::move(other.value_))
-        , position_(std::move(other.position_)) {}
-    
-    // Оператор присваивания копированием
-    LostObjectSerialization& operator=(const LostObjectSerialization& other) {
-        if (this != &other) {
-            id_ = other.id_;
-            type_ = other.type_;
-            value_ = other.value_;
-            position_ = other.position_;
-        }
-        return *this;
-    }
-    
-    // Оператор присваивания перемещением
-    LostObjectSerialization& operator=(LostObjectSerialization&& other) noexcept {
-        if (this != &other) {
-            id_ = std::move(other.id_);
-            type_ = std::move(other.type_);
-            value_ = std::move(other.value_);
-            position_ = std::move(other.position_);
-        }
-        return *this;
-    }
+    // Базовые конструкторы
+    LostObjectSerialization(const LostObjectSerialization&) = default;
+    LostObjectSerialization(LostObjectSerialization&&) = default;
+    LostObjectSerialization& operator=(const LostObjectSerialization&) = default;
+    LostObjectSerialization& operator=(LostObjectSerialization&&) = default;
 
     [[nodiscard]] model::LostObject Restore() const {
         model::LostObject lost_object(model::LostObject::Id{id_});
@@ -75,6 +45,4 @@ private:
     geom::Point2D position_;
 };
 
-} // namespace game_data_ser
-
-BOOST_CLASS_TRACKING(game_data_ser::LostObjectSerialization, boost::serialization::track_never)
+}

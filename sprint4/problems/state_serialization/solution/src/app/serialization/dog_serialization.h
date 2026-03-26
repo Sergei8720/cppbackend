@@ -24,53 +24,11 @@ public:
             });
     }
 
-    // Конструктор копирования
-    DogSerialization(const DogSerialization& other)
-        : id_(other.id_)
-        , name_(other.name_)
-        , direction_(other.direction_)
-        , position_(other.position_)
-        , score_(other.score_)
-        , bag_capacity_(other.bag_capacity_)
-        , bag_(other.bag_) {}
-    
-    // Move конструктор
-    DogSerialization(DogSerialization&& other) noexcept
-        : id_(std::move(other.id_))
-        , name_(std::move(other.name_))
-        , direction_(std::move(other.direction_))
-        , position_(std::move(other.position_))
-        , score_(std::move(other.score_))
-        , bag_capacity_(std::move(other.bag_capacity_))
-        , bag_(std::move(other.bag_)) {}
-    
-    // Оператор присваивания копированием
-    DogSerialization& operator=(const DogSerialization& other) {
-        if (this != &other) {
-            id_ = other.id_;
-            name_ = other.name_;
-            direction_ = other.direction_;
-            position_ = other.position_;
-            score_ = other.score_;
-            bag_capacity_ = other.bag_capacity_;
-            bag_ = other.bag_;
-        }
-        return *this;
-    }
-    
-    // Оператор присваивания перемещением
-    DogSerialization& operator=(DogSerialization&& other) noexcept {
-        if (this != &other) {
-            id_ = std::move(other.id_);
-            name_ = std::move(other.name_);
-            direction_ = std::move(other.direction_);
-            position_ = std::move(other.position_);
-            score_ = std::move(other.score_);
-            bag_capacity_ = std::move(other.bag_capacity_);
-            bag_ = std::move(other.bag_);
-        }
-        return *this;
-    }
+    // Базовые конструкторы
+    DogSerialization(const DogSerialization&) = default;
+    DogSerialization(DogSerialization&&) = default;
+    DogSerialization& operator=(const DogSerialization&) = default;
+    DogSerialization& operator=(DogSerialization&&) = default;
 
     [[nodiscard]] model::Dog Restore() const {
         model::Dog dog(model::Dog::Id{id_}, name_, bag_capacity_);
@@ -104,6 +62,4 @@ private:
     std::vector<LostObjectSerialization> bag_;
 };
 
-} // namespace game_data_ser
-
-BOOST_CLASS_TRACKING(game_data_ser::DogSerialization, boost::serialization::track_never)
+}
