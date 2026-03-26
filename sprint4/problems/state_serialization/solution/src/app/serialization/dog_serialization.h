@@ -24,7 +24,7 @@ public:
             });
     }
 
-    // ✅ ЯВНЫЙ КОНСТРУКТОР КОПИРОВАНИЯ
+    // Конструктор копирования
     DogSerialization(const DogSerialization& other)
         : id_(other.id_)
         , name_(other.name_)
@@ -34,7 +34,7 @@ public:
         , bag_capacity_(other.bag_capacity_)
         , bag_(other.bag_) {}
     
-    // ✅ ЯВНЫЙ MOVE КОНСТРУКТОР
+    // Move конструктор
     DogSerialization(DogSerialization&& other) noexcept
         : id_(std::move(other.id_))
         , name_(std::move(other.name_))
@@ -44,7 +44,7 @@ public:
         , bag_capacity_(std::move(other.bag_capacity_))
         , bag_(std::move(other.bag_)) {}
     
-    // ✅ ОПЕРАТОР ПРИСВАИВАНИЯ КОПИРОВАНИЕМ
+    // Оператор присваивания копированием
     DogSerialization& operator=(const DogSerialization& other) {
         if (this != &other) {
             id_ = other.id_;
@@ -58,7 +58,7 @@ public:
         return *this;
     }
     
-    // ✅ ОПЕРАТОР ПРИСВАИВАНИЯ ПЕРЕМЕЩЕНИЕМ
+    // Оператор присваивания перемещением
     DogSerialization& operator=(DogSerialization&& other) noexcept {
         if (this != &other) {
             id_ = std::move(other.id_);

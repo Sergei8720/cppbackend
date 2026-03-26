@@ -21,21 +21,21 @@ public:
         }
     }
     
-    // ✅ ЯВНЫЙ КОНСТРУКТОР КОПИРОВАНИЯ
+    // Конструктор копирования
     PlayerSerialization(const PlayerSerialization& other)
         : id_(other.id_)
         , name_(other.name_)
         , dog_ser_(other.dog_ser_)
         , token_(other.token_) {}
     
-    // ✅ ЯВНЫЙ MOVE КОНСТРУКТОР
+    // Move конструктор
     PlayerSerialization(PlayerSerialization&& other) noexcept
         : id_(std::move(other.id_))
         , name_(std::move(other.name_))
         , dog_ser_(std::move(other.dog_ser_))
         , token_(std::move(other.token_)) {}
     
-    // ✅ ОПЕРАТОР ПРИСВАИВАНИЯ КОПИРОВАНИЕМ
+    // Оператор присваивания копированием
     PlayerSerialization& operator=(const PlayerSerialization& other) {
         if (this != &other) {
             id_ = other.id_;
@@ -46,7 +46,7 @@ public:
         return *this;
     }
     
-    // ✅ ОПЕРАТОР ПРИСВАИВАНИЯ ПЕРЕМЕЩЕНИЕМ
+    // Оператор присваивания перемещением
     PlayerSerialization& operator=(PlayerSerialization&& other) noexcept {
         if (this != &other) {
             id_ = std::move(other.id_);
@@ -76,10 +76,6 @@ public:
         ar& dog_ser_;
         ar& token_;
     }
-    
-    size_t GetId() const { return id_; }
-    const std::string& GetName() const { return name_; }
-    const std::string& GetToken() const { return token_; }
     
 private:
     size_t id_;
