@@ -9,21 +9,48 @@ namespace game_data_ser {
 class LostObjectSerialization {
 public:
     LostObjectSerialization() = default;
-    LostObjectSerialization(const model::LostObject& lost_object):
-        id_(*lost_object.GetId()),
-        type_(lost_object.GetType()),
-        value_(lost_object.GetValue()),
-        position_(lost_object.GetPosition()) {};
+    
+    LostObjectSerialization(const model::LostObject& lost_object)
+        : id_(*lost_object.GetId())
+        , type_(lost_object.GetType())
+        , value_(lost_object.GetValue())
+        , position_(lost_object.GetPosition()) {}
 
-    // Конструктор копирования
-    LostObjectSerialization(const LostObjectSerialization& other) = default;
+    // ✅ ЯВНЫЙ КОНСТРУКТОР КОПИРОВАНИЯ
+    LostObjectSerialization(const LostObjectSerialization& other)
+        : id_(other.id_)
+        , type_(other.type_)
+        , value_(other.value_)
+        , position_(other.position_) {}
     
-    // Move конструктор
-    LostObjectSerialization(LostObjectSerialization&& other) = default;
+    // ✅ ЯВНЫЙ MOVE КОНСТРУКТОР
+    LostObjectSerialization(LostObjectSerialization&& other) noexcept
+        : id_(std::move(other.id_))
+        , type_(std::move(other.type_))
+        , value_(std::move(other.value_))
+        , position_(std::move(other.position_)) {}
     
-    // Операторы присваивания
-    LostObjectSerialization& operator=(const LostObjectSerialization& other) = default;
-    LostObjectSerialization& operator=(LostObjectSerialization&& other) = default;
+    // ✅ ОПЕРАТОР ПРИСВАИВАНИЯ КОПИРОВАНИЕМ
+    LostObjectSerialization& operator=(const LostObjectSerialization& other) {
+        if (this != &other) {
+            id_ = other.id_;
+            type_ = other.type_;
+            value_ = other.value_;
+            position_ = other.position_;
+        }
+        return *this;
+    }
+    
+    // ✅ ОПЕРАТОР ПРИСВАИВАНИЯ ПЕРЕМЕЩЕНИЕМ
+    LostObjectSerialization& operator=(LostObjectSerialization&& other) noexcept {
+        if (this != &other) {
+            id_ = std::move(other.id_);
+            type_ = std::move(other.type_);
+            value_ = std::move(other.value_);
+            position_ = std::move(other.position_);
+        }
+        return *this;
+    }
 
     [[nodiscard]] model::LostObject Restore() const {
         model::LostObject lost_object(model::LostObject::Id{id_});
@@ -31,7 +58,7 @@ public:
         lost_object.SetValue(value_);
         lost_object.SetPosition(position_);
         return lost_object;
-    };
+    }
 
     template <typename Archive>
     void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {

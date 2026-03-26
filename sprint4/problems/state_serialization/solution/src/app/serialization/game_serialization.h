@@ -5,17 +5,16 @@
 
 namespace game_data_ser {
 
-// Общая структура для сериализации всей игры
 struct GameSerialization {
     std::vector<GameSessionSerialization> sessions;
     
-    // Конструктор копирования
+    // ✅ КОНСТРУКТОР КОПИРОВАНИЯ
     GameSerialization(const GameSerialization& other) = default;
     
-    // Move конструктор
+    // ✅ MOVE КОНСТРУКТОР
     GameSerialization(GameSerialization&& other) = default;
     
-    // Операторы присваивания
+    // ✅ ОПЕРАТОРЫ ПРИСВАИВАНИЯ
     GameSerialization& operator=(const GameSerialization& other) = default;
     GameSerialization& operator=(GameSerialization&& other) = default;
     
