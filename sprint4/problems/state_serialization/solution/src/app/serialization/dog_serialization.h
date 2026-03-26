@@ -104,4 +104,6 @@ private:
     std::vector<LostObjectSerialization> bag_;
 };
 
-}
+} // namespace game_data_ser
+
+BOOST_CLASS_TRACKING(game_data_ser::DogSerialization, boost::serialization::track_never)

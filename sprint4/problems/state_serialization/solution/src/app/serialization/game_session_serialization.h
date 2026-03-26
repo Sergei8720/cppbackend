@@ -29,13 +29,13 @@ public:
             });
     }
 
-    // ✅ КОНСТРУКТОР КОПИРОВАНИЯ
+    // Конструктор копирования
     GameSessionSerialization(const GameSessionSerialization& other) = default;
     
-    // ✅ MOVE КОНСТРУКТОР
+    // Move конструктор
     GameSessionSerialization(GameSessionSerialization&& other) = default;
     
-    // ✅ ОПЕРАТОРЫ ПРИСВАИВАНИЯ
+    // Операторы присваивания
     GameSessionSerialization& operator=(const GameSessionSerialization& other) = default;
     GameSessionSerialization& operator=(GameSessionSerialization&& other) = default;
 
@@ -64,4 +64,6 @@ private:
     std::vector<LostObjectSerialization> lost_objects_;
 };
 
-}
+} // namespace game_data_ser
+
+BOOST_CLASS_TRACKING(game_data_ser::GameSessionSerialization, boost::serialization::track_never)

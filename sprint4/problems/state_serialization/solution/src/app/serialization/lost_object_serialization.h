@@ -75,4 +75,6 @@ private:
     geom::Point2D position_;
 };
 
-}
+} // namespace game_data_ser
+
+BOOST_CLASS_TRACKING(game_data_ser::LostObjectSerialization, boost::serialization::track_never)

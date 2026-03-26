@@ -4,6 +4,7 @@
 #include "player_tokens.h"
 
 #include <boost/serialization/vector.hpp>
+#include <memory>
 
 namespace game_data_ser {
 
@@ -21,7 +22,7 @@ public:
         }
     }
     
-    // Конструктор копирования
+    // Конструктор копирования - явно реализован
     PlayerSerialization(const PlayerSerialization& other)
         : id_(other.id_)
         , name_(other.name_)
@@ -57,6 +58,7 @@ public:
         return *this;
     }
 
+    // Возвращаем объект по значению - у app::Player должен быть конструктор копирования
     [[nodiscard]] app::Player Restore() const {
         return app::Player(app::Player::Id{id_}, name_);
     }
@@ -84,4 +86,7 @@ private:
     std::string token_;
 };
 
-}
+} // namespace game_data_ser
+
+// Добавляем макрос для отключения отслеживания
+BOOST_CLASS_TRACKING(game_data_ser::PlayerSerialization, boost::serialization::track_never)
