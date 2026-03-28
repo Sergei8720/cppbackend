@@ -1,4 +1,7 @@
 #include "state_serializer.h"
+#include "logger.h"
+#include "dog.h"
+#include "lost_object.h"
 #include <thread>
 
 namespace app {
@@ -54,9 +57,9 @@ void StateSerializer::SaveState() {
         GameState game_state;
         
         // Сохраняем счетчики ID
-        game_state.max_player_id = Player::GetMaxId();
-        game_state.max_dog_id = model::Dog::GetMaxId();
-        game_state.max_loot_id = model::LostObject::GetMaxId();
+        game_state.max_player_id = static_cast<uint64_t>(Player::GetMaxId());
+        game_state.max_dog_id = static_cast<uint64_t>(model::Dog::GetMaxId());
+        game_state.max_loot_id = static_cast<uint64_t>(model::LostObject::GetMaxId());
         
         BOOST_LOG_TRIVIAL(info) << "=== SAVING GAME STATE ===";
         BOOST_LOG_TRIVIAL(info) << "Saving counters: player_max=" << game_state.max_player_id
@@ -166,14 +169,15 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                                << " sessions from state file";
         
         // Восстанавливаем счетчики ID
-        Player::ResetMaxId(game_state.max_player_id);
-        model::Dog::ResetMaxId(game_state.max_dog_id);
-        model::LostObject::ResetMaxId(game_state.max_loot_id);
+        Player::ResetMaxId(static_cast<size_t>(game_state.max_player_id));
+        model::Dog::ResetMaxId(static_cast<size_t>(game_state.max_dog_id));
+        model::LostObject::ResetMaxId(static_cast<size_t>(game_state.max_loot_id));
         
         BOOST_LOG_TRIVIAL(info) << "Restored counters: player_max=" << game_state.max_player_id
                                 << ", dog_max=" << game_state.max_dog_id
                                 << ", loot_max=" << game_state.max_loot_id;
         
+        // Восстанавливаем сессии
         for (const auto& session_ser : game_state.data.sessions) {
             auto map_id = session_ser.RestoreMapId();
             BOOST_LOG_TRIVIAL(info) << "Restoring session for map: " << *map_id;
@@ -193,12 +197,13 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 auto lost_obj = std::make_shared<model::LostObject>(lost_obj_ser.Restore());
                 session->AddLostObject(lost_obj);
                 lost_objects_restored++;
+                // Обновляем счетчик потерянных объектов
                 lost_obj->UpdateLootCounter();
             }
             BOOST_LOG_TRIVIAL(info) << "  Restored " << lost_objects_restored << " lost objects";
             
-            // Восстанавливаем игроков
-            auto players_ser = session_ser.GetPlayersSerialize();
+            // Восстанавливаем игроков - используем const reference для избежания копирования
+            const auto& players_ser = session_ser.GetPlayersSerialize();
             BOOST_LOG_TRIVIAL(info) << "  Found " << players_ser.size() << " players to restore";
             
             for (const auto& player_ser : players_ser) {
