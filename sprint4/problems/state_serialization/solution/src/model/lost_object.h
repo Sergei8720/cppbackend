@@ -16,7 +16,6 @@ public:
         : Item({0,0}, width)
         , id_(Id{LostObject::max_id_cont_++}) {};
   
-  // Конструктор для восстановления из сохранения
   LostObject(Id id, double width = LOOT_WIDTH)
         : Item({0,0}, width)
         , id_(id) {
@@ -32,11 +31,9 @@ public:
   size_t GetValue() const;
   void SetValue(size_t value);
   
-  // Методы для работы со статическим счетчиком
   static size_t GetMaxId() { return max_id_cont_; }
   static void ResetMaxId(size_t new_max) { max_id_cont_ = new_max; }
   
-  // ✅ НОВЫЙ МЕТОД: обновляет счетчик при восстановлении
   void UpdateLootCounter() {
       if (*id_ >= max_id_cont_) {
           max_id_cont_ = *id_ + 1;

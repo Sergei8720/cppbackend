@@ -102,7 +102,6 @@ void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
         );
         res_future.get();
     }
-    // Сохранение теперь только через StateSerializer
 };
 
 void Application::AddGameSession(std::shared_ptr<GameSession> session) {
@@ -192,8 +191,6 @@ void Application::RestorePlayer(const authentication::Token& token,
 };
 
 void Application::SaveGameState(const std::chrono::milliseconds& delta_time) {
-    // ⚠️ УДАЛЕНО: сохранение теперь только через StateSerializer
-    // Эта функция оставлена пустой, чтобы не нарушать существующие вызовы
     return;
 };
 
@@ -213,7 +210,6 @@ void Application::SaveGame() {
     std::string temp_file = saving_settings_.state_file_path.value() + ".tmp";
     
     try {
-        // Создаем директорию, если её нет
         std::error_code ec;
         auto parent_path = std::filesystem::path(temp_file).parent_path();
         if (!parent_path.empty() && !std::filesystem::exists(parent_path)) {
@@ -224,7 +220,6 @@ void Application::SaveGame() {
                 is_saving = false;
                 return;
             }
-            BOOST_LOG_TRIVIAL(debug) << "Created directory: " << parent_path.string();
         }
         
         BOOST_LOG_TRIVIAL(info) << "Saving game state to " << saving_settings_.state_file_path.value();
@@ -246,7 +241,6 @@ void Application::SaveGame() {
         ofs.flush();
         ofs.close();
         
-        // Проверяем, что файл записан
         if (std::filesystem::file_size(temp_file) == 0) {
             BOOST_LOG_TRIVIAL(error) << "Temporary state file is empty: " << temp_file;
             std::filesystem::remove(temp_file);
@@ -254,7 +248,6 @@ void Application::SaveGame() {
             return;
         }
         
-        // Атомарное переименование
         std::filesystem::rename(temp_file, saving_settings_.state_file_path.value(), ec);
         if (ec) {
             BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();

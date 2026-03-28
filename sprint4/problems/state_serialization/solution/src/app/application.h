@@ -59,7 +59,6 @@ public:
     const model::LootGeneratorConfig& GetLootGeneratorConfig() const { return game_.GetLootGeneratorConfig(); }
     void SetSavingSettings(const saving::SavingSettings& settings) { saving_settings_ = settings; }
     
-    // Добавляем метод для проверки необходимости сохранения
     bool ShouldSaveState() const { return saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0; }
     
 private:

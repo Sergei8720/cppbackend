@@ -34,11 +34,9 @@ public:
     std::weak_ptr<model::Dog> GetDog();
     void SetDog(std::weak_ptr<model::Dog> dog);
     
-    // Методы для работы со статическим счетчиком
     static size_t GetMaxId() { return max_id_cont_; }
     static void ResetMaxId(size_t new_max) { max_id_cont_ = new_max; }
     
-    // ✅ НОВЫЙ МЕТОД: обновляет счетчик при восстановлении
     void UpdatePlayerCounter() {
         if (*id_ >= max_id_cont_) {
             max_id_cont_ = *id_ + 1;

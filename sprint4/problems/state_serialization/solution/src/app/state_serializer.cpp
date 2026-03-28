@@ -193,7 +193,6 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 auto lost_obj = std::make_shared<model::LostObject>(lost_obj_ser.Restore());
                 session->AddLostObject(lost_obj);
                 lost_objects_restored++;
-                // ✅ Обновляем счетчик потерянных объектов
                 lost_obj->UpdateLootCounter();
             }
             BOOST_LOG_TRIVIAL(info) << "  Restored " << lost_objects_restored << " lost objects";
@@ -209,7 +208,7 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 player->SetDog(dog);
                 session->AddDog(dog);
                 
-                // ✅ Обновляем счетчики
+                // Обновляем счетчики
                 player->UpdatePlayerCounter();
                 dog->UpdateDogCounter();
                 

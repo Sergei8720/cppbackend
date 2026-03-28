@@ -29,13 +29,13 @@ public:
         }
     }
 
-    // ✅ Явно определяем конструктор копирования
+    // Явно определяем конструктор копирования
     GameSessionSerialization(const GameSessionSerialization& other)
         : map_id_(other.map_id_)
         , players_ser_(other.players_ser_)
         , lost_objects_(other.lost_objects_) {}
 
-    // ✅ Явно определяем оператор присваивания копированием
+    // Явно определяем оператор присваивания копированием
     GameSessionSerialization& operator=(const GameSessionSerialization& other) {
         if (this != &other) {
             map_id_ = other.map_id_;
@@ -45,13 +45,13 @@ public:
         return *this;
     }
 
-    // ✅ Явно определяем конструктор перемещения
+    // Явно определяем конструктор перемещения
     GameSessionSerialization(GameSessionSerialization&& other) noexcept
         : map_id_(std::move(other.map_id_))
         , players_ser_(std::move(other.players_ser_))
         , lost_objects_(std::move(other.lost_objects_)) {}
 
-    // ✅ Явно определяем оператор присваивания перемещением
+    // Явно определяем оператор присваивания перемещением
     GameSessionSerialization& operator=(GameSessionSerialization&& other) noexcept {
         if (this != &other) {
             map_id_ = std::move(other.map_id_);

@@ -64,11 +64,9 @@ public:
 
     const collision_detector::Gatherer& AsGatherer() const;
     
-    // Методы для работы со статическим счетчиком
     static size_t GetMaxId() { return max_id_cont_; }
     static void ResetMaxId(size_t new_max) { max_id_cont_ = new_max; }
     
-    // ✅ НОВЫЙ МЕТОД: обновляет счетчик при восстановлении
     void UpdateDogCounter() {
         if (*id_ >= max_id_cont_) {
             max_id_cont_ = *id_ + 1;

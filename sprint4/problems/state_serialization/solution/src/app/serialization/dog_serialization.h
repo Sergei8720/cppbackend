@@ -24,7 +24,7 @@ public:
             });
     }
 
-    // ✅ Явно определяем конструктор копирования
+    // Явно определяем конструктор копирования
     DogSerialization(const DogSerialization& other)
         : id_(other.id_)
         , name_(other.name_)
@@ -34,7 +34,7 @@ public:
         , bag_capacity_(other.bag_capacity_)
         , bag_(other.bag_) {}
 
-    // ✅ Явно определяем оператор присваивания копированием
+    // Явно определяем оператор присваивания копированием
     DogSerialization& operator=(const DogSerialization& other) {
         if (this != &other) {
             id_ = other.id_;
@@ -48,7 +48,7 @@ public:
         return *this;
     }
 
-    // ✅ Явно определяем конструктор перемещения
+    // Явно определяем конструктор перемещения
     DogSerialization(DogSerialization&& other) noexcept
         : id_(std::move(other.id_))
         , name_(std::move(other.name_))
@@ -58,7 +58,7 @@ public:
         , bag_capacity_(other.bag_capacity_)
         , bag_(std::move(other.bag_)) {}
 
-    // ✅ Явно определяем оператор присваивания перемещением
+    // Явно определяем оператор присваивания перемещением
     DogSerialization& operator=(DogSerialization&& other) noexcept {
         if (this != &other) {
             id_ = std::move(other.id_);

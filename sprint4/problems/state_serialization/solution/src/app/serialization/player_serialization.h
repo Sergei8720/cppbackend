@@ -21,14 +21,14 @@ public:
         }
     }
 
-    // ✅ Явно определяем конструктор копирования
+    // Явно определяем конструктор копирования
     PlayerSerialization(const PlayerSerialization& other)
         : id_(other.id_)
         , name_(other.name_)
         , dog_ser_(other.dog_ser_)
         , token_(other.token_) {}
 
-    // ✅ Явно определяем оператор присваивания копированием
+    // Явно определяем оператор присваивания копированием
     PlayerSerialization& operator=(const PlayerSerialization& other) {
         if (this != &other) {
             id_ = other.id_;
@@ -39,14 +39,14 @@ public:
         return *this;
     }
 
-    // ✅ Явно определяем конструктор перемещения
+    // Явно определяем конструктор перемещения
     PlayerSerialization(PlayerSerialization&& other) noexcept
         : id_(std::move(other.id_))
         , name_(std::move(other.name_))
         , dog_ser_(std::move(other.dog_ser_))
         , token_(std::move(other.token_)) {}
 
-    // ✅ Явно определяем оператор присваивания перемещением
+    // Явно определяем оператор присваивания перемещением
     PlayerSerialization& operator=(PlayerSerialization&& other) noexcept {
         if (this != &other) {
             id_ = std::move(other.id_);

@@ -16,14 +16,14 @@ public:
         , value_(lost_object.GetValue())
         , position_(lost_object.GetPosition()) {}
 
-    // ✅ Явно определяем конструктор копирования
+    // Явно определяем конструктор копирования
     LostObjectSerialization(const LostObjectSerialization& other)
         : id_(other.id_)
         , type_(other.type_)
         , value_(other.value_)
         , position_(other.position_) {}
 
-    // ✅ Явно определяем оператор присваивания копированием
+    // Явно определяем оператор присваивания копированием
     LostObjectSerialization& operator=(const LostObjectSerialization& other) {
         if (this != &other) {
             id_ = other.id_;
@@ -34,14 +34,14 @@ public:
         return *this;
     }
 
-    // ✅ Явно определяем конструктор перемещения
+    // Явно определяем конструктор перемещения
     LostObjectSerialization(LostObjectSerialization&& other) noexcept
         : id_(std::move(other.id_))
         , type_(other.type_)
         , value_(other.value_)
         , position_(std::move(other.position_)) {}
 
-    // ✅ Явно определяем оператор присваивания перемещением
+    // Явно определяем оператор присваивания перемещением
     LostObjectSerialization& operator=(LostObjectSerialization&& other) noexcept {
         if (this != &other) {
             id_ = std::move(other.id_);
