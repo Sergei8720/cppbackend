@@ -1,6 +1,7 @@
 #pragma once
 #include "tagged.h"
 #include "player.h"
+#include "logger.h"
 
 #include <random>
 #include <unordered_map>
@@ -26,6 +27,10 @@ public:
     Token AddPlayer(std::shared_ptr<app::Player> player);
     void AddTokenPlayerPair(Token token, std::shared_ptr<app::Player> player);
     std::shared_ptr<app::Player> FindPlayerBy(Token token);
+    
+    // Для отладки
+    size_t Size() const { return tokenToPalyer_.size(); }
+    
 private:
     std::unordered_map< Token, std::shared_ptr<app::Player>, TokenHasher > tokenToPalyer_;
     std::random_device random_device_;
@@ -37,10 +42,6 @@ private:
         std::uniform_int_distribution<std::mt19937_64::result_type> dist;
         return dist(random_device_);
     }()};
-    // Чтобы сгенерировать токен, получите из generator1_ и generator2_
-    // два 64-разрядных числа и, переведя их в hex-строки, склейте в одну.
-    // Вы можете поэкспериментировать с алгоритмом генерирования токенов,
-    // чтобы сделать их подбор ещё более затруднительным
 }; 
 
 }  // namespace authentication

@@ -70,8 +70,15 @@ const std::vector< std::shared_ptr<Player> >& Application::GetPlayersFromGameSes
 };
 
 bool Application::IsExistPlayer(const authentication::Token& token) {
-    bool exists = static_cast<bool>(player_tokens_.FindPlayerBy(token));
-    BOOST_LOG_TRIVIAL(debug) << "IsExistPlayer: token=" << *token << " exists=" << exists;
+    auto player = player_tokens_.FindPlayerBy(token);
+    bool exists = static_cast<bool>(player);
+    BOOST_LOG_TRIVIAL(debug) << "IsExistPlayer: token=" << *token 
+                             << " exists=" << exists;
+    if (exists && player) {
+        BOOST_LOG_TRIVIAL(debug) << "  Player name=" << player->GetName() 
+                                 << " id=" << *player->GetId()
+                                 << " session_id=" << player->GetGameSessionId();
+    }
     return exists;
 };
 
@@ -148,6 +155,13 @@ void Application::RestorePlayer(const authentication::Token& token,
     BOOST_LOG_TRIVIAL(info) << "  Token: " << *token;
     BOOST_LOG_TRIVIAL(info) << "  Session: " << *session->GetId();
     
+    // Проверяем, нет ли уже такого токена
+    auto existing_player = player_tokens_.FindPlayerBy(token);
+    if (existing_player) {
+        BOOST_LOG_TRIVIAL(warning) << "  Token " << *token << " already exists for player " 
+                                   << existing_player->GetName() << " id=" << *existing_player->GetId();
+    }
+    
     // 1. Добавляем связь token -> player в PlayerTokens
     player_tokens_.AddTokenPlayerPair(token, player);
     BOOST_LOG_TRIVIAL(info) << "  Added token->player mapping";
@@ -184,7 +198,9 @@ void Application::RestorePlayer(const authentication::Token& token,
     auto dog = player->GetDog().lock();
     if (dog) {
         session->AddDog(dog);
-        BOOST_LOG_TRIVIAL(info) << "  Added dog to session";
+        BOOST_LOG_TRIVIAL(info) << "  Added dog to session, dog_id=" << *dog->GetId();
+    } else {
+        BOOST_LOG_TRIVIAL(warning) << "  No dog found for player!";
     }
     
     BOOST_LOG_TRIVIAL(info) << "=== RestorePlayer completed ===";

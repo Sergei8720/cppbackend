@@ -168,14 +168,18 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
         BOOST_LOG_TRIVIAL(info) << "Loaded " << game_state.data.sessions.size() 
                                << " sessions from state file";
         
-        // Восстанавливаем счетчики ID
-        Player::ResetMaxId(static_cast<size_t>(game_state.max_player_id));
-        model::Dog::ResetMaxId(static_cast<size_t>(game_state.max_dog_id));
-        model::LostObject::ResetMaxId(static_cast<size_t>(game_state.max_loot_id));
+        // Восстанавливаем счетчики ID - устанавливаем в максимальное значение
+        size_t max_player_id_restored = static_cast<size_t>(game_state.max_player_id);
+        size_t max_dog_id_restored = static_cast<size_t>(game_state.max_dog_id);
+        size_t max_loot_id_restored = static_cast<size_t>(game_state.max_loot_id);
         
-        BOOST_LOG_TRIVIAL(info) << "Restored counters: player_max=" << game_state.max_player_id
-                                << ", dog_max=" << game_state.max_dog_id
-                                << ", loot_max=" << game_state.max_loot_id;
+        Player::ResetMaxId(max_player_id_restored);
+        model::Dog::ResetMaxId(max_dog_id_restored);
+        model::LostObject::ResetMaxId(max_loot_id_restored);
+        
+        BOOST_LOG_TRIVIAL(info) << "Restored counters: player_max=" << max_player_id_restored
+                                << ", dog_max=" << max_dog_id_restored
+                                << ", loot_max=" << max_loot_id_restored;
         
         // Восстанавливаем сессии
         for (const auto& session_ser : game_state.data.sessions) {
@@ -197,8 +201,10 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 auto lost_obj = std::make_shared<model::LostObject>(lost_obj_ser.Restore());
                 session->AddLostObject(lost_obj);
                 lost_objects_restored++;
-                // Обновляем счетчик потерянных объектов
-                lost_obj->UpdateLootCounter();
+                // Обновляем счетчик потерянных объектов, если нужно
+                if (*lost_obj->GetId() >= model::LostObject::GetMaxId()) {
+                    model::LostObject::ResetMaxId(*lost_obj->GetId() + 1);
+                }
             }
             BOOST_LOG_TRIVIAL(info) << "  Restored " << lost_objects_restored << " lost objects";
             
@@ -213,9 +219,15 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 player->SetDog(dog);
                 session->AddDog(dog);
                 
-                // Обновляем счетчики
-                player->UpdatePlayerCounter();
-                dog->UpdateDogCounter();
+                // Проверяем и корректируем счетчики ID
+                if (*player->GetId() >= Player::GetMaxId()) {
+                    Player::ResetMaxId(*player->GetId() + 1);
+                    BOOST_LOG_TRIVIAL(debug) << "    Updated player max_id to " << Player::GetMaxId();
+                }
+                if (*dog->GetId() >= model::Dog::GetMaxId()) {
+                    model::Dog::ResetMaxId(*dog->GetId() + 1);
+                    BOOST_LOG_TRIVIAL(debug) << "    Updated dog max_id to " << model::Dog::GetMaxId();
+                }
                 
                 auto token = player_ser.RestoreToken();
                 
@@ -227,6 +239,7 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 app_.RestorePlayer(token, player, session);
             }
             
+            // Добавляем сессию и запускаем
             app_.AddGameSession(session);
             session->Run();
             

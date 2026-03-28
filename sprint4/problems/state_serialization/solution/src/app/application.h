@@ -61,6 +61,25 @@ public:
     
     bool ShouldSaveState() const { return saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0; }
     
+    // Метод для отладки
+    void DumpPlayerTokens() const {
+        BOOST_LOG_TRIVIAL(info) << "=== PlayerTokens dump ===";
+        BOOST_LOG_TRIVIAL(info) << "Total tokens in player_tokens_: " << player_tokens_.Size();
+        BOOST_LOG_TRIVIAL(info) << "Total players: " << players_.size();
+        for (const auto& player : players_) {
+            auto token_opt = FindTokenByPlayer(player->GetId());
+            if (token_opt.has_value()) {
+                BOOST_LOG_TRIVIAL(info) << "  Player id=" << *player->GetId() 
+                                       << " name=" << player->GetName()
+                                       << " token=" << *token_opt.value();
+            } else {
+                BOOST_LOG_TRIVIAL(warning) << "  Player id=" << *player->GetId() 
+                                           << " name=" << player->GetName()
+                                           << " has NO token!";
+            }
+        }
+    }
+    
 private:
     using GameSessionIdHasher = util::TaggedHasher<GameSession::Id>;
     using GameSessionIdToPlayers = std::unordered_map<GameSession::Id,
