@@ -9,10 +9,10 @@ struct GameSerialization {
     std::vector<GameSessionSerialization> sessions;
     
     GameSerialization() = default;
-    GameSerialization(const GameSerialization& other) = default;
-    GameSerialization(GameSerialization&& other) = default;
-    GameSerialization& operator=(const GameSerialization& other) = default;
-    GameSerialization& operator=(GameSerialization&& other) = default;
+    GameSerialization(const GameSerialization&) = default;
+    GameSerialization(GameSerialization&&) = default;
+    GameSerialization& operator=(const GameSerialization&) = default;
+    GameSerialization& operator=(GameSerialization&&) = default;
     
     template <typename Archive>
     void serialize(Archive& ar, [[maybe_unused]] const unsigned int version) {

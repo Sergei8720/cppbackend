@@ -77,7 +77,7 @@ bool Application::IsExistPlayer(const authentication::Token& token) {
     if (exists && player) {
         BOOST_LOG_TRIVIAL(debug) << "  Player name=" << player->GetName() 
                                  << " id=" << *player->GetId()
-                                 << " session_id=" << player->GetGameSessionId();
+                                 << " session_id=" << *(player->GetGameSessionId());
     }
     return exists;
 };
@@ -153,7 +153,7 @@ void Application::RestorePlayer(const authentication::Token& token,
     BOOST_LOG_TRIVIAL(info) << "=== RestorePlayer called ===";
     BOOST_LOG_TRIVIAL(info) << "  Player: " << player->GetName() << " id=" << *player->GetId();
     BOOST_LOG_TRIVIAL(info) << "  Token: " << *token;
-    BOOST_LOG_TRIVIAL(info) << "  Session: " << *session->GetId();
+    BOOST_LOG_TRIVIAL(info) << "  Session: " << *(session->GetId());
     
     // Проверяем, нет ли уже такого токена
     auto existing_player = player_tokens_.FindPlayerBy(token);

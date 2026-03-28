@@ -15,7 +15,7 @@ public:
     GameSessionSerialization() = default;
     
     GameSessionSerialization(
-        app::GameSession& game_session,
+        const app::GameSession& game_session,
         const std::unordered_map<authentication::Token, std::shared_ptr<app::Player>,
                                  authentication::TokenHasher>& tokenToPlayer)
         : map_id_(*(game_session.GetMap()->GetId())) {
@@ -29,13 +29,13 @@ public:
         }
     }
 
-    // Явно определяем конструктор копирования
+    // Конструктор копирования
     GameSessionSerialization(const GameSessionSerialization& other)
         : map_id_(other.map_id_)
         , players_ser_(other.players_ser_)
         , lost_objects_(other.lost_objects_) {}
 
-    // Явно определяем оператор присваивания копированием
+    // Оператор присваивания копированием
     GameSessionSerialization& operator=(const GameSessionSerialization& other) {
         if (this != &other) {
             map_id_ = other.map_id_;
@@ -45,13 +45,13 @@ public:
         return *this;
     }
 
-    // Явно определяем конструктор перемещения
+    // Конструктор перемещения
     GameSessionSerialization(GameSessionSerialization&& other) noexcept
         : map_id_(std::move(other.map_id_))
         , players_ser_(std::move(other.players_ser_))
         , lost_objects_(std::move(other.lost_objects_)) {}
 
-    // Явно определяем оператор присваивания перемещением
+    // Оператор присваивания перемещением
     GameSessionSerialization& operator=(GameSessionSerialization&& other) noexcept {
         if (this != &other) {
             map_id_ = std::move(other.map_id_);
@@ -86,4 +86,4 @@ private:
     std::vector<LostObjectSerialization> lost_objects_;
 };
 
-}
+} // namespace game_data_ser

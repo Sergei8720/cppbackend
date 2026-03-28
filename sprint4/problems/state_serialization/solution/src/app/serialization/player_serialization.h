@@ -11,7 +11,7 @@ class PlayerSerialization {
 public:
     PlayerSerialization() = default;
     
-    PlayerSerialization(app::Player& player, const authentication::Token& token)
+    PlayerSerialization(const app::Player& player, const authentication::Token& token)
         : id_(*player.GetId())
         , name_(player.GetName())
         , token_(*token) {
@@ -21,14 +21,14 @@ public:
         }
     }
 
-    // Явно определяем конструктор копирования
+    // Конструктор копирования
     PlayerSerialization(const PlayerSerialization& other)
         : id_(other.id_)
         , name_(other.name_)
         , dog_ser_(other.dog_ser_)
         , token_(other.token_) {}
 
-    // Явно определяем оператор присваивания копированием
+    // Оператор присваивания копированием
     PlayerSerialization& operator=(const PlayerSerialization& other) {
         if (this != &other) {
             id_ = other.id_;
@@ -39,14 +39,14 @@ public:
         return *this;
     }
 
-    // Явно определяем конструктор перемещения
+    // Конструктор перемещения
     PlayerSerialization(PlayerSerialization&& other) noexcept
         : id_(std::move(other.id_))
         , name_(std::move(other.name_))
         , dog_ser_(std::move(other.dog_ser_))
         , token_(std::move(other.token_)) {}
 
-    // Явно определяем оператор присваивания перемещением
+    // Оператор присваивания перемещением
     PlayerSerialization& operator=(PlayerSerialization&& other) noexcept {
         if (this != &other) {
             id_ = std::move(other.id_);
@@ -84,4 +84,4 @@ private:
     std::string token_;
 };
 
-}
+} // namespace game_data_ser
