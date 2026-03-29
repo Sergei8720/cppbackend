@@ -53,7 +53,7 @@ public:
     std::shared_ptr<GameSession> FindGameSessionBy(const authentication::Token& token) const noexcept;
     const std::vector< std::shared_ptr<app::GameSession> >& GetSessions() const { return sessions_; }
     const std::vector< std::shared_ptr<Player> >& GetAllPlayers() const { return players_; }
-    void SaveGame();  // <-- ИЗМЕНЕНО: теперь публичный метод
+    void SaveGame();
     std::optional<authentication::Token> FindTokenByPlayer(const Player::Id& player_id) const;
     void RestorePlayer(const authentication::Token& token, 
                        std::shared_ptr<Player> player,
@@ -62,7 +62,7 @@ public:
     const model::LootGeneratorConfig& GetLootGeneratorConfig() const { return game_.GetLootGeneratorConfig(); }
     void SetSavingSettings(const saving::SavingSettings& settings) { saving_settings_ = settings; }
     
-    // <-- НОВЫЙ МЕТОД: устанавливает StateSerializer для вызова сохранения
+    // Устанавливает StateSerializer для вызова сохранения
     void SetStateSerializer(std::shared_ptr<StateSerializer> serializer) { state_serializer_ = serializer; }
     
     bool ShouldSaveState() const { return saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0; }
@@ -117,7 +117,7 @@ private:
     PlayerIdToToken player_id_to_token_;
     int save_period_counter_{0};
     
-    // <-- НОВЫЙ ЧЛЕН: указатель на StateSerializer
+    // Указатель на StateSerializer
     std::shared_ptr<StateSerializer> state_serializer_;
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);

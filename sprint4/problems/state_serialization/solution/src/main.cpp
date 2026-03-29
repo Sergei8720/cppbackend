@@ -63,20 +63,20 @@ int main(int argc, const char* argv[]) {
                                                               ioc);
 
         // 5. Инициализация настроек сохранения
-        std::unique_ptr<app::StateSerializer> state_serializer;
+        std::shared_ptr<app::StateSerializer> state_serializer;  // ← ИЗМЕНЕНО: unique_ptr -> shared_ptr
         if (!args.state_file.empty()) {
             auto save_period = args.save_state_period > 0 
                 ? std::chrono::milliseconds(args.save_state_period)
                 : std::chrono::milliseconds(0);
             
-            state_serializer = std::make_unique<app::StateSerializer>(
+            state_serializer = std::make_shared<app::StateSerializer>(  // ← ИЗМЕНЕНО: make_unique -> make_shared
                 *application, 
                 args.state_file, 
                 save_period
             );
             
-            // <-- НОВЫЙ КОД: устанавливаем StateSerializer в Application
-            application->SetStateSerializer(state_serializer.get());
+            // Устанавливаем StateSerializer в Application
+            application->SetStateSerializer(state_serializer);  // ← ИЗМЕНЕНО: убрали .get()
             BOOST_LOG_TRIVIAL(info) << "StateSerializer set in Application";
             
             // Восстанавливаем состояние
