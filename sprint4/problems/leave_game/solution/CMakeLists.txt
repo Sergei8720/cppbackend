@@ -104,7 +104,13 @@ target_include_directories(database_retirement_lib PUBLIC
     src/retirement
 )
 
-target_link_libraries(database_retirement_lib PUBLIC CONAN_PKG::boost CONAN_PKG::libpq CONAN_PKG::libpqxx)
+# Проверяем, существуют ли библиотеки libpq и libpqxx (опционально)
+if(TARGET CONAN_PKG::libpq AND TARGET CONAN_PKG::libpqxx)
+    target_link_libraries(database_retirement_lib PUBLIC CONAN_PKG::libpq CONAN_PKG::libpqxx)
+else()
+    message(WARNING "libpq or libpqxx not found, database features will be disabled")
+    target_compile_definitions(database_retirement_lib PUBLIC WITHOUT_DATABASE)
+endif()
 
 # ============= ОСНОВНОЙ ИСПОЛНЯЕМЫЙ ФАЙЛ =============
 add_executable(game_server
@@ -275,7 +281,7 @@ message(STATUS "🎮 Build targets:")
 message(STATUS "   - game_server (main executable)")
 message(STATUS "   - collision_detection_lib (static library)")
 message(STATUS "   - game_model_lib (game model library)")
-message(STATUS "   - database_retirement_lib (database and retirement library)")  # НОВАЯ БИБЛИОТЕКА
+message(STATUS "   - database_retirement_lib (database and retirement library)")
 message(STATUS "   - game_tests (unified game tests)")
 message(STATUS "   - collision_tests (collision tests)")
 message(STATUS "   - state_tests (state serialization tests)")
