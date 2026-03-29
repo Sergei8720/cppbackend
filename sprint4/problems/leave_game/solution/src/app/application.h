@@ -66,7 +66,8 @@ public:
     void SetStateSerializer(std::shared_ptr<StateSerializer> serializer) { state_serializer_ = serializer; }
     
     bool ShouldSaveState() const { return saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0; }
-    
+    double GetDogRetirementTime() const { return game_.GetDogRetirementTime(); }
+	
     // Метод для отладки
     void DumpPlayerTokens() const {
         BOOST_LOG_TRIVIAL(info) << "=== PlayerTokens dump ===";

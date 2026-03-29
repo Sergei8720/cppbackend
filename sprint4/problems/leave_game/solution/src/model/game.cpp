@@ -78,4 +78,12 @@ size_t Game::GetDefaultBagCapacity() const noexcept {
     return default_bag_capacity_ ? default_bag_capacity_.value() : INITIAL_BAG_CAPACITY;
 };
 
+void Game::SetDogRetirementTime(double seconds) {
+    dog_retirement_time_ = std::abs(seconds);
+}
+
+double Game::GetDogRetirementTime() const noexcept {
+    return dog_retirement_time_ ? dog_retirement_time_.value() : 60.0;
+}
+
 }

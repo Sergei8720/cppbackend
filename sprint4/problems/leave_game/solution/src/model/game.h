@@ -19,9 +19,13 @@ public:
     void SetDefaultDogVelocity(double velocity);
     double GetDefaultDogVelocity() const noexcept;
     void AddLootGeneratorConfig(LootGeneratorConfig cfg);
-    const LootGeneratorConfig& GetLootGeneratorConfig() const;  // ИСПРАВЛЕНО: добавлен const
+    const LootGeneratorConfig& GetLootGeneratorConfig() const;
     void SetDefaultBagCapacity(size_t default_bag_capacity);
     size_t GetDefaultBagCapacity() const noexcept;
+    
+    void SetDogRetirementTime(double seconds);
+    double GetDogRetirementTime() const noexcept;
+    
 private:
     using MapIdHasher = util::TaggedHasher<Map::Id>;
     using MapIdToIndex = std::unordered_map<Map::Id, size_t, MapIdHasher>;
@@ -31,6 +35,7 @@ private:
     std::optional<double> default_dog_velocity_{std::nullopt};
     std::optional<size_t> default_bag_capacity_{std::nullopt};
     LootGeneratorConfig loot_gen_cfg_;
+    std::optional<double> dog_retirement_time_{std::nullopt};
 };
 
 }

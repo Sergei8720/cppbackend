@@ -1,5 +1,4 @@
 #include "player.h"
-#include "random_generators.h"
 
 namespace app {
 
@@ -31,4 +30,4 @@ void Player::SetDog(std::weak_ptr<model::Dog> dog) {
     dog_ = dog;
 };
 
-}
+} // namespace app

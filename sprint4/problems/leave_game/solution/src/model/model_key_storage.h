@@ -1,9 +1,11 @@
+#pragma once
 #include <string>
 
 namespace model{
 
 const std::string DEFAULT_DOG_VELOCITY = "defaultDogSpeed";
 const std::string DEFAULT_BAG_CAPACITY = "defaultBagCapacity";
+const std::string DOG_RETIREMENT_TIME = "dogRetirementTime";
 
 const std::string MAPS              = "maps";
 const std::string MAP_ID            = "id";
