@@ -75,6 +75,10 @@ int main(int argc, const char* argv[]) {
                 save_period
             );
             
+            // <-- НОВЫЙ КОД: устанавливаем StateSerializer в Application
+            application->SetStateSerializer(state_serializer.get());
+            BOOST_LOG_TRIVIAL(info) << "StateSerializer set in Application";
+            
             // Восстанавливаем состояние
             if (!state_serializer->LoadState(ioc)) {
                 // Если файл существует, но произошла ошибка - завершаем работу

@@ -23,7 +23,6 @@ struct GameState {
     uint64_t max_dog_id{0};
     uint64_t max_loot_id{0};
     
-    // Конструкторы для корректной работы с векторами
     GameState() = default;
     GameState(const GameState& other) = default;
     GameState(GameState&& other) = default;
@@ -52,6 +51,9 @@ public:
     void StartPeriodicSaving(net::io_context& ioc);
     void FinalSave();
 
+    // <-- НОВЫЙ МЕТОД: для доступа из Application
+    void SaveStatePublic() { SaveState(); }
+
 private:
     Application& app_;
     std::filesystem::path state_file_;
@@ -61,6 +63,9 @@ private:
     saving::SavingSettings saving_settings_;
     std::atomic<bool> is_saving_{false};
     std::atomic<bool> is_final_save_done_{false};
+    
+    // <-- НОВЫЙ: дружественный класс для доступа к приватным методам
+    friend class Application;
 };
 
 } // namespace app

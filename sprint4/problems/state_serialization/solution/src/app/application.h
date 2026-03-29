@@ -20,6 +20,9 @@ namespace app {
 
 namespace net = boost::asio;
 
+// Forward declaration
+class StateSerializer;
+
 class Application  : public std::enable_shared_from_this<Application>{
 public:
     using AppStrand = net::strand<net::io_context::executor_type>;
@@ -50,7 +53,7 @@ public:
     std::shared_ptr<GameSession> FindGameSessionBy(const authentication::Token& token) const noexcept;
     const std::vector< std::shared_ptr<app::GameSession> >& GetSessions() const { return sessions_; }
     const std::vector< std::shared_ptr<Player> >& GetAllPlayers() const { return players_; }
-    void SaveGame();
+    void SaveGame();  // <-- ИЗМЕНЕНО: теперь публичный метод
     std::optional<authentication::Token> FindTokenByPlayer(const Player::Id& player_id) const;
     void RestorePlayer(const authentication::Token& token, 
                        std::shared_ptr<Player> player,
@@ -58,6 +61,9 @@ public:
     std::chrono::milliseconds GetTickPeriod() const { return tick_period_; }
     const model::LootGeneratorConfig& GetLootGeneratorConfig() const { return game_.GetLootGeneratorConfig(); }
     void SetSavingSettings(const saving::SavingSettings& settings) { saving_settings_ = settings; }
+    
+    // <-- НОВЫЙ МЕТОД: устанавливает StateSerializer для вызова сохранения
+    void SetStateSerializer(std::shared_ptr<StateSerializer> serializer) { state_serializer_ = serializer; }
     
     bool ShouldSaveState() const { return saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0; }
     
@@ -110,6 +116,9 @@ private:
     std::shared_ptr<time_m::Ticker> save_game_ticker_;
     PlayerIdToToken player_id_to_token_;
     int save_period_counter_{0};
+    
+    // <-- НОВЫЙ ЧЛЕН: указатель на StateSerializer
+    std::shared_ptr<StateSerializer> state_serializer_;
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);
     void BoundPlayerAndGameSession(std::shared_ptr<Player> player,
