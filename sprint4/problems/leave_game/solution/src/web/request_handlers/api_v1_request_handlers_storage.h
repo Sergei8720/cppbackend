@@ -12,7 +12,7 @@
 #include <chrono>
 #include <unordered_set>
 #include <boost/beast/http.hpp>
-#include <boost/thread/future.h>
+#include <boost/thread/future.hpp>
 
 namespace rh_storage{
 
