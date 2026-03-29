@@ -33,6 +33,16 @@ public:
     void SetGameSession(std::shared_ptr<GameSession> session);
     std::weak_ptr<model::Dog> GetDog();
     void SetDog(std::weak_ptr<model::Dog> dog);
+    
+    static size_t GetMaxId() { return max_id_cont_; }
+    static void ResetMaxId(size_t new_max) { max_id_cont_ = new_max; }
+    
+    void UpdatePlayerCounter() {
+        if (*id_ >= max_id_cont_) {
+            max_id_cont_ = *id_ + 1;
+        }
+    }
+    
 private:
     Id id_;
     std::string name_;

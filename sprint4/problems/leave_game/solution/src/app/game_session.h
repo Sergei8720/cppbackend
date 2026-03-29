@@ -1,7 +1,6 @@
 #pragma once
 #include "map.h"
 #include "dog.h"
-#include "player_record.h"
 #include "tagged.h"
 #include "loot_generator_config.h"
 #include "loot_generator.h"
@@ -17,12 +16,12 @@
 #include <unordered_map>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
-#include <boost/signals2/signal.hpp>
-#include <functional>
 
 namespace app {
 
 namespace net = boost::asio;
+
+class Player;  // forward declaration
 
 class GameSession : public std::enable_shared_from_this<GameSession>  {
 public:
@@ -38,7 +37,7 @@ public:
                                     std::shared_ptr<model::Dog>,
                                     DogIdHasher>;
 
-    GameSession(std::shared_ptr<const model::Map> map,
+    GameSession(std::shared_ptr<model::Map> map,
                     const TimeInterval& period_of_update_game_state,
                     const model::LootGeneratorConfig& loot_gen_cfg,
                     net::io_context& ioc) :
@@ -53,27 +52,28 @@ public:
                 loot_gen_cfg.probability),
             period_of_update_game_state_(period_of_update_game_state) {
     };
-    GameSession(GameSession&& other) = default;
     void Run();
     
     const Id& GetId() const noexcept;
-    const std::shared_ptr<const model::Map> GetMap();
+    const std::shared_ptr<model::Map> GetMap();
     std::shared_ptr<SessionStrand> GetStrand();
     std::weak_ptr<model::Dog> CreateDog(const std::string& dog_name,
                                         const model::Map& map,
                                         bool randomize_spawn_points);
     void UpdateGameState(const TimeInterval& delta_time);
     const LostObjects& GetLostObjects();
-    void AddLostObject(model::LostObject lost_object);
+    void AddLostObject(std::shared_ptr<model::LostObject> lost_object);
     void AddDog(std::shared_ptr<model::Dog> dog);
+    void AddPlayer(std::shared_ptr<Player> player);
+    const std::vector<std::shared_ptr<Player>>& GetPlayers() const { return players_; }
+    const Dogs& GetDogs() const { return dogs_; }
     
-    void AddRemoveInactivePlayersHandler(
-        std::function<void(const GameSession::Id&)> handler);
-    void AddHandlingFinishedPlayersEvent(
-        std::function<void(const std::vector<domain::PlayerRecord>&)> handler);
+    void RestoreDog(std::shared_ptr<model::Dog> dog) {
+        dogs_[dog->GetId()] = dog;
+    }
     
 private:
-    std::shared_ptr<const model::Map> map_;
+    std::shared_ptr<model::Map> map_;
     net::io_context& ioc_;
     std::shared_ptr<SessionStrand> strand_;
     Id id_;
@@ -83,9 +83,7 @@ private:
     TimeInterval period_of_update_game_state_;
     std::shared_ptr<time_m::Ticker> update_game_state_ticker_;
     std::shared_ptr<time_m::Ticker> generate_loot_ticker_;
-
-    boost::signals2::signal<void (const GameSession::Id&)> remove_inactive_players_sig;
-    boost::signals2::signal<void (const std::vector<domain::PlayerRecord>&)> handle_finished_players_sig;
+    std::vector<std::shared_ptr<Player>> players_;
     
     void GenerateLoot(const TimeInterval& delta_time);
     void CreateLostObject();
@@ -96,7 +94,6 @@ private:
     void HandleLoot();
     void CollectLoot(const model::ItemDogProvider& provider, size_t item_id, size_t gatherer_id);
     void DropLoot(const model::ItemDogProvider& provider, size_t item_id, size_t gatherer_id);
-    void RemoveInactiveDogs();
 };
 
 }

@@ -10,20 +10,20 @@ using namespace std::literals;
 
 void Game::AddMap(const Map& map) {
     const size_t index = maps_.size();
-    if (auto [it, inserted] = map_id_to_index_.emplace(map.GetId(), index); !inserted) {
+    auto [it, inserted] = map_id_to_index_.emplace(map.GetId(), index);
+    if (!inserted) {
         throw std::invalid_argument("Map with id "s + *map.GetId() + " already exists"s);
-    } else {
-        try {
-            auto current_map = std::make_shared<Map>(map);
-            if(default_dog_velocity_ &&
-                std::abs(current_map->GetDogVelocity() - INITIAL_DOG_VELOCITY) < EPSILON) {
-                current_map->SetDogVelocity(default_dog_velocity_.value());
-            }
-            maps_.push_back(current_map);
-        } catch (...) {
-            map_id_to_index_.erase(it);
-            throw;
+    }
+    try {
+        auto current_map = std::make_shared<Map>(map);
+        if(default_dog_velocity_ &&
+            std::abs(current_map->GetDogVelocity() - INITIAL_DOG_VELOCITY) < EPSILON) {
+            current_map->SetDogVelocity(default_dog_velocity_.value());
         }
+        maps_.push_back(current_map);
+    } catch (...) {
+        map_id_to_index_.erase(it);
+        throw;
     }
 }
 
@@ -37,11 +37,11 @@ const Game::Maps& Game::GetMaps() const noexcept {
     return maps_;
 }
 
-std::optional<std::shared_ptr<const Map>> Game::FindMap(const Map::Id& id) const noexcept {
+const std::shared_ptr<Map> Game::FindMap(const Map::Id& id) const noexcept {
     if (auto it = map_id_to_index_.find(id); it != map_id_to_index_.end()) {
         return maps_.at(it->second);
     }
-    return std::nullopt;
+    return nullptr;
 };
 
 void Game::SetDefaultDogVelocity(double velocity) {
@@ -61,7 +61,7 @@ void Game::AddLootGeneratorConfig(LootGeneratorConfig cfg) {
     loot_gen_cfg_ = std::move(cfg);
 };
 
-const LootGeneratorConfig& Game::GetLootGeneratorConfig() {
+const LootGeneratorConfig& Game::GetLootGeneratorConfig() const {
     return loot_gen_cfg_;
 };
 

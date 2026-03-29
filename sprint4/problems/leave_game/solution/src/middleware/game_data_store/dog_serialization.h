@@ -19,12 +19,23 @@ public:
         bag_capacity_(dog.GetBagCapacity()) {
             std::ranges::transform(dog.GetBag(), std::back_inserter(bag_),
                 [](std::shared_ptr<model::LostObject> lost_object)->LostObjectSerialization {
-                    return *lost_object;
+                    return LostObjectSerialization(*lost_object);
                 }
             );
         };
 
-    [[nodiscard]] model::Dog Restore() const;
+    [[nodiscard]] model::Dog Restore() const {
+        model::Dog dog(model::Dog::Id{id_}, name_, bag_capacity_);
+        dog.SetDirection(static_cast<model::Direction>(direction_));
+        dog.SetPosition(position_);
+        dog.SetScore(score_);  // ДОБАВЛЕНО: восстанавливаем счет собаки
+        std::ranges::for_each(bag_
+            , [&dog](const LostObjectSerialization& lost_obj_ser) {
+                dog.CollectLostObject(std::make_shared<model::LostObject>(lost_obj_ser.Restore()));
+            }
+        );
+        return dog;
+    };
 
     template <typename Archive>
     void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {
