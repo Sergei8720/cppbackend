@@ -6,6 +6,7 @@
 #include "saving_settings.h"
 #include "game_session_serialization.h"
 #include "ticker.h"
+#include "database/connection_pool.h"
 
 #include <vector>
 #include <memory>
@@ -66,8 +67,7 @@ public:
     void SetStateSerializer(std::shared_ptr<StateSerializer> serializer) { state_serializer_ = serializer; }
     
     bool ShouldSaveState() const { return saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0; }
-    double GetDogRetirementTime() const { return game_.GetDogRetirementTime(); }
-	
+    
     // Метод для отладки
     void DumpPlayerTokens() const {
         BOOST_LOG_TRIVIAL(info) << "=== PlayerTokens dump ===";
@@ -86,6 +86,12 @@ public:
             }
         }
     }
+    
+    double GetDogRetirementTime() const { return game_.GetDogRetirementTime(); }
+    
+    // Database connection pool
+    void SetConnectionPool(std::shared_ptr<database::ConnectionPool> pool) { db_pool_ = pool; }
+    std::shared_ptr<database::ConnectionPool> GetConnectionPool() const { return db_pool_; }
     
 private:
     using GameSessionIdHasher = util::TaggedHasher<GameSession::Id>;
@@ -120,6 +126,9 @@ private:
     
     // Указатель на StateSerializer
     std::shared_ptr<StateSerializer> state_serializer_;
+    
+    // Database connection pool
+    std::shared_ptr<database::ConnectionPool> db_pool_;
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);
     void BoundPlayerAndGameSession(std::shared_ptr<Player> player,

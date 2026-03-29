@@ -4,6 +4,7 @@
 #include "json_converter.h"
 #include "request_handlers_utils.h"
 #include "api_url_storage.h"
+#include "database/database.h"
 
 #include <vector>
 #include <optional>
@@ -11,7 +12,7 @@
 #include <chrono>
 #include <unordered_set>
 #include <boost/beast/http.hpp>
-#include <boost/thread/future.hpp>
+#include <boost/thread/future.h>
 
 namespace rh_storage{
 
@@ -63,6 +64,7 @@ bool BadRequestActivator(const Request& req) {
                     url[3] != "state" &&
                     url[3] != "player" &&
                     url[3] != "tick" &&
+                    url[3] != "records" &&
                     (url.size() == SIZE_OF_FIVE_SEGMENT_URL && url[4] != "action"))
             );
 };
@@ -589,5 +591,211 @@ std::optional<size_t> InvalidEndpointHandler(
     send(response);
     return std::nullopt;
 }
+
+
+// ============ GET /api/v1/game/records ============
+
+template <typename Request>
+bool GetRecordsActivator(const Request& req) {
+    auto url = SplitUrl(req.target());
+    std::string base_url = api_urls::GET_RECORDS_API;
+    // Проверяем URL без параметров
+    if (req.target().find('?') != std::string::npos) {
+        std::string target_without_query = std::string(req.target().substr(0, req.target().find('?')));
+        return IsEqualUrls(base_url, target_without_query);
+    }
+    return IsEqualUrls(base_url, req.target());
+}
+
+template <typename Request, typename Send>
+std::optional<size_t> GetRecordsHandler(
+        const Request& req,
+        std::shared_ptr<app::Application> application,
+        Send&& send) {
+    
+    // Парсим параметры запроса start и maxItems
+    int start = 0;
+    int maxItems = 100;
+    
+    std::string target(req.target());
+    auto question_pos = target.find('?');
+    if (question_pos != std::string::npos) {
+        std::string query = target.substr(question_pos + 1);
+        std::stringstream ss(query);
+        std::string param;
+        while (std::getline(ss, param, '&')) {
+            auto eq_pos = param.find('=');
+            if (eq_pos != std::string::npos) {
+                std::string key = param.substr(0, eq_pos);
+                std::string value = param.substr(eq_pos + 1);
+                if (key == "start") {
+                    try {
+                        start = std::stoi(value);
+                        if (start < 0) start = 0;
+                    } catch (...) {}
+                } else if (key == "maxItems") {
+                    try {
+                        maxItems = std::stoi(value);
+                        if (maxItems < 0) maxItems = 0;
+                    } catch (...) {}
+                }
+            }
+        }
+    }
+    
+    // Проверка лимита maxItems
+    if (maxItems > 100) {
+        StringResponse response(http::status::bad_request, req.version());
+        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
+        response.set(http::field::cache_control, NO_CACHE_CONTROL);
+        response.body() = json_converter::CreateBadRequestResponse();
+        response.content_length(response.body().size());
+        response.keep_alive(req.keep_alive());
+        send(response);
+        return std::nullopt;
+    }
+    
+    // Получаем рекорды из БД
+    auto pool = application->GetConnectionPool();
+    if (!pool) {
+        // Если нет БД, возвращаем пустой массив
+        StringResponse response(http::status::ok, req.version());
+        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
+        response.set(http::field::cache_control, NO_CACHE_CONTROL);
+        response.body() = "[]";
+        response.content_length(response.body().size());
+        response.keep_alive(req.keep_alive());
+        send(response);
+        return std::nullopt;
+    }
+    
+    try {
+        auto records = database::Database::GetRecords(pool, start, maxItems);
+        StringResponse response(http::status::ok, req.version());
+        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
+        response.set(http::field::cache_control, NO_CACHE_CONTROL);
+        response.body() = json_converter::ConvertRecordsToJson(records);
+        response.content_length(response.body().size());
+        response.keep_alive(req.keep_alive());
+        send(response);
+    } catch (const std::exception& e) {
+        StringResponse response(http::status::internal_server_error, req.version());
+        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
+        response.set(http::field::cache_control, NO_CACHE_CONTROL);
+        response.body() = json_converter::CreateInternalServerErrorResponse();
+        response.content_length(response.body().size());
+        response.keep_alive(req.keep_alive());
+        send(response);
+    }
+    return std::nullopt;
+}
+
+
+// ============ КЛАСС EXECUTOR ============
+
+template<typename Request, typename Send>
+class ApiV1RequestHandlerExecutor{
+    using ActivatorType = bool(*)(const Request&);
+    using HandlerType = std::optional<size_t>(*)(const Request&, std::shared_ptr<app::Application>, Send&&);
+public:
+    // убираем конструктор копирования
+    ApiV1RequestHandlerExecutor(const ApiV1RequestHandlerExecutor&) = delete;
+    ApiV1RequestHandlerExecutor& operator=(const ApiV1RequestHandlerExecutor&) = delete;
+    ApiV1RequestHandlerExecutor(ApiV1RequestHandlerExecutor&&) = delete;
+    ApiV1RequestHandlerExecutor& operator=(ApiV1RequestHandlerExecutor&&) = delete;
+
+    // получение ссылки на единственный объект
+    static ApiV1RequestHandlerExecutor& GetInstance() {
+        static ApiV1RequestHandlerExecutor obj;
+        return obj;
+    };
+
+    bool Execute(const Request& req, std::shared_ptr<app::Application> application, Send&& send) {
+        for(auto item : rh_storage_) {
+            if(item.GetActivator()(req)){
+                    auto res = item.GetHandler(req.method())(req, application, std::forward<Send>(send));
+                    while(res.has_value()){
+                        res = item.GetEmergeHandlerByIndex(res.value())(req, application, std::forward<Send>(send));
+                    }
+                return true;
+            }
+        }
+        return false;
+    };
+
+private:
+    
+    std::vector< RequestHandlerNode<ActivatorType, HandlerType> > rh_storage_ = {
+        RequestHandlerNode<ActivatorType, HandlerType>(BadRequestActivator,
+                                                        {{http::verb::get, BadRequestHandler}},
+                                                        BadRequestHandler),
+
+        RequestHandlerNode<ActivatorType, HandlerType>(GetMapListActivator,
+                                                        {{http::verb::get, GetMapListHandler}},
+                                                        BadRequestHandler),
+
+        RequestHandlerNode<ActivatorType, HandlerType>(GetMapByIdActivator,
+                                                        {{http::verb::get, GetMapByIdHandler},
+                                                        {http::verb::head, GetMapByIdHandler}},
+                                                        InvalidMethodHandler,
+                                                        {MapNotFoundHandler}),
+                                                        
+        RequestHandlerNode<ActivatorType, HandlerType>(InvalidContentTypeActivator,
+                                                        {{http::verb::post, InvalidContentTypeHandler}},
+                                                        InvalidContentTypeHandler),
+
+        RequestHandlerNode<ActivatorType, HandlerType>(JoinToGameInvalidJsonReqActivator,
+                                                        {{http::verb::post, JoinToGameInvalidJsonReqHandler}},
+                                                        OnlyPostMethodAllowedHandler),
+        RequestHandlerNode<ActivatorType, HandlerType>(JoinToGameEmptyPlayerNameActivator,
+                                                        {{http::verb::post, JoinToGameEmptyPlayerNameHandler}},
+                                                        OnlyPostMethodAllowedHandler),
+        RequestHandlerNode<ActivatorType, HandlerType>(JoinToGameActivator,
+                                                        {{http::verb::post, JoinToGameHandler}},
+                                                        OnlyPostMethodAllowedHandler,
+                                                        {JoinToGameMapNotFoundHandler}),
+
+        RequestHandlerNode<ActivatorType, HandlerType>(EmptyAuthorizationActivator,
+                                                        {{http::verb::get, EmptyAuthorizationHandler},
+                                                        {http::verb::head, EmptyAuthorizationHandler}},
+                                                        InvalidMethodHandler),
+
+        RequestHandlerNode<ActivatorType, HandlerType>(GetPlayersListActivator,
+                                                        {{http::verb::get, GetPlayersListHandler},
+                                                        {http::verb::head, GetPlayersListHandler}},
+                                                        InvalidMethodHandler,
+                                                        {UnknownTokenHandler}),
+        RequestHandlerNode<ActivatorType, HandlerType>(GetGameStateActivator,
+                                                        {{http::verb::get, GetGameStateHandler},
+                                                        {http::verb::head, GetGameStateHandler}},
+                                                        InvalidMethodHandler,
+                                                        {UnknownTokenHandler}),
+
+        RequestHandlerNode<ActivatorType, HandlerType>(PlayerActionInvalidActionActivator,
+                                                        {{http::verb::post, PlayerActionInvalidActionHandler}},
+                                                        OnlyPostMethodAllowedHandler),
+        RequestHandlerNode<ActivatorType, HandlerType>(PlayerActionActivator,
+                                                        {{http::verb::post, PlayerActionHandler}},
+                                                        InvalidMethodHandler,
+                                                        {UnknownTokenHandler}),
+        
+        RequestHandlerNode<ActivatorType, HandlerType>(TimeTickInvalidMsgActivator,
+                                                        {{http::verb::post, TimeTickInvalidMsgHandler}},
+                                                        InvalidMethodHandler,
+                                                        {InvalidEndpointHandler}),
+        RequestHandlerNode<ActivatorType, HandlerType>(TimeTickActivator,
+                                                        {{http::verb::post, TimeTickHandler}},
+                                                        InvalidMethodHandler,
+                                                        {InvalidEndpointHandler}),
+        
+        // НОВЫЙ УЗЕЛ ДЛЯ /api/v1/game/records
+        RequestHandlerNode<ActivatorType, HandlerType>(GetRecordsActivator,
+                                                        {{http::verb::get, GetRecordsHandler},
+                                                         {http::verb::head, GetRecordsHandler}},
+                                                        InvalidMethodHandler)
+    };
+
+    ApiV1RequestHandlerExecutor() = default;
+};
 
 }

@@ -7,6 +7,8 @@
 #include "program_options.h"
 #include "saving_settings.h"
 #include "state_serializer.h"
+#include "database/connection_pool.h"
+#include "database/database.h"
 
 #include <boost/asio/io_context.hpp>
 #include <thread>
@@ -15,6 +17,8 @@
 #include <chrono>
 #include <memory>
 #include <atomic>
+#include <cstdlib>
+#include <cstring>
 
 using namespace std::literals;
 namespace net = boost::asio;
@@ -62,21 +66,42 @@ int main(int argc, const char* argv[]) {
                                                               args.randomize_spawn_points,
                                                               ioc);
 
-        // 5. Инициализация настроек сохранения
-        std::shared_ptr<app::StateSerializer> state_serializer;  // ← ИЗМЕНЕНО: unique_ptr -> shared_ptr
+        // 5. Инициализация подключения к базе данных
+        const char* db_url = std::getenv("GAME_DB_URL");
+        std::shared_ptr<database::ConnectionPool> db_pool;
+        if (db_url && std::strlen(db_url) > 0) {
+            try {
+                db_pool = std::make_shared<database::ConnectionPool>(
+                    5,  // pool size
+                    [db_url]() -> std::shared_ptr<pqxx::connection> {
+                        return std::make_shared<pqxx::connection>(db_url);
+                    }
+                );
+                database::Database::Init(db_pool);
+                application->SetConnectionPool(db_pool);
+                BOOST_LOG_TRIVIAL(info) << "Database connected successfully to: " << db_url;
+            } catch (const std::exception& e) {
+                BOOST_LOG_TRIVIAL(warning) << "Failed to connect to database: " << e.what();
+            }
+        } else {
+            BOOST_LOG_TRIVIAL(info) << "GAME_DB_URL environment variable not set, running without database";
+        }
+
+        // 6. Инициализация настроек сохранения
+        std::shared_ptr<app::StateSerializer> state_serializer;
         if (!args.state_file.empty()) {
             auto save_period = args.save_state_period > 0 
                 ? std::chrono::milliseconds(args.save_state_period)
                 : std::chrono::milliseconds(0);
             
-            state_serializer = std::make_shared<app::StateSerializer>(  // ← ИЗМЕНЕНО: make_unique -> make_shared
+            state_serializer = std::make_shared<app::StateSerializer>(
                 *application, 
                 args.state_file, 
                 save_period
             );
             
             // Устанавливаем StateSerializer в Application
-            application->SetStateSerializer(state_serializer);  // ← ИЗМЕНЕНО: убрали .get()
+            application->SetStateSerializer(state_serializer);
             BOOST_LOG_TRIVIAL(info) << "StateSerializer set in Application";
             
             // Восстанавливаем состояние
@@ -94,7 +119,7 @@ int main(int argc, const char* argv[]) {
             state_serializer->StartPeriodicSaving(ioc);
         }
 
-        // 6. Добавляем асинхронный обработчик сигналов SIGINT и SIGTERM
+        // 7. Добавляем асинхронный обработчик сигналов SIGINT и SIGTERM
         net::signal_set signals(ioc, SIGINT, SIGTERM);
         signals.async_wait([&ioc, &state_serializer, &final_save_done](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
             if (!ec && !final_save_done.exchange(true)) {
@@ -111,10 +136,10 @@ int main(int argc, const char* argv[]) {
             }
         });
 
-        // 7. Создаём обработчик HTTP-запросов и связываем его с моделью игры, задаем путь до статического контента.
+        // 8. Создаём обработчик HTTP-запросов и связываем его с моделью игры, задаем путь до статического контента.
         http_handler::RequestHandler handler{application, sc_root_path};
 
-        // 8. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
+        // 9. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
         const auto address = net::ip::make_address("0.0.0.0");
         constexpr net::ip::port_type port = 8080;
         http_server::ServeHttp(ioc, {address, port}, [&handler](auto&& req, auto&& send) {
@@ -124,12 +149,12 @@ int main(int argc, const char* argv[]) {
         // Эта надпись сообщает тестам о том, что сервер запущен и готов обрабатывать запросы
         BOOST_LOG_TRIVIAL(info) << "Server has started...";
 
-        // 9. Запускаем обработку асинхронных операций
+        // 10. Запускаем обработку асинхронных операций
         RunWorkers(std::max(1u, num_threads), [&ioc] {
             ioc.run();
         });
         
-        // 10. Сохраняем состояние при нормальном завершении (если не было сохранено по сигналу)
+        // 11. Сохраняем состояние при нормальном завершении (если не было сохранено по сигналу)
         if (state_serializer && !final_save_done.exchange(true)) {
             BOOST_LOG_TRIVIAL(info) << "Normal shutdown, saving final state...";
             state_serializer->FinalSave();

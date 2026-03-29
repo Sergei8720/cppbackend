@@ -3,6 +3,7 @@
 #include "json_key_storage.h"
 #include "json_model_converter.h"
 #include "logger.h"
+#include "database/player_record.h"
 
 #include <map>
 #include <sstream>
@@ -216,6 +217,28 @@ std::optional<int> ParseSetDeltaTimeRequest(const std::string& msg) {
         BOOST_LOG_TRIVIAL(error) << "Failed to parse delta time request: " << e.what();
         return std::nullopt;
     }
+}
+
+std::string ConvertRecordsToJson(const std::vector<database::PlayerRecord>& records) {
+    namespace json = boost::json;
+    json::array result;
+    for (const auto& record : records) {
+        json::object item;
+        item["name"] = record.name;
+        item["score"] = record.score;
+        // playTime в секундах (из миллисекунд)
+        double playTimeSec = static_cast<double>(record.play_time_ms) / 1000.0;
+        item["playTime"] = playTimeSec;
+        result.push_back(item);
+    }
+    return json::serialize(result);
+}
+
+std::string CreateInternalServerErrorResponse() {
+    namespace json = boost::json;
+    json::value msg = {{json_keys::RESPONSE_CODE, "internalServerError"},
+                        {json_keys::RESPONSE_MESSAGE, "Internal server error"}};
+    return json::serialize(msg);
 }
 
 }
