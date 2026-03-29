@@ -87,6 +87,25 @@ target_include_directories(game_model_lib PUBLIC
 
 target_link_libraries(game_model_lib PUBLIC collision_detection_lib CONAN_PKG::boost)
 
+# ============= БИБЛИОТЕКА БАЗЫ ДАННЫХ И ОТСЛЕЖИВАНИЯ =============
+add_library(database_retirement_lib STATIC
+    src/database/connection_pool.h
+    src/database/connection_pool.cpp
+    src/database/database.h
+    src/database/database.cpp
+    src/database/player_record.h
+    src/retirement/retirement_tracker.h
+    src/retirement/retirement_tracker.cpp
+)
+
+target_include_directories(database_retirement_lib PUBLIC 
+    src
+    src/database
+    src/retirement
+)
+
+target_link_libraries(database_retirement_lib PUBLIC CONAN_PKG::boost CONAN_PKG::libpq CONAN_PKG::libpqxx)
+
 # ============= ОСНОВНОЙ ИСПОЛНЯЕМЫЙ ФАЙЛ =============
 add_executable(game_server
     src/main.cpp
@@ -121,9 +140,16 @@ target_include_directories(game_server PRIVATE
     src/middleware/time_management
     src/middleware/error_handling
     src/middleware/game_data_store
+    src/database
+    src/retirement
 )
 
-target_link_libraries(game_server PRIVATE Threads::Threads CONAN_PKG::boost game_model_lib)
+target_link_libraries(game_server PRIVATE 
+    Threads::Threads 
+    CONAN_PKG::boost 
+    game_model_lib 
+    database_retirement_lib
+)
 
 # ============= ТЕСТЫ =============
 include(CTest)
@@ -141,12 +167,15 @@ target_include_directories(game_tests PRIVATE
     src/model/physics
     src/middleware
     src/middleware/game_data_store
+    src/database
+    src/retirement
     ${CONAN_INCLUDE_DIRS_CATCH2}
 )
 
 target_link_libraries(game_tests PRIVATE
     game_model_lib
     collision_detection_lib
+    database_retirement_lib
     Threads::Threads
     CONAN_PKG::catch2
     m
@@ -162,12 +191,15 @@ add_executable(collision_tests
 target_include_directories(collision_tests PRIVATE
     src
     src/model/physics
+    src/database
+    src/retirement
     ${CONAN_INCLUDE_DIRS_CATCH2}
 )
 
 target_link_libraries(collision_tests PRIVATE
     game_model_lib
     collision_detection_lib
+    database_retirement_lib
     Threads::Threads
     CONAN_PKG::catch2
     m
@@ -185,12 +217,15 @@ target_include_directories(state_tests PRIVATE
     src/model/physics
     src/middleware
     src/middleware/game_data_store
+    src/database
+    src/retirement
     ${CONAN_INCLUDE_DIRS_CATCH2}
 )
 
 target_link_libraries(state_tests PRIVATE
     game_model_lib
     collision_detection_lib
+    database_retirement_lib
     Threads::Threads
     CONAN_PKG::catch2
     m
@@ -240,6 +275,7 @@ message(STATUS "🎮 Build targets:")
 message(STATUS "   - game_server (main executable)")
 message(STATUS "   - collision_detection_lib (static library)")
 message(STATUS "   - game_model_lib (game model library)")
+message(STATUS "   - database_retirement_lib (database and retirement library)")  # НОВАЯ БИБЛИОТЕКА
 message(STATUS "   - game_tests (unified game tests)")
 message(STATUS "   - collision_tests (collision tests)")
 message(STATUS "   - state_tests (state serialization tests)")
