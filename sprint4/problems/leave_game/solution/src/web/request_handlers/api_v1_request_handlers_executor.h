@@ -103,7 +103,13 @@ private:
         RequestHandlerNode<ActivatorType, HandlerType>(TimeTickActivator,
                                                         {{http::verb::post, TimeTickHandler}},
                                                         InvalidMethodHandler,
-                                                        {InvalidEndpointHandler})
+                                                        {InvalidEndpointHandler}),
+        
+        // НОВЫЙ УЗЕЛ ДЛЯ /api/v1/game/records
+        RequestHandlerNode<ActivatorType, HandlerType>(GetRecordsActivator,
+                                                        {{http::verb::get, GetRecordsHandler},
+                                                         {http::verb::head, GetRecordsHandler}},
+                                                        InvalidMethodHandler)
     };
 
     ApiV1RequestHandlerExecutor() = default;
