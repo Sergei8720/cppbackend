@@ -27,6 +27,7 @@ public:
     Token AddPlayer(std::shared_ptr<app::Player> player);
     void AddTokenPlayerPair(Token token, std::shared_ptr<app::Player> player);
     std::shared_ptr<app::Player> FindPlayerBy(Token token);
+    void RemoveToken(const Token& token);  // <-- ДОБАВИТЬ
     
     // Для отладки
     size_t Size() const { return tokenToPalyer_.size(); }
