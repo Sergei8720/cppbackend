@@ -34,8 +34,23 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
             tick_period_, 
             game_.GetLootGeneratorConfig(), 
             ioc_,
-            game_.GetDogRetirementTime()  // Передаем время бездействия
+            game_.GetDogRetirementTime()
         );
+        
+        // Устанавливаем callback для уведомления о retirement
+        game_session->SetRetirementCallback(
+            [this](const authentication::Token& token, std::shared_ptr<Player> player) {
+                this->RemovePlayerAndSaveRecord(token, player);
+            }
+        );
+        
+        // Устанавливаем finder для поиска токена по ID игрока
+        game_session->SetTokenFinder(
+            [this](const Player::Id& player_id) -> std::optional<authentication::Token> {
+                return this->FindTokenByPlayer(player_id);
+            }
+        );
+        
         AddGameSession(game_session);
         game_session->Run();
     }
@@ -313,14 +328,9 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token, 
     
     // Удаляем из всех структур
     auto session = player->GetGameSession();
-    if (session) {
-        auto dog_id = dog->GetId();
-        // Удаляем собаку из сессии
-        // session->RemoveDog(dog_id); // TODO: добавить метод в GameSession
-    }
     
     // Удаляем токен
-    player_tokens_.RemoveToken(token); // TODO: добавить метод в PlayerTokens
+    player_tokens_.RemoveToken(token);
     
     // Удаляем из player_id_to_token_
     player_id_to_token_.erase(player->GetId());

@@ -192,8 +192,27 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 continue;
             }
             
-            auto session = std::make_shared<GameSession>(map, app_.GetTickPeriod(), 
-                                                        app_.GetLootGeneratorConfig(), ioc);
+            auto session = std::make_shared<GameSession>(
+                map, 
+                app_.GetTickPeriod(), 
+                app_.GetLootGeneratorConfig(), 
+                ioc,
+                app_.GetDogRetirementTime()
+            );
+            
+            // Устанавливаем callback для уведомления о retirement
+            session->SetRetirementCallback(
+                [this](const authentication::Token& token, std::shared_ptr<Player> player) {
+                    app_.RemovePlayerAndSaveRecord(token, player);
+                }
+            );
+            
+            // Устанавливаем finder для поиска токена по ID игрока
+            session->SetTokenFinder(
+                [this](const Player::Id& player_id) -> std::optional<authentication::Token> {
+                    return app_.FindTokenByPlayer(player_id);
+                }
+            );
             
             // Восстанавливаем потерянные объекты
             size_t lost_objects_restored = 0;

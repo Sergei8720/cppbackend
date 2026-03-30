@@ -9,12 +9,14 @@
 #include "model_invariants.h"
 #include "item_dog_provider.h"
 #include "retirement/retirement_tracker.h"
+#include "player_tokens.h"
 
 #include <chrono>
 #include <vector>
 #include <memory>
 #include <chrono>
 #include <unordered_map>
+#include <functional>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
 
@@ -37,6 +39,9 @@ public:
     using Dogs = std::unordered_map<model::Dog::Id,
                                     std::shared_ptr<model::Dog>,
                                     DogIdHasher>;
+    
+    // Callback для уведомления о retirement
+    using RetirementCallback = std::function<void(const authentication::Token&, std::shared_ptr<Player>)>;
 
     GameSession(std::shared_ptr<model::Map> map,
                     const TimeInterval& period_of_update_game_state,
@@ -78,6 +83,15 @@ public:
     // Метод для получения таймаута бездействия
     std::chrono::milliseconds GetDogRetirementTimeout() const { return dog_retirement_timeout_; }
     
+    // Установка callback для уведомления о retirement
+    void SetRetirementCallback(RetirementCallback callback) { retirement_callback_ = std::move(callback); }
+    
+    // Получить токен по игроку (нужно из Application)
+    std::function<std::optional<authentication::Token>(const Player::Id&)> token_finder_;
+    void SetTokenFinder(std::function<std::optional<authentication::Token>(const Player::Id&)> finder) {
+        token_finder_ = std::move(finder);
+    }
+    
 private:
     std::shared_ptr<model::Map> map_;
     net::io_context& ioc_;
@@ -94,6 +108,10 @@ private:
     // Retirement tracker
     retirement::RetirementTracker retirement_tracker_;
     std::chrono::milliseconds dog_retirement_timeout_;
+    
+    // Callback для уведомления о retirement
+    RetirementCallback retirement_callback_;
+    std::function<std::optional<authentication::Token>(const Player::Id&)> token_finder_;
     
     void GenerateLoot(const TimeInterval& delta_time);
     void CreateLostObject();

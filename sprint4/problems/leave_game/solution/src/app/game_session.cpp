@@ -230,11 +230,24 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
                 now - inactivity_start
             ).count();
             
-            // TODO: Сохранить рекорд в БД через Application
-            
             BOOST_LOG_TRIVIAL(info) << "Dog " << dog->GetName() 
                                     << " retired with score " << dog->GetScore()
                                     << " and play time " << play_time_ms << " ms";
+            
+            // Находим токен игрока
+            std::optional<authentication::Token> token;
+            if (token_finder_) {
+                token = token_finder_(player->GetId());
+            }
+            
+            // Вызываем callback для удаления игрока и сохранения рекорда
+            if (retirement_callback_ && token.has_value()) {
+                retirement_callback_(token.value(), player);
+                BOOST_LOG_TRIVIAL(info) << "Called retirement callback for player " << player->GetName();
+            } else {
+                BOOST_LOG_TRIVIAL(warning) << "Cannot retire player " << player->GetName() 
+                                           << ": no token or callback";
+            }
             
             // Удаляем из трекера
             retirement_tracker_.RemoveDog(*dog->GetId());
@@ -245,8 +258,6 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
         
         // Удаляем игрока из вектора
         std::erase(players_, player);
-        
-        // TODO: Удалить токен игрока через Application
     }
 }
 
