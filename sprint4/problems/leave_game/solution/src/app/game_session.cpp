@@ -2,6 +2,7 @@
 #include "player.h"
 #include "random_generators.h"
 #include "support_types.h"
+#include "logger.h"
 
 namespace app {
 

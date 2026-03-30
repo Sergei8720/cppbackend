@@ -88,7 +88,8 @@ public:
     }
     
     double GetDogRetirementTime() const { return game_.GetDogRetirementTime(); }
-    
+    void RemovePlayerAndSaveRecord(const authentication::Token& token, std::shared_ptr<Player> player);
+	
     // Database connection pool
     void SetConnectionPool(std::shared_ptr<database::ConnectionPool> pool) { db_pool_ = pool; }
     std::shared_ptr<database::ConnectionPool> GetConnectionPool() const { return db_pool_; }
