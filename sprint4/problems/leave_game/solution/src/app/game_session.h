@@ -8,6 +8,7 @@
 #include "ticker.h"
 #include "model_invariants.h"
 #include "item_dog_provider.h"
+#include "retirement/retirement_tracker.h"
 
 #include <chrono>
 #include <vector>
@@ -40,7 +41,8 @@ public:
     GameSession(std::shared_ptr<model::Map> map,
                     const TimeInterval& period_of_update_game_state,
                     const model::LootGeneratorConfig& loot_gen_cfg,
-                    net::io_context& ioc) :
+                    net::io_context& ioc,
+                    double dog_retirement_time_seconds = 60.0) :
             map_(map),
             ioc_(ioc),
             strand_(std::make_shared<SessionStrand>(net::make_strand(ioc_))),
@@ -50,7 +52,8 @@ public:
                     loot_gen_cfg.period * model::MILLISECONDS_IN_SECOND)
                 ),
                 loot_gen_cfg.probability),
-            period_of_update_game_state_(period_of_update_game_state) {
+            period_of_update_game_state_(period_of_update_game_state),
+            dog_retirement_timeout_(std::chrono::milliseconds(static_cast<int64_t>(dog_retirement_time_seconds * 1000))) {
     };
     void Run();
     
@@ -72,6 +75,9 @@ public:
         dogs_[dog->GetId()] = dog;
     }
     
+    // Метод для получения таймаута бездействия
+    std::chrono::milliseconds GetDogRetirementTimeout() const { return dog_retirement_timeout_; }
+    
 private:
     std::shared_ptr<model::Map> map_;
     net::io_context& ioc_;
@@ -85,6 +91,10 @@ private:
     std::shared_ptr<time_m::Ticker> generate_loot_ticker_;
     std::vector<std::shared_ptr<Player>> players_;
     
+    // Retirement tracker
+    retirement::RetirementTracker retirement_tracker_;
+    std::chrono::milliseconds dog_retirement_timeout_;
+    
     void GenerateLoot(const TimeInterval& delta_time);
     void CreateLostObject();
     void SetRandomLootType(std::shared_ptr<model::LostObject> loot);
@@ -94,6 +104,7 @@ private:
     void HandleLoot();
     void CollectLoot(const model::ItemDogProvider& provider, size_t item_id, size_t gatherer_id);
     void DropLoot(const model::ItemDogProvider& provider, size_t item_id, size_t gatherer_id);
+    void CheckAndRetireDogs(const TimeInterval& delta_time);
 };
 
 }

@@ -1,6 +1,7 @@
 #include "application.h"
 #include "logger.h"
-#include "state_serializer.h"  // <-- НОВЫЙ INCLUDE
+#include "state_serializer.h"
+#include "database/database.h"
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
@@ -28,7 +29,13 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
     player_id_to_token_.emplace(Player::Id(*player->GetId()), token);
     std::shared_ptr<GameSession> game_session = FindGameSessionBy(id);
     if(!game_session){
-        game_session = std::make_shared<GameSession>(game_.FindMap(id), tick_period_, game_.GetLootGeneratorConfig(), ioc_);
+        game_session = std::make_shared<GameSession>(
+            game_.FindMap(id), 
+            tick_period_, 
+            game_.GetLootGeneratorConfig(), 
+            ioc_,
+            game_.GetDogRetirementTime()  // Передаем время бездействия
+        );
         AddGameSession(game_session);
         game_session->Run();
     }
@@ -111,7 +118,7 @@ void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
         res_future.get();
     }
     
-    // <-- НОВЫЙ КОД: периодическое сохранение по игровому времени
+    // Периодическое сохранение
     if (saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0) {
         static std::chrono::milliseconds elapsed_since_last_save{0};
         elapsed_since_last_save += delta_time;
@@ -213,7 +220,6 @@ void Application::RestorePlayer(const authentication::Token& token,
     BOOST_LOG_TRIVIAL(info) << "=== RestorePlayer completed ===";
 };
 
-// <-- ИЗМЕНЕНО: теперь реальная реализация SaveGame
 void Application::SaveGame() {
     BOOST_LOG_TRIVIAL(info) << "Application::SaveGame() called";
     
@@ -264,6 +270,82 @@ std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedD
         sessions_ser.push_back(res_future.get());
     }
     return sessions_ser;
+};
+
+// Метод для удаления игрока и сохранения рекорда
+void Application::RemovePlayerAndSaveRecord(const authentication::Token& token, std::shared_ptr<Player> player) {
+    BOOST_LOG_TRIVIAL(info) << "Removing player " << player->GetName() << " with token " << *token;
+    
+    // Получаем собаку
+    auto dog = player->GetDog().lock();
+    if (!dog) {
+        BOOST_LOG_TRIVIAL(warning) << "Player " << player->GetName() << " has no dog";
+        return;
+    }
+    
+    // Вычисляем время игры (от момента присоединения до текущего момента)
+    // В реальном приложении нужно отслеживать время входа, здесь используем упрощённый подход
+    auto now = std::chrono::steady_clock::now();
+    // TODO: нужно хранить время входа игрока
+    
+    // Сохраняем рекорд в БД, если есть подключение
+    if (db_pool_) {
+        try {
+            // Генерируем UUID для записи (используем dog_id как строку)
+            std::string uuid = std::to_string(*dog->GetId());
+            
+            database::PlayerRecord record{
+                uuid,
+                player->GetName(),
+                static_cast<int64_t>(dog->GetScore()),
+                0  // TODO: нужно передать реальное время игры
+            };
+            
+            database::Database::SaveRecord(db_pool_, record);
+            BOOST_LOG_TRIVIAL(info) << "Saved retirement record for " << player->GetName() 
+                                    << " with score " << dog->GetScore();
+        } catch (const std::exception& e) {
+            BOOST_LOG_TRIVIAL(error) << "Failed to save retirement record: " << e.what();
+        }
+    } else {
+        BOOST_LOG_TRIVIAL(debug) << "No database connection, skipping record save";
+    }
+    
+    // Удаляем из всех структур
+    auto session = player->GetGameSession();
+    if (session) {
+        auto dog_id = dog->GetId();
+        // Удаляем собаку из сессии
+        // session->RemoveDog(dog_id); // TODO: добавить метод в GameSession
+    }
+    
+    // Удаляем токен
+    player_tokens_.RemoveToken(token); // TODO: добавить метод в PlayerTokens
+    
+    // Удаляем из player_id_to_token_
+    player_id_to_token_.erase(player->GetId());
+    
+    // Удаляем из session_id_to_players_
+    auto session_id = player->GetGameSessionId();
+    if (session_id_to_players_.contains(session_id)) {
+        auto& players = session_id_to_players_[session_id];
+        std::erase(players, player);
+    }
+    
+    // Удаляем из auth_token_to_session_index_
+    auth_token_to_session_index_.erase(token);
+    
+    // Удаляем из game_session_to_token_player_pair_
+    if (session) {
+        if (game_session_to_token_player_pair_.contains(session)) {
+            game_session_to_token_player_pair_[session].erase(token);
+        }
+    }
+    
+    // Удаляем из players_
+    std::erase(players_, player);
+    
+    BOOST_LOG_TRIVIAL(info) << "Player " << player->GetName() << " removed successfully";
 };
 
 } // namespace app

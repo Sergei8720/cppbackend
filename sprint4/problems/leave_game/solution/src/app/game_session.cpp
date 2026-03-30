@@ -46,6 +46,11 @@ std::weak_ptr<model::Dog> GameSession::CreateDog(const std::string& dog_name, co
         LocateDogInStartPointOnMap(dog);
     }
     dogs_[dog->GetId()] = dog;
+    
+    // Регистрируем собаку в трекере бездействия
+    auto now = std::chrono::steady_clock::now();
+    retirement_tracker_.UpdateActivity(*dog->GetId(), now);
+    
     net::dispatch(*strand_, [self = shared_from_this()]{
         self->GenerateLoot(self->loot_generator_.GetPeriod());
     });
@@ -63,9 +68,14 @@ void GameSession::AddLostObject(std::shared_ptr<model::LostObject> lost_object) 
 
 void GameSession::AddDog(std::shared_ptr<model::Dog> dog) {
     dogs_[dog->GetId()] = dog;
+    
+    // Регистрируем собаку в трекере бездействия при восстановлении
+    auto now = std::chrono::steady_clock::now();
+    retirement_tracker_.UpdateActivity(*dog->GetId(), now);
 };
 
-void GameSession::UpdateGameState(const GameSession::TimeInterval& delta_time) {
+void GameSession::UpdateGameState(const TimeInterval& delta_time) {
+    // Обновляем позиции собак
     for(auto [dog_id, dog] : dogs_) {
         auto [new_position, new_velocity] = map_->GetValidMove(
             dog->GetPosition(),
@@ -74,8 +84,17 @@ void GameSession::UpdateGameState(const GameSession::TimeInterval& delta_time) {
         );
         dog->SetPosition(new_position);
         dog->SetVelocity(new_velocity);
+        
+        // Обновляем активность собаки в трекере, если она двигалась
+        if (new_velocity.vx != 0 || new_velocity.vy != 0) {
+            auto now = std::chrono::steady_clock::now();
+            retirement_tracker_.UpdateActivity(*dog_id, now);
+        }
     }
     HandleLoot();
+    
+    // Проверяем бездействие собак
+    CheckAndRetireDogs(delta_time);
 };
 
 void GameSession::GenerateLoot(const GameSession::TimeInterval& delta_time) {
@@ -172,5 +191,62 @@ void GameSession::DropLoot(const model::ItemDogProvider& provider, size_t item_i
 void GameSession::AddPlayer(std::shared_ptr<Player> player) {
     players_.push_back(player);
 };
+
+void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
+    auto now = std::chrono::steady_clock::now();
+    std::vector<model::Dog::Id> dogs_to_remove;
+    std::vector<std::shared_ptr<Player>> players_to_remove;
+    
+    // Собираем собак, которые должны уйти на покой
+    for (const auto& [dog_id, dog] : dogs_) {
+        if (retirement_tracker_.IsRetired(*dog_id, now, dog_retirement_timeout_)) {
+            dogs_to_remove.push_back(dog_id);
+        }
+    }
+    
+    if (dogs_to_remove.empty()) {
+        return;
+    }
+    
+    // Находим игроков, связанных с этими собаками
+    for (const auto& dog_id : dogs_to_remove) {
+        for (const auto& player : players_) {
+            auto player_dog = player->GetDog().lock();
+            if (player_dog && *player_dog->GetId() == *dog_id) {
+                players_to_remove.push_back(player);
+                break;
+            }
+        }
+    }
+    
+    // Удаляем игроков и собак
+    for (const auto& player : players_to_remove) {
+        auto dog = player->GetDog().lock();
+        if (dog) {
+            // Вычисляем время игры
+            auto inactivity_start = retirement_tracker_.GetInactivityStartTime(*dog->GetId());
+            auto play_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - inactivity_start
+            ).count();
+            
+            // TODO: Сохранить рекорд в БД через Application
+            
+            BOOST_LOG_TRIVIAL(info) << "Dog " << dog->GetName() 
+                                    << " retired with score " << dog->GetScore()
+                                    << " and play time " << play_time_ms << " ms";
+            
+            // Удаляем из трекера
+            retirement_tracker_.RemoveDog(*dog->GetId());
+            
+            // Удаляем собаку из карты
+            dogs_.erase(dog->GetId());
+        }
+        
+        // Удаляем игрока из вектора
+        std::erase(players_, player);
+        
+        // TODO: Удалить токен игрока через Application
+    }
+}
 
 }
