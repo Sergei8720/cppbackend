@@ -6,6 +6,26 @@
 
 namespace app {
 
+GameSession::GameSession(std::shared_ptr<model::Map> map,
+                         const TimeInterval& period_of_update_game_state,
+                         const model::LootGeneratorConfig& loot_gen_cfg,
+                         net::io_context& ioc,
+                         double dog_retirement_time_seconds)
+    : map_(map)
+    , ioc_(ioc)
+    , strand_(std::make_shared<SessionStrand>(net::make_strand(ioc_)))
+    , id_(*(map->GetId()))
+    , loot_generator_(
+        TimeInterval(static_cast<uint64_t>(
+            loot_gen_cfg.period * model::MILLISECONDS_IN_SECOND)
+        ),
+        loot_gen_cfg.probability)
+    , period_of_update_game_state_(period_of_update_game_state)
+    , dog_retirement_timeout_(std::chrono::milliseconds(static_cast<int64_t>(dog_retirement_time_seconds * 1000))) {
+    BOOST_LOG_TRIVIAL(info) << "GameSession created with dog_retirement_timeout=" 
+                            << dog_retirement_timeout_.count() << "ms";
+}
+
 void GameSession::Run() {
     if(period_of_update_game_state_.count() != 0){
         update_game_state_ticker_ = std::make_shared<time_m::Ticker>(
@@ -223,7 +243,6 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     for (const auto& player : players_to_remove) {
         auto dog = player->GetDog().lock();
         if (dog) {
-            // Общее время игры от момента входа до retirement
             auto join_time = player->GetJoinTime();
             auto total_play_time = std::chrono::duration_cast<std::chrono::milliseconds>(
                 now - join_time
@@ -260,4 +279,4 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     }
 }
 
-}
+} // namespace app

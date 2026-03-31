@@ -23,7 +23,7 @@ namespace app {
 
 namespace net = boost::asio;
 
-class Player;
+class Player;  // forward declaration
 
 class GameSession : public std::enable_shared_from_this<GameSession>  {
 public:
@@ -39,7 +39,6 @@ public:
                                     std::shared_ptr<model::Dog>,
                                     DogIdHasher>;
     
-    // Callback для уведомления о retirement (добавлен play_time_ms)
     using RetirementCallback = std::function<void(const authentication::Token&, 
                                                    std::shared_ptr<Player>, 
                                                    int64_t play_time_ms)>;
@@ -48,21 +47,8 @@ public:
                     const TimeInterval& period_of_update_game_state,
                     const model::LootGeneratorConfig& loot_gen_cfg,
                     net::io_context& ioc,
-                    double dog_retirement_time_seconds = 60.0) :
-            map_(map),
-            ioc_(ioc),
-            strand_(std::make_shared<SessionStrand>(net::make_strand(ioc_))),
-            id_(*(map->GetId())),
-            loot_generator_(
-                TimeInterval(static_cast<uint64_t>(
-                    loot_gen_cfg.period * model::MILLISECONDS_IN_SECOND)
-                ),
-                loot_gen_cfg.probability),
-            period_of_update_game_state_(period_of_update_game_state),
-            dog_retirement_timeout_(std::chrono::milliseconds(static_cast<int64_t>(dog_retirement_time_seconds * 1000))) {
-        BOOST_LOG_TRIVIAL(info) << "GameSession created with dog_retirement_timeout=" 
-                                << dog_retirement_timeout_.count() << "ms";
-    };
+                    double dog_retirement_time_seconds = 60.0);
+    
     void Run();
     
     const Id& GetId() const noexcept;
