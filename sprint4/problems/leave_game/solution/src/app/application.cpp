@@ -75,6 +75,11 @@ void Application::BoundPlayerAndGameSession(std::shared_ptr<Player> player,
     player->SetGameSession(session);
     auto dog = session->CreateDog(player->GetName(), *(session->GetMap()), randomize_spawn_points_);
     player->SetDog(dog);
+    
+    // Инициализируем отслеживание времени для новой собаки
+    uint64_t dog_id = *dog.lock()->GetId();
+    dog_game_time_[dog_id] = std::chrono::milliseconds{0};
+    dog_inactive_time_[dog_id] = std::chrono::milliseconds{0};
 };
 
 const std::vector< std::shared_ptr<Player> >& Application::GetPlayersFromGameSession(const authentication::Token& token) {
@@ -119,11 +124,38 @@ bool Application::IsManualTimeManagement() {
 void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
     BOOST_LOG_TRIVIAL(debug) << "UpdateGameState called with delta_time=" << delta_time.count() << "ms";
     
+    // Обновляем время игры для всех собак
     for(auto session : sessions_) {
         boost::promise<void> res_promise;
         auto res_future = res_promise.get_future();
         net::dispatch(*(session->GetStrand()),
-            [session, &delta_time, &res_promise] {
+            [this, session, &delta_time, &res_promise] {
+                for (const auto& dog_pair : session->GetDogs()) {
+                    uint64_t dog_id = *dog_pair.first;
+                    auto dog = dog_pair.second;
+                    
+                    // Обновляем общее время игры
+                    auto it = dog_game_time_.find(dog_id);
+                    if (it != dog_game_time_.end()) {
+                        it->second += delta_time;
+                    } else {
+                        dog_game_time_[dog_id] = delta_time;
+                    }
+                    
+                    // Обновляем время бездействия
+                    bool is_active = (dog->GetVelocity().vx != 0 || dog->GetVelocity().vy != 0);
+                    auto inactive_it = dog_inactive_time_.find(dog_id);
+                    if (inactive_it != dog_inactive_time_.end()) {
+                        if (is_active) {
+                            inactive_it->second = std::chrono::milliseconds{0};
+                        } else {
+                            inactive_it->second += delta_time;
+                        }
+                    } else {
+                        dog_inactive_time_[dog_id] = is_active ? std::chrono::milliseconds{0} : delta_time;
+                    }
+                }
+                
                 session->UpdateGameState(delta_time);
                 res_promise.set_value();
             }
@@ -131,6 +163,7 @@ void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
         res_future.get();
     }
     
+    // Периодическое сохранение
     if (saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0) {
         static std::chrono::milliseconds elapsed_since_last_save{0};
         elapsed_since_last_save += delta_time;
@@ -225,6 +258,13 @@ void Application::RestorePlayer(const authentication::Token& token,
     if (dog) {
         session->AddDog(dog);
         BOOST_LOG_TRIVIAL(info) << "  Added dog to session, dog_id=" << *dog->GetId();
+        
+        // Восстанавливаем отслеживание времени для собаки
+        uint64_t dog_id = *dog->GetId();
+        if (dog_game_time_.find(dog_id) == dog_game_time_.end()) {
+            dog_game_time_[dog_id] = std::chrono::milliseconds{0};
+            dog_inactive_time_[dog_id] = std::chrono::milliseconds{0};
+        }
     } else {
         BOOST_LOG_TRIVIAL(warning) << "  No dog found for player!";
     }
@@ -284,7 +324,6 @@ std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedD
     return sessions_ser;
 };
 
-// Исправленный метод с параметром play_time_ms
 void Application::RemovePlayerAndSaveRecord(const authentication::Token& token, 
                                              std::shared_ptr<Player> player,
                                              int64_t play_time_ms) {
@@ -300,13 +339,14 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token,
     
     if (db_pool_) {
         try {
+            // Генерируем UUID из ID собаки
             std::string uuid = std::to_string(*dog->GetId());
             
             database::PlayerRecord record{
                 uuid,
                 player->GetName(),
                 static_cast<int64_t>(dog->GetScore()),
-                play_time_ms  // Используем переданное время игры
+                play_time_ms
             };
             
             database::Database::SaveRecord(db_pool_, record);
@@ -319,6 +359,10 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token,
     } else {
         BOOST_LOG_TRIVIAL(debug) << "No database connection, skipping record save";
     }
+    
+    // Удаляем из отслеживания времени
+    uint64_t dog_id = *dog->GetId();
+    RemoveDogTimeTracking(dog_id);
     
     auto session = player->GetGameSession();
     
@@ -343,5 +387,41 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token,
     
     BOOST_LOG_TRIVIAL(info) << "Player " << player->GetName() << " removed successfully";
 };
+
+// Реализация методов отслеживания времени
+void Application::UpdateDogGameTime(uint64_t dog_id, std::chrono::milliseconds delta) {
+    auto it = dog_game_time_.find(dog_id);
+    if (it != dog_game_time_.end()) {
+        it->second += delta;
+    } else {
+        dog_game_time_[dog_id] = delta;
+    }
+}
+
+void Application::UpdateDogInactiveTime(uint64_t dog_id, std::chrono::milliseconds delta, bool is_active) {
+    auto it = dog_inactive_time_.find(dog_id);
+    if (it != dog_inactive_time_.end()) {
+        if (is_active) {
+            it->second = std::chrono::milliseconds{0};
+        } else {
+            it->second += delta;
+        }
+    } else {
+        dog_inactive_time_[dog_id] = is_active ? std::chrono::milliseconds{0} : delta;
+    }
+}
+
+std::chrono::milliseconds Application::GetDogGameTime(uint64_t dog_id) const {
+    auto it = dog_game_time_.find(dog_id);
+    if (it != dog_game_time_.end()) {
+        return it->second;
+    }
+    return std::chrono::milliseconds{0};
+}
+
+void Application::RemoveDogTimeTracking(uint64_t dog_id) {
+    dog_game_time_.erase(dog_id);
+    dog_inactive_time_.erase(dog_id);
+}
 
 } // namespace app

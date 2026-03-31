@@ -206,6 +206,14 @@ void GameSession::AddPlayer(std::shared_ptr<Player> player) {
     players_.push_back(player);
 };
 
+void GameSession::SetRetirementCallback(RetirementCallback callback) { 
+    retirement_callback_ = std::move(callback); 
+}
+
+void GameSession::SetTokenFinder(std::function<std::optional<authentication::Token>(const Player::Id&)> finder) {
+    token_finder_ = std::move(finder);
+}
+
 void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     auto now = std::chrono::steady_clock::now();
     std::vector<model::Dog::Id> dogs_to_remove;
@@ -243,6 +251,7 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     for (const auto& player : players_to_remove) {
         auto dog = player->GetDog().lock();
         if (dog) {
+            // Вычисляем общее время игры от момента входа
             auto join_time = player->GetJoinTime();
             auto total_play_time = std::chrono::duration_cast<std::chrono::milliseconds>(
                 now - join_time
@@ -279,4 +288,4 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     }
 }
 
-} // namespace app
+}

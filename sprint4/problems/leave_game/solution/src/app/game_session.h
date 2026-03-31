@@ -23,7 +23,7 @@ namespace app {
 
 namespace net = boost::asio;
 
-class Player;  // forward declaration
+class Player;
 
 class GameSession : public std::enable_shared_from_this<GameSession>  {
 public:
@@ -71,10 +71,8 @@ public:
     
     std::chrono::milliseconds GetDogRetirementTimeout() const { return dog_retirement_timeout_; }
     
-    void SetRetirementCallback(RetirementCallback callback) { retirement_callback_ = std::move(callback); }
-    void SetTokenFinder(std::function<std::optional<authentication::Token>(const Player::Id&)> finder) {
-        token_finder_ = std::move(finder);
-    }
+    void SetRetirementCallback(RetirementCallback callback);
+    void SetTokenFinder(std::function<std::optional<authentication::Token>(const Player::Id&)> finder);
     
 private:
     std::shared_ptr<model::Map> map_;

@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 
-// Forward declaration
 namespace app {
 class Player;
 }

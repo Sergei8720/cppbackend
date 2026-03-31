@@ -83,14 +83,18 @@ public:
     }
     
     double GetDogRetirementTime() const { return game_.GetDogRetirementTime(); }
-    
-    // Изменена сигнатура: добавлен play_time_ms
     void RemovePlayerAndSaveRecord(const authentication::Token& token, 
                                    std::shared_ptr<Player> player,
                                    int64_t play_time_ms);
     
     void SetConnectionPool(std::shared_ptr<database::ConnectionPool> pool) { db_pool_ = pool; }
     std::shared_ptr<database::ConnectionPool> GetConnectionPool() const { return db_pool_; }
+    
+    // Методы для отслеживания времени игры
+    void UpdateDogGameTime(uint64_t dog_id, std::chrono::milliseconds delta);
+    void UpdateDogInactiveTime(uint64_t dog_id, std::chrono::milliseconds delta, bool is_active);
+    std::chrono::milliseconds GetDogGameTime(uint64_t dog_id) const;
+    void RemoveDogTimeTracking(uint64_t dog_id);
     
 private:
     using GameSessionIdHasher = util::TaggedHasher<GameSession::Id>;
@@ -125,6 +129,10 @@ private:
     
     std::shared_ptr<StateSerializer> state_serializer_;
     std::shared_ptr<database::ConnectionPool> db_pool_;
+    
+    // Отслеживание времени игры и бездействия собак
+    std::unordered_map<uint64_t, std::chrono::milliseconds> dog_game_time_;
+    std::unordered_map<uint64_t, std::chrono::milliseconds> dog_inactive_time_;
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);
     void BoundPlayerAndGameSession(std::shared_ptr<Player> player,
