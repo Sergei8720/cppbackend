@@ -22,8 +22,8 @@ GameSession::GameSession(std::shared_ptr<model::Map> map,
         loot_gen_cfg.probability)
     , period_of_update_game_state_(period_of_update_game_state)
     , dog_retirement_timeout_(std::chrono::milliseconds(static_cast<int64_t>(dog_retirement_time_seconds * 1000))) {
-    BOOST_LOG_TRIVIAL(info) << "GameSession created with dog_retirement_timeout=" 
-                            << dog_retirement_timeout_.count() << "ms";
+    BOOST_LOG_TRIVIAL(info) << "GameSession created for map " << *map->GetId() 
+                            << " with dog_retirement_timeout=" << dog_retirement_timeout_.count() << "ms";
 }
 
 void GameSession::Run() {
@@ -70,6 +70,9 @@ std::weak_ptr<model::Dog> GameSession::CreateDog(const std::string& dog_name, co
     
     auto now = std::chrono::steady_clock::now();
     retirement_tracker_.UpdateActivity(*dog->GetId(), now);
+    BOOST_LOG_TRIVIAL(info) << "Dog created: id=" << *dog->GetId() 
+                            << " name=" << dog_name 
+                            << " join_time_ns=" << now.time_since_epoch().count();
     
     net::dispatch(*strand_, [self = shared_from_this()]{
         self->GenerateLoot(self->loot_generator_.GetPeriod());
@@ -90,9 +93,13 @@ void GameSession::AddDog(std::shared_ptr<model::Dog> dog) {
     dogs_[dog->GetId()] = dog;
     auto now = std::chrono::steady_clock::now();
     retirement_tracker_.UpdateActivity(*dog->GetId(), now);
+    BOOST_LOG_TRIVIAL(info) << "Dog added: id=" << *dog->GetId() 
+                            << " name=" << dog->GetName();
 };
 
 void GameSession::UpdateGameState(const TimeInterval& delta_time) {
+    BOOST_LOG_TRIVIAL(debug) << "UpdateGameState called with delta_time=" << delta_time.count() << "ms";
+    
     for(auto [dog_id, dog] : dogs_) {
         auto [new_position, new_velocity] = map_->GetValidMove(
             dog->GetPosition(),
@@ -105,7 +112,8 @@ void GameSession::UpdateGameState(const TimeInterval& delta_time) {
         if (new_velocity.vx != 0 || new_velocity.vy != 0) {
             auto now = std::chrono::steady_clock::now();
             retirement_tracker_.UpdateActivity(*dog_id, now);
-            BOOST_LOG_TRIVIAL(debug) << "Dog " << *dog_id << " moved, activity updated";
+            BOOST_LOG_TRIVIAL(debug) << "Dog " << *dog_id << " moved, activity updated, velocity=(" 
+                                     << new_velocity.vx << "," << new_velocity.vy << ")";
         }
     }
     HandleLoot();
@@ -205,6 +213,8 @@ void GameSession::DropLoot(const model::ItemDogProvider& provider, size_t item_i
 
 void GameSession::AddPlayer(std::shared_ptr<Player> player) {
     players_.push_back(player);
+    BOOST_LOG_TRIVIAL(info) << "Player added to session: name=" << player->GetName() 
+                            << " id=" << *player->GetId();
 };
 
 void GameSession::SetRetirementCallback(RetirementCallback callback) { 
@@ -239,6 +249,7 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
                                 << " retired=" << retired
                                 << " inactivity_ms=" << inactivity.count()
                                 << " timeout_ms=" << dog_retirement_timeout_.count()
+                                << " last_activity_ns=" << (now - inactivity).time_since_epoch().count()
                                 << " start_time_ns=" << inactivity_start.time_since_epoch().count();
         
         if (retired) {

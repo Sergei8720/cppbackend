@@ -41,7 +41,6 @@ void StateSerializer::SaveState() {
     try {
         temp_file_ = state_file_.string() + ".tmp";
         
-        // Создаем директорию, если её нет
         std::error_code ec;
         auto parent_path = std::filesystem::path(temp_file_).parent_path();
         if (!parent_path.empty() && !std::filesystem::exists(parent_path)) {
@@ -56,7 +55,6 @@ void StateSerializer::SaveState() {
         
         GameState game_state;
         
-        // Сохраняем счетчики ID
         game_state.max_player_id = static_cast<uint64_t>(Player::GetMaxId());
         game_state.max_dog_id = static_cast<uint64_t>(model::Dog::GetMaxId());
         game_state.max_loot_id = static_cast<uint64_t>(model::LostObject::GetMaxId());
@@ -66,7 +64,6 @@ void StateSerializer::SaveState() {
                                  << ", dog_max=" << game_state.max_dog_id
                                  << ", loot_max=" << game_state.max_loot_id;
         
-        // Сохраняем сессии
         for (const auto& session : app_.GetSessions()) {
             std::unordered_map<authentication::Token, std::shared_ptr<Player>, 
                                authentication::TokenHasher> token_to_player;
@@ -94,7 +91,6 @@ void StateSerializer::SaveState() {
         
         BOOST_LOG_TRIVIAL(info) << "Total sessions saved: " << game_state.data.sessions.size();
         
-        // Создаем временный файл
         std::ofstream ofs(temp_file_, std::ios::out | std::ios::trunc | std::ios::binary);
         if (!ofs.is_open()) {
             BOOST_LOG_TRIVIAL(error) << "Failed to open temporary state file: " << temp_file_;
@@ -110,7 +106,6 @@ void StateSerializer::SaveState() {
         ofs.flush();
         ofs.close();
         
-        // Проверяем, что файл записан
         if (std::filesystem::file_size(temp_file_) == 0) {
             BOOST_LOG_TRIVIAL(error) << "Temporary state file is empty: " << temp_file_;
             std::filesystem::remove(temp_file_);
@@ -118,7 +113,6 @@ void StateSerializer::SaveState() {
             return;
         }
         
-        // Атомарное переименование
         std::filesystem::rename(temp_file_, state_file_, ec);
         if (ec) {
             BOOST_LOG_TRIVIAL(error) << "Failed to rename state file: " << ec.message();
@@ -169,7 +163,6 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
         BOOST_LOG_TRIVIAL(info) << "Loaded " << game_state.data.sessions.size() 
                                << " sessions from state file";
         
-        // Восстанавливаем счетчики ID
         size_t max_player_id_restored = static_cast<size_t>(game_state.max_player_id);
         size_t max_dog_id_restored = static_cast<size_t>(game_state.max_dog_id);
         size_t max_loot_id_restored = static_cast<size_t>(game_state.max_loot_id);
@@ -182,7 +175,6 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                                 << ", dog_max=" << max_dog_id_restored
                                 << ", loot_max=" << max_loot_id_restored;
         
-        // Восстанавливаем сессии
         for (const auto& session_ser : game_state.data.sessions) {
             auto map_id = session_ser.RestoreMapId();
             BOOST_LOG_TRIVIAL(info) << "Restoring session for map: " << *map_id;
@@ -201,9 +193,9 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 app_.GetDogRetirementTime()
             );
             
-            // Устанавливаем callback для уведомления о retirement
             session->SetRetirementCallback(
                 [this](const authentication::Token& token, size_t player_id, int64_t play_time_ms) {
+                    BOOST_LOG_TRIVIAL(info) << "LoadState: retirement callback triggered for player_id=" << player_id;
                     auto player = app_.FindPlayerById(player_id);
                     if (player) {
                         app_.RemovePlayerAndSaveRecord(token, player, play_time_ms);
@@ -211,14 +203,12 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 }
             );
             
-            // Устанавливаем finder для поиска токена по ID игрока
             session->SetTokenFinder(
                 [this](size_t player_id) -> std::optional<authentication::Token> {
                     return app_.FindTokenByPlayer(player_id);
                 }
             );
             
-            // Восстанавливаем потерянные объекты
             size_t lost_objects_restored = 0;
             for (const auto& lost_obj_ser : session_ser.GetLostObjectsSerialize()) {
                 auto lost_obj = std::make_shared<model::LostObject>(lost_obj_ser.Restore());
@@ -230,13 +220,11 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             }
             BOOST_LOG_TRIVIAL(info) << "  Restored " << lost_objects_restored << " lost objects";
             
-            // Восстанавливаем игроков
             const auto& players_ser = session_ser.GetPlayersSerialize();
             BOOST_LOG_TRIVIAL(info) << "  Found " << players_ser.size() << " players to restore";
             
             for (const auto& player_ser : players_ser) {
                 auto player = std::make_shared<Player>(player_ser.Restore());
-                // Восстанавливаем join_time из nanoseconds
                 player->SetJoinTime(std::chrono::steady_clock::time_point(
                     std::chrono::nanoseconds(player_ser.GetJoinTimeNs())
                 ));
@@ -246,16 +234,13 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 player->SetDog(dog);
                 session->AddDog(dog);
                 
-                BOOST_LOG_TRIVIAL(debug) << "    Restored join_time_ns: " 
-                                         << player_ser.GetJoinTimeNs();
+                BOOST_LOG_TRIVIAL(debug) << "    Restored join_time_ns: " << player_ser.GetJoinTimeNs();
                 
                 if (*player->GetId() >= Player::GetMaxId()) {
                     Player::ResetMaxId(*player->GetId() + 1);
-                    BOOST_LOG_TRIVIAL(debug) << "    Updated player max_id to " << Player::GetMaxId();
                 }
                 if (*dog->GetId() >= model::Dog::GetMaxId()) {
                     model::Dog::ResetMaxId(*dog->GetId() + 1);
-                    BOOST_LOG_TRIVIAL(debug) << "    Updated dog max_id to " << model::Dog::GetMaxId();
                 }
                 
                 auto token = player_ser.RestoreToken();

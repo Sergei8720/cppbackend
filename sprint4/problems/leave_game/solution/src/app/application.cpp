@@ -29,6 +29,7 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
     player_id_to_token_.emplace(*player->GetId(), token);
     std::shared_ptr<GameSession> game_session = FindGameSessionBy(id);
     if(!game_session){
+        BOOST_LOG_TRIVIAL(info) << "Creating new GameSession for map " << *id;
         game_session = std::make_shared<GameSession>(
             game_.FindMap(id), 
             tick_period_, 
@@ -69,7 +70,8 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
     game_session->AddPlayer(player);
     
     BOOST_LOG_TRIVIAL(info) << "Player " << player_name << " joined with token " << *token 
-                            << " and id " << *player->GetId();
+                            << " and id " << *player->GetId()
+                            << " join_time_ns=" << player->GetJoinTime().time_since_epoch().count();
     
     return std::tie(token, player->GetId());
 };

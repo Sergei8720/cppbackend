@@ -38,7 +38,6 @@ void Database::CreateTableIfNotExists(std::shared_ptr<ConnectionPool> pool) {
         )
     )");
     
-    // Индекс для быстрой сортировки по score DESC, play_time_ms ASC, name ASC
     work.exec(R"(
         CREATE INDEX IF NOT EXISTS idx_retired_players_score 
         ON retired_players(score DESC, play_time_ms ASC, name ASC)
@@ -52,6 +51,10 @@ void Database::SaveRecord(std::shared_ptr<ConnectionPool> pool, const PlayerReco
     auto conn = pool->GetConnection();
     pqxx::work work(*conn);
     
+    BOOST_LOG_TRIVIAL(info) << "Saving record to database: name=" << record.name 
+                            << " score=" << record.score 
+                            << " play_time_ms=" << record.play_time_ms;
+    
     work.exec_params(
         "INSERT INTO retired_players (id, name, score, play_time_ms) "
         "VALUES ($1, $2, $3, $4) "
@@ -63,9 +66,7 @@ void Database::SaveRecord(std::shared_ptr<ConnectionPool> pool, const PlayerReco
     );
     
     work.commit();
-    BOOST_LOG_TRIVIAL(debug) << "Saved record: name=" << record.name 
-                             << " score=" << record.score 
-                             << " play_time_ms=" << record.play_time_ms;
+    BOOST_LOG_TRIVIAL(info) << "Record saved successfully: name=" << record.name;
 }
 
 std::vector<PlayerRecord> Database::GetRecords(std::shared_ptr<ConnectionPool> pool, 
@@ -82,7 +83,6 @@ std::vector<PlayerRecord> Database::GetRecords(std::shared_ptr<ConnectionPool> p
     auto conn = pool->GetConnection();
     pqxx::read_transaction tx(*conn);
     
-    // Правильная сортировка: по score DESC, play_time_ms ASC, name ASC
     std::string query = "SELECT id, name, score, play_time_ms "
                         "FROM retired_players "
                         "ORDER BY score DESC, play_time_ms ASC, name ASC "
@@ -99,7 +99,7 @@ std::vector<PlayerRecord> Database::GetRecords(std::shared_ptr<ConnectionPool> p
             row[0].as<std::string>(),
             row[1].as<std::string>(),
             row[2].as<int64_t>(),
-            row[3].as<int64_t>()  // play_time_ms в миллисекундах
+            row[3].as<int64_t>()
         );
     }
     

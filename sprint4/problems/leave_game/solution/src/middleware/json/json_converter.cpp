@@ -226,7 +226,6 @@ std::string ConvertRecordsToJson(const std::vector<database::PlayerRecord>& reco
         json::object item;
         item["name"] = record.name;
         item["score"] = record.score;
-        // playTime в секундах (из миллисекунд)
         double playTimeSec = static_cast<double>(record.play_time_ms) / 1000.0;
         item["playTime"] = playTimeSec;
         result.push_back(item);
@@ -236,6 +235,7 @@ std::string ConvertRecordsToJson(const std::vector<database::PlayerRecord>& reco
                                  << " play_time_ms=" << record.play_time_ms
                                  << " play_time_sec=" << playTimeSec;
     }
+    BOOST_LOG_TRIVIAL(info) << "ConvertRecordsToJson: returning " << result.size() << " records";
     return json::serialize(result);
 }
 
