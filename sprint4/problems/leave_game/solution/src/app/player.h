@@ -1,11 +1,17 @@
 #pragma once
 #include "tagged.h"
-#include "game_session.h"
 
 #include <string>
 #include <chrono>
+#include <memory>
+
+namespace model {
+class Dog;
+}
 
 namespace app {
+
+class GameSession;  // forward declaration
 
 class Player {
     inline static size_t max_id_cont_ = 0;
@@ -40,7 +46,6 @@ public:
     std::weak_ptr<model::Dog> GetDog();
     void SetDog(std::weak_ptr<model::Dog> dog);
     
-    // Время присоединения игрока
     std::chrono::steady_clock::time_point GetJoinTime() const { return join_time_; }
     void SetJoinTime(std::chrono::steady_clock::time_point time) { join_time_ = time; }
     

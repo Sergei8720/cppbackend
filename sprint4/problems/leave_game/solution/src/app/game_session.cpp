@@ -251,7 +251,6 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     for (const auto& player : players_to_remove) {
         auto dog = player->GetDog().lock();
         if (dog) {
-            // Вычисляем общее время игры от момента входа
             auto join_time = player->GetJoinTime();
             auto total_play_time = std::chrono::duration_cast<std::chrono::milliseconds>(
                 now - join_time

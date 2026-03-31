@@ -1,4 +1,6 @@
 #include "player.h"
+#include "game_session.h"
+#include "dog.h"
 
 namespace app {
 
@@ -30,4 +32,4 @@ void Player::SetDog(std::weak_ptr<model::Dog> dog) {
     dog_ = dog;
 };
 
-} // namespace app
+}
