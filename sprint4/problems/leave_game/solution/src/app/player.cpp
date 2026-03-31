@@ -12,8 +12,9 @@ const std::string& Player::GetName() const {
     return name_;
 };
 
-const GameSession::Id& Player::GetGameSessionId() const {
-    return session_->GetId();
+std::string Player::GetGameSessionId() const {
+    // Возвращаем строку из GameSession::Id
+    return session_ ? *session_->GetId() : "";
 };
 
 std::shared_ptr<GameSession> Player::GetGameSession() {

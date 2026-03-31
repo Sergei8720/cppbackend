@@ -40,7 +40,7 @@ public:
 
     const Id& GetId() const;
     const std::string& GetName() const;
-    const GameSession::Id& GetGameSessionId() const;
+    std::string GetGameSessionId() const;  // ← ИЗМЕНЕНО: возвращаем string
     std::shared_ptr<GameSession> GetGameSession();
     void SetGameSession(std::shared_ptr<GameSession> session);
     std::weak_ptr<model::Dog> GetDog();

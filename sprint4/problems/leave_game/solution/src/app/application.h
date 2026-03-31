@@ -97,10 +97,9 @@ public:
     void RemoveDogTimeTracking(uint64_t dog_id);
     
 private:
-    using GameSessionIdHasher = util::TaggedHasher<GameSession::Id>;
-    using GameSessionIdToPlayers = std::unordered_map<GameSession::Id,
-                                                    std::vector< std::shared_ptr<Player> >,
-                                                    GameSessionIdHasher>;
+    // ИСПРАВЛЕНО: используем std::string вместо GameSession::Id
+    using GameSessionIdToPlayers = std::unordered_map<std::string,
+                                                    std::vector< std::shared_ptr<Player> >>;
     using MapIdHasher = util::TaggedHasher<model::Map::Id>;
     using MapIdToSessionIndex = std::unordered_map<model::Map::Id, size_t, MapIdHasher>;
     using AuthTokenToSessionIndex = std::unordered_map<authentication::Token, std::shared_ptr<GameSession>,
