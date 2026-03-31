@@ -75,6 +75,8 @@ public:
     void SetRetirementCallback(RetirementCallback callback);
     void SetTokenFinder(std::function<std::optional<authentication::Token>(size_t)> finder);
     
+	TimePoint GetInactivityStartTime(uint64_t dog_id) const;
+	
 private:
     std::shared_ptr<model::Map> map_;
     net::io_context& ioc_;

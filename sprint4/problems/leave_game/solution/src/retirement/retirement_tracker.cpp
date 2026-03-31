@@ -8,16 +8,15 @@ void RetirementTracker::UpdateActivity(uint64_t dog_id, const TimePoint& now) {
     
     auto it = dogs_.find(dog_id);
     if (it == dogs_.end()) {
-        // Новая собака: устанавливаем время активности и начало бездействия
         DogInactivityData data;
         data.last_activity_time = now;
         data.inactivity_start_time = now;
         dogs_[dog_id] = data;
+        BOOST_LOG_TRIVIAL(debug) << "New dog " << dog_id << " added to tracker";
     } else {
-        // Обновляем время последней активности
         it->second.last_activity_time = now;
-        // Сбрасываем время начала бездействия (собака двигалась)
         it->second.inactivity_start_time = now;
+        BOOST_LOG_TRIVIAL(debug) << "Dog " << dog_id << " activity updated";
     }
 }
 
@@ -33,7 +32,15 @@ bool RetirementTracker::IsRetired(uint64_t dog_id, const TimePoint& now, Duratio
         now - it->second.last_activity_time
     );
     
-    return inactive_duration >= retirement_timeout;
+    bool retired = inactive_duration >= retirement_timeout;
+    
+    if (retired) {
+        BOOST_LOG_TRIVIAL(debug) << "Dog " << dog_id << " is retired (inactive for " 
+                                 << inactive_duration.count() << "ms, timeout=" 
+                                 << retirement_timeout.count() << "ms)";
+    }
+    
+    return retired;
 }
 
 RetirementTracker::Duration RetirementTracker::GetInactivityDuration(uint64_t dog_id, const TimePoint& now) const {
@@ -51,7 +58,10 @@ RetirementTracker::Duration RetirementTracker::GetInactivityDuration(uint64_t do
 
 void RetirementTracker::RemoveDog(uint64_t dog_id) {
     std::lock_guard<std::mutex> lock(mutex_);
-    dogs_.erase(dog_id);
+    auto erased = dogs_.erase(dog_id);
+    if (erased > 0) {
+        BOOST_LOG_TRIVIAL(debug) << "Dog " << dog_id << " removed from tracker";
+    }
 }
 
 bool RetirementTracker::HasDog(uint64_t dog_id) const {

@@ -37,11 +37,19 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
             game_.GetDogRetirementTime()
         );
         
+        BOOST_LOG_TRIVIAL(info) << "Created new GameSession for map " << *id 
+                                << " with retirement_time=" << game_.GetDogRetirementTime() << "s";
+        
         game_session->SetRetirementCallback(
             [this](const authentication::Token& token, size_t player_id, int64_t play_time_ms) {
+                BOOST_LOG_TRIVIAL(info) << "Retirement callback triggered: token=" << *token 
+                                        << " player_id=" << player_id 
+                                        << " play_time_ms=" << play_time_ms;
                 auto player = this->FindPlayerById(player_id);
                 if (player) {
                     this->RemovePlayerAndSaveRecord(token, player, play_time_ms);
+                } else {
+                    BOOST_LOG_TRIVIAL(warning) << "Player not found by id=" << player_id;
                 }
             }
         );
@@ -333,15 +341,22 @@ std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedD
 void Application::RemovePlayerAndSaveRecord(const authentication::Token& token, 
                                              std::shared_ptr<Player> player,
                                              int64_t play_time_ms) {
-    BOOST_LOG_TRIVIAL(info) << "Removing player " << player->GetName() 
-                            << " with token " << *token 
-                            << " play_time_ms=" << play_time_ms;
+    BOOST_LOG_TRIVIAL(info) << "=== RemovePlayerAndSaveRecord called ===";
+    BOOST_LOG_TRIVIAL(info) << "  Player: " << player->GetName() 
+                            << " id=" << *player->GetId()
+                            << " token=" << *token;
+    BOOST_LOG_TRIVIAL(info) << "  play_time_ms=" << play_time_ms
+                            << " play_time_sec=" << play_time_ms / 1000.0;
     
     auto dog = player->GetDog().lock();
     if (!dog) {
         BOOST_LOG_TRIVIAL(warning) << "Player " << player->GetName() << " has no dog";
         return;
     }
+    
+    BOOST_LOG_TRIVIAL(info) << "  Dog: name=" << dog->GetName()
+                            << " id=" << *dog->GetId()
+                            << " score=" << dog->GetScore();
     
     if (db_pool_) {
         try {
@@ -354,10 +369,13 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token,
                 play_time_ms
             };
             
+            BOOST_LOG_TRIVIAL(info) << "  Saving to DB: uuid=" << uuid
+                                    << " name=" << record.name
+                                    << " score=" << record.score
+                                    << " play_time_ms=" << record.play_time_ms;
+            
             database::Database::SaveRecord(db_pool_, record);
-            BOOST_LOG_TRIVIAL(info) << "Saved retirement record for " << player->GetName() 
-                                    << " with score " << dog->GetScore()
-                                    << " and play_time " << play_time_ms << " ms";
+            BOOST_LOG_TRIVIAL(info) << "  Saved retirement record successfully";
         } catch (const std::exception& e) {
             BOOST_LOG_TRIVIAL(error) << "Failed to save retirement record: " << e.what();
         }
@@ -371,25 +389,34 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token,
     auto session = player->GetGameSession();
     
     player_tokens_.RemoveToken(token);
+    BOOST_LOG_TRIVIAL(info) << "  Removed token from player_tokens_";
+    
     player_id_to_token_.erase(*player->GetId());
+    BOOST_LOG_TRIVIAL(info) << "  Removed from player_id_to_token_";
     
     auto session_id = player->GetGameSessionId();
     if (session_id_to_players_.contains(session_id)) {
         auto& players = session_id_to_players_[session_id];
+        auto before = players.size();
         std::erase(players, player);
+        BOOST_LOG_TRIVIAL(info) << "  Removed from session_id_to_players_: " << before << " -> " << players.size();
     }
     
     auth_token_to_session_index_.erase(token);
+    BOOST_LOG_TRIVIAL(info) << "  Removed from auth_token_to_session_index_";
     
     if (session) {
         if (game_session_to_token_player_pair_.contains(session)) {
             game_session_to_token_player_pair_[session].erase(token);
+            BOOST_LOG_TRIVIAL(info) << "  Removed from game_session_to_token_player_pair_";
         }
     }
     
+    auto before_players = players_.size();
     std::erase(players_, player);
+    BOOST_LOG_TRIVIAL(info) << "  Removed from global players list: " << before_players << " -> " << players_.size();
     
-    BOOST_LOG_TRIVIAL(info) << "Player " << player->GetName() << " removed successfully";
+    BOOST_LOG_TRIVIAL(info) << "=== Player removal completed ===";
 };
 
 void Application::UpdateDogGameTime(uint64_t dog_id, std::chrono::milliseconds delta) {
