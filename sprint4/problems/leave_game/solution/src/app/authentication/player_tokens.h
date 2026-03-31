@@ -1,12 +1,16 @@
 #pragma once
 #include "tagged.h"
-#include "player.h"
 #include "logger.h"
 
 #include <random>
 #include <unordered_map>
 #include <memory>
 #include <string>
+
+// Forward declaration
+namespace app {
+class Player;
+}
 
 namespace authentication {
 
