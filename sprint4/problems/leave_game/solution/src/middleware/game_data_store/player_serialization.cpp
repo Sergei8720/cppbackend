@@ -14,4 +14,4 @@ authentication::Token PlayerSerialization::RestoreToken() const {
     return authentication::Token(token_);
 };
 
-}
+} // namespace game_data_ser
