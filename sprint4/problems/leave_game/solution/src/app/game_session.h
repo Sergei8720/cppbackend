@@ -30,7 +30,7 @@ public:
     using SessionStrand = net::strand<net::io_context::executor_type>;
     using Id = util::Tagged<std::string, GameSession>;
     using TimeInterval = std::chrono::milliseconds;
-    using TimePoint = std::chrono::steady_clock::time_point;  // <-- ДОБАВЛЕНО
+    using TimePoint = std::chrono::steady_clock::time_point;
     using LostObjectIdHasher = util::TaggedHasher<model::LostObject::Id>;
     using LostObjects = std::unordered_map<model::LostObject::Id,
                                             std::shared_ptr<model::LostObject>,
@@ -40,7 +40,6 @@ public:
                                     std::shared_ptr<model::Dog>,
                                     DogIdHasher>;
     
-    // Используем size_t вместо Player::Id для избежания incomplete type
     using RetirementCallback = std::function<void(const authentication::Token&, 
                                                    size_t player_id, 
                                                    int64_t play_time_ms)>;

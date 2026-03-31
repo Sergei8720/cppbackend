@@ -30,4 +30,4 @@ private:
     mutable std::mutex mutex_;
 };
 
-}
+} // namespace retirement

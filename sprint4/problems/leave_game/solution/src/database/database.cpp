@@ -1,5 +1,4 @@
 #include "database/database.h"
-#include "middleware/logging/logger.h"
 #include <pqxx/pqxx>
 #include <stdexcept>
 #include <string>
@@ -44,16 +43,11 @@ void Database::CreateTableIfNotExists(std::shared_ptr<ConnectionPool> pool) {
     )");
     
     work.commit();
-    BOOST_LOG_TRIVIAL(info) << "Database table retired_players created/verified";
 }
 
 void Database::SaveRecord(std::shared_ptr<ConnectionPool> pool, const PlayerRecord& record) {
     auto conn = pool->GetConnection();
     pqxx::work work(*conn);
-    
-    BOOST_LOG_TRIVIAL(info) << "Saving record to database: name=" << record.name 
-                            << " score=" << record.score 
-                            << " play_time_ms=" << record.play_time_ms;
     
     work.exec_params(
         "INSERT INTO retired_players (id, name, score, play_time_ms) "
@@ -66,7 +60,6 @@ void Database::SaveRecord(std::shared_ptr<ConnectionPool> pool, const PlayerReco
     );
     
     work.commit();
-    BOOST_LOG_TRIVIAL(info) << "Record saved successfully: name=" << record.name;
 }
 
 std::vector<PlayerRecord> Database::GetRecords(std::shared_ptr<ConnectionPool> pool, 
@@ -102,10 +95,6 @@ std::vector<PlayerRecord> Database::GetRecords(std::shared_ptr<ConnectionPool> p
             row[3].as<int64_t>()
         );
     }
-    
-    BOOST_LOG_TRIVIAL(debug) << "GetRecords returned " << records.size() 
-                             << " records (start=" << start 
-                             << ", maxItems=" << maxItems << ")";
     
     return records;
 }
