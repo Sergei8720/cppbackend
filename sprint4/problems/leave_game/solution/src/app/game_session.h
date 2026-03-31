@@ -30,6 +30,7 @@ public:
     using SessionStrand = net::strand<net::io_context::executor_type>;
     using Id = util::Tagged<std::string, GameSession>;
     using TimeInterval = std::chrono::milliseconds;
+    using TimePoint = std::chrono::steady_clock::time_point;  // <-- ДОБАВЛЕНО
     using LostObjectIdHasher = util::TaggedHasher<model::LostObject::Id>;
     using LostObjects = std::unordered_map<model::LostObject::Id,
                                             std::shared_ptr<model::LostObject>,
@@ -75,8 +76,8 @@ public:
     void SetRetirementCallback(RetirementCallback callback);
     void SetTokenFinder(std::function<std::optional<authentication::Token>(size_t)> finder);
     
-	TimePoint GetInactivityStartTime(uint64_t dog_id) const;
-	
+    TimePoint GetInactivityStartTime(uint64_t dog_id) const;
+    
 private:
     std::shared_ptr<model::Map> map_;
     net::io_context& ioc_;
