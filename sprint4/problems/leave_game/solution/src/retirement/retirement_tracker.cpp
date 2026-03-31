@@ -1,4 +1,5 @@
 #include "retirement/retirement_tracker.h"
+#include "logger.h"
 #include <algorithm>
 
 namespace retirement {
