@@ -54,7 +54,8 @@ public:
     const std::vector< std::shared_ptr<app::GameSession> >& GetSessions() const { return sessions_; }
     const std::vector< std::shared_ptr<Player> >& GetAllPlayers() const { return players_; }
     void SaveGame();
-    std::optional<authentication::Token> FindTokenByPlayer(const Player::Id& player_id) const;
+    std::optional<authentication::Token> FindTokenByPlayer(size_t player_id) const;
+    std::shared_ptr<Player> FindPlayerById(size_t player_id) const;
     void RestorePlayer(const authentication::Token& token, 
                        std::shared_ptr<Player> player,
                        std::shared_ptr<GameSession> session);
@@ -69,7 +70,7 @@ public:
         BOOST_LOG_TRIVIAL(info) << "Total tokens in player_tokens_: " << player_tokens_.Size();
         BOOST_LOG_TRIVIAL(info) << "Total players: " << players_.size();
         for (const auto& player : players_) {
-            auto token_opt = FindTokenByPlayer(player->GetId());
+            auto token_opt = FindTokenByPlayer(*player->GetId());
             if (token_opt.has_value()) {
                 BOOST_LOG_TRIVIAL(info) << "  Player id=" << *player->GetId() 
                                        << " name=" << player->GetName()
@@ -108,7 +109,7 @@ private:
                                     authentication::TokenHasher >;
     using GameSessionToTokenPlayerPair = std::unordered_map<std::shared_ptr<GameSession>,
                                                             TokenToPlayer>;
-    using PlayerIdToToken = std::unordered_map<Player::Id, authentication::Token, util::TaggedHasher<Player::Id>>;
+    using PlayerIdToToken = std::unordered_map<size_t, authentication::Token>;
 
     model::Game game_;
     std::chrono::milliseconds tick_period_;

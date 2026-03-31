@@ -75,7 +75,7 @@ void StateSerializer::SaveState() {
                                     << " has " << session->GetPlayers().size() << " players";
             
             for (const auto& player : session->GetPlayers()) {
-                auto token = app_.FindTokenByPlayer(player->GetId());
+                auto token = app_.FindTokenByPlayer(*player->GetId());
                 if (token.has_value()) {
                     token_to_player[token.value()] = player;
                     BOOST_LOG_TRIVIAL(info) << "  Saving player: " << player->GetName() 
@@ -203,14 +203,17 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             
             // Устанавливаем callback для уведомления о retirement
             session->SetRetirementCallback(
-                [this](const authentication::Token& token, std::shared_ptr<Player> player, int64_t play_time_ms) {
-                    app_.RemovePlayerAndSaveRecord(token, player, play_time_ms);
+                [this](const authentication::Token& token, size_t player_id, int64_t play_time_ms) {
+                    auto player = app_.FindPlayerById(player_id);
+                    if (player) {
+                        app_.RemovePlayerAndSaveRecord(token, player, play_time_ms);
+                    }
                 }
             );
             
             // Устанавливаем finder для поиска токена по ID игрока
             session->SetTokenFinder(
-                [this](const Player::Id& player_id) -> std::optional<authentication::Token> {
+                [this](size_t player_id) -> std::optional<authentication::Token> {
                     return app_.FindTokenByPlayer(player_id);
                 }
             );
@@ -221,7 +224,6 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 auto lost_obj = std::make_shared<model::LostObject>(lost_obj_ser.Restore());
                 session->AddLostObject(lost_obj);
                 lost_objects_restored++;
-                // Обновляем счетчик потерянных объектов, если нужно
                 if (*lost_obj->GetId() >= model::LostObject::GetMaxId()) {
                     model::LostObject::ResetMaxId(*lost_obj->GetId() + 1);
                 }
@@ -233,7 +235,6 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             BOOST_LOG_TRIVIAL(info) << "  Found " << players_ser.size() << " players to restore";
             
             for (const auto& player_ser : players_ser) {
-                // Создаем игрока и восстанавливаем время присоединения
                 auto player = std::make_shared<Player>(player_ser.Restore());
                 player->SetJoinTime(player_ser.GetJoinTime());
                 
@@ -245,7 +246,6 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                 BOOST_LOG_TRIVIAL(debug) << "    Restored join_time: " 
                                          << player->GetJoinTime().time_since_epoch().count();
                 
-                // Проверяем и корректируем счетчики ID
                 if (*player->GetId() >= Player::GetMaxId()) {
                     Player::ResetMaxId(*player->GetId() + 1);
                     BOOST_LOG_TRIVIAL(debug) << "    Updated player max_id to " << Player::GetMaxId();
@@ -261,11 +261,9 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
                                         << " id=" << *player->GetId() 
                                         << " token=" << *token;
                 
-                // Восстанавливаем все связи
                 app_.RestorePlayer(token, player, session);
             }
             
-            // Добавляем сессию и запускаем
             app_.AddGameSession(session);
             session->Run();
             

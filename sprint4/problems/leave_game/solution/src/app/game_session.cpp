@@ -210,7 +210,7 @@ void GameSession::SetRetirementCallback(RetirementCallback callback) {
     retirement_callback_ = std::move(callback); 
 }
 
-void GameSession::SetTokenFinder(std::function<std::optional<authentication::Token>(const Player::Id&)> finder) {
+void GameSession::SetTokenFinder(std::function<std::optional<authentication::Token>(size_t)> finder) {
     token_finder_ = std::move(finder);
 }
 
@@ -263,7 +263,7 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
             
             std::optional<authentication::Token> token;
             if (token_finder_) {
-                token = token_finder_(player->GetId());
+                token = token_finder_(*player->GetId());
                 if (!token.has_value()) {
                     BOOST_LOG_TRIVIAL(warning) << "Token not found for player " << player->GetName() 
                                                << " id=" << *player->GetId();
@@ -271,7 +271,7 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
             }
             
             if (retirement_callback_ && token.has_value()) {
-                retirement_callback_(token.value(), player, total_play_time);
+                retirement_callback_(token.value(), *player->GetId(), total_play_time);
                 BOOST_LOG_TRIVIAL(info) << "Called retirement callback for player " << player->GetName();
             } else {
                 BOOST_LOG_TRIVIAL(warning) << "Cannot retire player " << player->GetName() 

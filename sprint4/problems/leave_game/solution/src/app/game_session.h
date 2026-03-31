@@ -39,8 +39,9 @@ public:
                                     std::shared_ptr<model::Dog>,
                                     DogIdHasher>;
     
+    // Используем size_t вместо Player::Id для избежания incomplete type
     using RetirementCallback = std::function<void(const authentication::Token&, 
-                                                   std::shared_ptr<Player>, 
+                                                   size_t player_id, 
                                                    int64_t play_time_ms)>;
 
     GameSession(std::shared_ptr<model::Map> map,
@@ -72,7 +73,7 @@ public:
     std::chrono::milliseconds GetDogRetirementTimeout() const { return dog_retirement_timeout_; }
     
     void SetRetirementCallback(RetirementCallback callback);
-    void SetTokenFinder(std::function<std::optional<authentication::Token>(const Player::Id&)> finder);
+    void SetTokenFinder(std::function<std::optional<authentication::Token>(size_t)> finder);
     
 private:
     std::shared_ptr<model::Map> map_;
@@ -91,7 +92,7 @@ private:
     std::chrono::milliseconds dog_retirement_timeout_;
     
     RetirementCallback retirement_callback_;
-    std::function<std::optional<authentication::Token>(const Player::Id&)> token_finder_;
+    std::function<std::optional<authentication::Token>(size_t)> token_finder_;
     
     void GenerateLoot(const TimeInterval& delta_time);
     void CreateLostObject();

@@ -11,7 +11,7 @@ class Dog;
 
 namespace app {
 
-class GameSession;  // forward declaration
+class GameSession;
 
 class Player {
     inline static size_t max_id_cont_ = 0;
@@ -40,7 +40,7 @@ public:
 
     const Id& GetId() const;
     const std::string& GetName() const;
-    std::string GetGameSessionId() const;  // ← ИЗМЕНЕНО: возвращаем string
+    std::string GetGameSessionId() const;
     std::shared_ptr<GameSession> GetGameSession();
     void SetGameSession(std::shared_ptr<GameSession> session);
     std::weak_ptr<model::Dog> GetDog();

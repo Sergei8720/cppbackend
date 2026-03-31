@@ -26,7 +26,7 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
         const model::Map::Id& id) {
     auto player = CreatePlayer(player_name);
     auto token = player_tokens_.AddPlayer(player);
-    player_id_to_token_.emplace(Player::Id(*player->GetId()), token);
+    player_id_to_token_.emplace(*player->GetId(), token);
     std::shared_ptr<GameSession> game_session = FindGameSessionBy(id);
     if(!game_session){
         game_session = std::make_shared<GameSession>(
@@ -38,13 +38,16 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
         );
         
         game_session->SetRetirementCallback(
-            [this](const authentication::Token& token, std::shared_ptr<Player> player, int64_t play_time_ms) {
-                this->RemovePlayerAndSaveRecord(token, player, play_time_ms);
+            [this](const authentication::Token& token, size_t player_id, int64_t play_time_ms) {
+                auto player = this->FindPlayerById(player_id);
+                if (player) {
+                    this->RemovePlayerAndSaveRecord(token, player, play_time_ms);
+                }
             }
         );
         
         game_session->SetTokenFinder(
-            [this](const Player::Id& player_id) -> std::optional<authentication::Token> {
+            [this](size_t player_id) -> std::optional<authentication::Token> {
                 return this->FindTokenByPlayer(player_id);
             }
         );
@@ -71,7 +74,6 @@ std::shared_ptr<Player> Application::CreatePlayer(const std::string& player_name
 
 void Application::BoundPlayerAndGameSession(std::shared_ptr<Player> player,
                                     std::shared_ptr<GameSession> session){
-    // Преобразуем GameSession::Id в строку
     session_id_to_players_[*session->GetId()].push_back(player);
     player->SetGameSession(session);
     auto dog = session->CreateDog(player->GetName(), *(session->GetMap()), randomize_spawn_points_);
@@ -101,7 +103,6 @@ bool Application::IsExistPlayer(const authentication::Token& token) {
     BOOST_LOG_TRIVIAL(debug) << "IsExistPlayer: token=" << *token 
                              << " exists=" << exists;
     if (exists && player) {
-        // GetGameSessionId() возвращает string, не нужно разыменовывать
         BOOST_LOG_TRIVIAL(debug) << "  Player name=" << player->GetName() 
                                  << " id=" << *player->GetId()
                                  << " session_id=" << player->GetGameSessionId();
@@ -205,12 +206,21 @@ std::shared_ptr<GameSession> Application::FindGameSessionBy(const authentication
     return nullptr;
 };
 
-std::optional<authentication::Token> Application::FindTokenByPlayer(const Player::Id& player_id) const {
+std::optional<authentication::Token> Application::FindTokenByPlayer(size_t player_id) const {
     auto it = player_id_to_token_.find(player_id);
     if (it != player_id_to_token_.end()) {
         return it->second;
     }
     return std::nullopt;
+};
+
+std::shared_ptr<Player> Application::FindPlayerById(size_t player_id) const {
+    for (const auto& player : players_) {
+        if (*player->GetId() == player_id) {
+            return player;
+        }
+    }
+    return nullptr;
 };
 
 void Application::RestorePlayer(const authentication::Token& token, 
@@ -230,13 +240,12 @@ void Application::RestorePlayer(const authentication::Token& token,
     player_tokens_.AddTokenPlayerPair(token, player);
     BOOST_LOG_TRIVIAL(info) << "  Added token->player mapping";
     
-    player_id_to_token_.emplace(Player::Id(*player->GetId()), token);
+    player_id_to_token_.emplace(*player->GetId(), token);
     BOOST_LOG_TRIVIAL(info) << "  Added player_id->token mapping";
     
     player->SetGameSession(session);
     BOOST_LOG_TRIVIAL(info) << "  Set game session for player";
     
-    // Преобразуем GameSession::Id в строку
     session_id_to_players_[*session->GetId()].push_back(player);
     BOOST_LOG_TRIVIAL(info) << "  Added to session players list";
     
@@ -302,7 +311,7 @@ std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedD
                 std::unordered_map<authentication::Token, std::shared_ptr<app::Player>,
                                     authentication::TokenHasher> token_to_player;
                 for (const auto& player : session_ptr->GetPlayers()) {
-                    auto token = self->FindTokenByPlayer(player->GetId());
+                    auto token = self->FindTokenByPlayer(*player->GetId());
                     if (token.has_value()) {
                         token_to_player[token.value()] = player;
                         BOOST_LOG_TRIVIAL(debug) << "Serializing player " << player->GetName() 
@@ -362,9 +371,8 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token,
     auto session = player->GetGameSession();
     
     player_tokens_.RemoveToken(token);
-    player_id_to_token_.erase(player->GetId());
+    player_id_to_token_.erase(*player->GetId());
     
-    // GetGameSessionId() возвращает string
     auto session_id = player->GetGameSessionId();
     if (session_id_to_players_.contains(session_id)) {
         auto& players = session_id_to_players_[session_id];
