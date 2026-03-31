@@ -1,5 +1,5 @@
 #include "database/database.h"
-#include "logger.h"
+#include "middleware/logging/logger.h"
 #include <pqxx/pqxx>
 #include <stdexcept>
 #include <string>
