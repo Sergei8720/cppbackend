@@ -15,7 +15,7 @@ public:
         : id_(*player.GetId())
         , name_(player.GetName())
         , token_(*token)
-        , join_time_(player.GetJoinTime()) {
+        , join_time_ns_(player.GetJoinTime().time_since_epoch().count()) {
         auto dog_ptr = player.GetDog().lock();
         if (dog_ptr) {
             dog_ser_ = DogSerialization(*dog_ptr);
@@ -28,7 +28,7 @@ public:
         , name_(other.name_)
         , dog_ser_(other.dog_ser_)
         , token_(other.token_)
-        , join_time_(other.join_time_) {}
+        , join_time_ns_(other.join_time_ns_) {}
 
     // Оператор присваивания копированием
     PlayerSerialization& operator=(const PlayerSerialization& other) {
@@ -37,7 +37,7 @@ public:
             name_ = other.name_;
             dog_ser_ = other.dog_ser_;
             token_ = other.token_;
-            join_time_ = other.join_time_;
+            join_time_ns_ = other.join_time_ns_;
         }
         return *this;
     }
@@ -48,7 +48,7 @@ public:
         , name_(std::move(other.name_))
         , dog_ser_(std::move(other.dog_ser_))
         , token_(std::move(other.token_))
-        , join_time_(std::move(other.join_time_)) {}
+        , join_time_ns_(other.join_time_ns_) {}
 
     // Оператор присваивания перемещением
     PlayerSerialization& operator=(PlayerSerialization&& other) noexcept {
@@ -57,14 +57,16 @@ public:
             name_ = std::move(other.name_);
             dog_ser_ = std::move(other.dog_ser_);
             token_ = std::move(other.token_);
-            join_time_ = std::move(other.join_time_);
+            join_time_ns_ = other.join_time_ns_;
         }
         return *this;
     }
 
     [[nodiscard]] app::Player Restore() const {
         app::Player player(app::Player::Id{id_}, name_);
-        player.SetJoinTime(join_time_);
+        player.SetJoinTime(std::chrono::steady_clock::time_point(
+            std::chrono::nanoseconds(join_time_ns_)
+        ));
         return player;
     }
     
@@ -76,8 +78,8 @@ public:
         return authentication::Token(token_);
     }
     
-    [[nodiscard]] std::chrono::steady_clock::time_point GetJoinTime() const {
-        return join_time_;
+    [[nodiscard]] int64_t GetJoinTimeNs() const {
+        return join_time_ns_;
     }
 
     template <typename Archive>
@@ -86,7 +88,7 @@ public:
         ar& name_;
         ar& dog_ser_;
         ar& token_;
-        ar& join_time_;
+        ar& join_time_ns_;
     }
     
 private:
@@ -94,7 +96,7 @@ private:
     std::string name_;
     DogSerialization dog_ser_;
     std::string token_;
-    std::chrono::steady_clock::time_point join_time_;
+    int64_t join_time_ns_{0};
 };
 
 } // namespace game_data_ser

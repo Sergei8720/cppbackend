@@ -81,7 +81,7 @@ void StateSerializer::SaveState() {
                     BOOST_LOG_TRIVIAL(info) << "  Saving player: " << player->GetName() 
                                             << " id=" << *player->GetId() 
                                             << " token=" << *token.value()
-                                            << " join_time=" << player->GetJoinTime().time_since_epoch().count();
+                                            << " join_time_ns=" << player->GetJoinTime().time_since_epoch().count();
                 } else {
                     BOOST_LOG_TRIVIAL(warning) << "  Player " << player->GetName() 
                                                << " id=" << *player->GetId() 
@@ -236,15 +236,18 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             
             for (const auto& player_ser : players_ser) {
                 auto player = std::make_shared<Player>(player_ser.Restore());
-                player->SetJoinTime(player_ser.GetJoinTime());
+                // Восстанавливаем join_time из nanoseconds
+                player->SetJoinTime(std::chrono::steady_clock::time_point(
+                    std::chrono::nanoseconds(player_ser.GetJoinTimeNs())
+                ));
                 
                 auto dog = std::make_shared<model::Dog>(player_ser.RestoreDog());
                 
                 player->SetDog(dog);
                 session->AddDog(dog);
                 
-                BOOST_LOG_TRIVIAL(debug) << "    Restored join_time: " 
-                                         << player->GetJoinTime().time_since_epoch().count();
+                BOOST_LOG_TRIVIAL(debug) << "    Restored join_time_ns: " 
+                                         << player_ser.GetJoinTimeNs();
                 
                 if (*player->GetId() >= Player::GetMaxId()) {
                     Player::ResetMaxId(*player->GetId() + 1);

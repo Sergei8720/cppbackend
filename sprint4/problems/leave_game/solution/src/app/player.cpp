@@ -24,7 +24,7 @@ void Player::SetGameSession(std::shared_ptr<GameSession> session) {
     session_ = session;
 };
 
-std::weak_ptr<model::Dog> Player::GetDog() const {  // <-- ДОБАВЛЕН const
+std::weak_ptr<model::Dog> Player::GetDog() const {
     return dog_;
 };
 
