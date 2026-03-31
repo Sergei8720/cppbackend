@@ -43,7 +43,7 @@ public:
     std::string GetGameSessionId() const;
     std::shared_ptr<GameSession> GetGameSession();
     void SetGameSession(std::shared_ptr<GameSession> session);
-    std::weak_ptr<model::Dog> GetDog();
+    std::weak_ptr<model::Dog> GetDog() const;  // <-- ДОБАВЛЕН const
     void SetDog(std::weak_ptr<model::Dog> dog);
     
     std::chrono::steady_clock::time_point GetJoinTime() const { return join_time_; }

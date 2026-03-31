@@ -13,7 +13,6 @@ const std::string& Player::GetName() const {
 };
 
 std::string Player::GetGameSessionId() const {
-    // Возвращаем строку из GameSession::Id
     return session_ ? *session_->GetId() : "";
 };
 
@@ -25,7 +24,7 @@ void Player::SetGameSession(std::shared_ptr<GameSession> session) {
     session_ = session;
 };
 
-std::weak_ptr<model::Dog> Player::GetDog() {
+std::weak_ptr<model::Dog> Player::GetDog() const {  // <-- ДОБАВЛЕН const
     return dog_;
 };
 
