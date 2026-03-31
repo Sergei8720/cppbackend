@@ -23,7 +23,7 @@ namespace app {
 
 namespace net = boost::asio;
 
-class Player;  // forward declaration
+class Player;
 
 class GameSession : public std::enable_shared_from_this<GameSession>  {
 public:
