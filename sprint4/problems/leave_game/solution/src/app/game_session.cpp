@@ -214,15 +214,6 @@ void GameSession::SetTokenFinder(std::function<std::optional<authentication::Tok
     token_finder_ = std::move(finder);
 }
 
-void GameSession::SetRetirementCallback(RetirementCallback callback) { 
-    retirement_callback_ = std::move(callback); 
-}
-
-void GameSession::SetTokenFinder(std::function<std::optional<authentication::Token>(const Player::Id&)> finder) {
-    token_finder_ = std::move(finder);
-}
-
-
 void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     auto now = std::chrono::steady_clock::now();
     std::vector<model::Dog::Id> dogs_to_remove;
