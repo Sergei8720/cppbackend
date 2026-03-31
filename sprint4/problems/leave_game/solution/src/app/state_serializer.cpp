@@ -80,7 +80,8 @@ void StateSerializer::SaveState() {
                     token_to_player[token.value()] = player;
                     BOOST_LOG_TRIVIAL(info) << "  Saving player: " << player->GetName() 
                                             << " id=" << *player->GetId() 
-                                            << " token=" << *token.value();
+                                            << " token=" << *token.value()
+                                            << " join_time=" << player->GetJoinTime().time_since_epoch().count();
                 } else {
                     BOOST_LOG_TRIVIAL(warning) << "  Player " << player->GetName() 
                                                << " id=" << *player->GetId() 
@@ -168,7 +169,7 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
         BOOST_LOG_TRIVIAL(info) << "Loaded " << game_state.data.sessions.size() 
                                << " sessions from state file";
         
-        // Восстанавливаем счетчики ID - устанавливаем в максимальное значение
+        // Восстанавливаем счетчики ID
         size_t max_player_id_restored = static_cast<size_t>(game_state.max_player_id);
         size_t max_dog_id_restored = static_cast<size_t>(game_state.max_dog_id);
         size_t max_loot_id_restored = static_cast<size_t>(game_state.max_loot_id);
@@ -202,8 +203,8 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             
             // Устанавливаем callback для уведомления о retirement
             session->SetRetirementCallback(
-                [this](const authentication::Token& token, std::shared_ptr<Player> player) {
-                    app_.RemovePlayerAndSaveRecord(token, player);
+                [this](const authentication::Token& token, std::shared_ptr<Player> player, int64_t play_time_ms) {
+                    app_.RemovePlayerAndSaveRecord(token, player, play_time_ms);
                 }
             );
             
@@ -227,16 +228,22 @@ bool StateSerializer::LoadState(net::io_context& ioc) {
             }
             BOOST_LOG_TRIVIAL(info) << "  Restored " << lost_objects_restored << " lost objects";
             
-            // Восстанавливаем игроков - используем const reference для избежания копирования
+            // Восстанавливаем игроков
             const auto& players_ser = session_ser.GetPlayersSerialize();
             BOOST_LOG_TRIVIAL(info) << "  Found " << players_ser.size() << " players to restore";
             
             for (const auto& player_ser : players_ser) {
+                // Создаем игрока и восстанавливаем время присоединения
                 auto player = std::make_shared<Player>(player_ser.Restore());
+                player->SetJoinTime(player_ser.GetJoinTime());
+                
                 auto dog = std::make_shared<model::Dog>(player_ser.RestoreDog());
                 
                 player->SetDog(dog);
                 session->AddDog(dog);
+                
+                BOOST_LOG_TRIVIAL(debug) << "    Restored join_time: " 
+                                         << player->GetJoinTime().time_since_epoch().count();
                 
                 // Проверяем и корректируем счетчики ID
                 if (*player->GetId() >= Player::GetMaxId()) {

@@ -23,7 +23,7 @@ namespace app {
 
 namespace net = boost::asio;
 
-class Player;  // forward declaration
+class Player;
 
 class GameSession : public std::enable_shared_from_this<GameSession>  {
 public:
@@ -39,8 +39,10 @@ public:
                                     std::shared_ptr<model::Dog>,
                                     DogIdHasher>;
     
-    // Callback для уведомления о retirement
-    using RetirementCallback = std::function<void(const authentication::Token&, std::shared_ptr<Player>)>;
+    // Callback для уведомления о retirement (добавлен play_time_ms)
+    using RetirementCallback = std::function<void(const authentication::Token&, 
+                                                   std::shared_ptr<Player>, 
+                                                   int64_t play_time_ms)>;
 
     GameSession(std::shared_ptr<model::Map> map,
                     const TimeInterval& period_of_update_game_state,
@@ -58,6 +60,8 @@ public:
                 loot_gen_cfg.probability),
             period_of_update_game_state_(period_of_update_game_state),
             dog_retirement_timeout_(std::chrono::milliseconds(static_cast<int64_t>(dog_retirement_time_seconds * 1000))) {
+        BOOST_LOG_TRIVIAL(info) << "GameSession created with dog_retirement_timeout=" 
+                                << dog_retirement_timeout_.count() << "ms";
     };
     void Run();
     
@@ -79,13 +83,9 @@ public:
         dogs_[dog->GetId()] = dog;
     }
     
-    // Метод для получения таймаута бездействия
     std::chrono::milliseconds GetDogRetirementTimeout() const { return dog_retirement_timeout_; }
     
-    // Установка callback для уведомления о retirement
     void SetRetirementCallback(RetirementCallback callback) { retirement_callback_ = std::move(callback); }
-    
-    // Установка finder для поиска токена по ID игрока
     void SetTokenFinder(std::function<std::optional<authentication::Token>(const Player::Id&)> finder) {
         token_finder_ = std::move(finder);
     }
@@ -103,11 +103,9 @@ private:
     std::shared_ptr<time_m::Ticker> generate_loot_ticker_;
     std::vector<std::shared_ptr<Player>> players_;
     
-    // Retirement tracker
     retirement::RetirementTracker retirement_tracker_;
     std::chrono::milliseconds dog_retirement_timeout_;
     
-    // Callback для уведомления о retirement
     RetirementCallback retirement_callback_;
     std::function<std::optional<authentication::Token>(const Player::Id&)> token_finder_;
     

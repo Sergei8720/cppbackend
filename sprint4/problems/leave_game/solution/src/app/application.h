@@ -21,7 +21,6 @@ namespace app {
 
 namespace net = boost::asio;
 
-// Forward declaration
 class StateSerializer;
 
 class Application  : public std::enable_shared_from_this<Application>{
@@ -62,13 +61,9 @@ public:
     std::chrono::milliseconds GetTickPeriod() const { return tick_period_; }
     const model::LootGeneratorConfig& GetLootGeneratorConfig() const { return game_.GetLootGeneratorConfig(); }
     void SetSavingSettings(const saving::SavingSettings& settings) { saving_settings_ = settings; }
-    
-    // Устанавливает StateSerializer для вызова сохранения
     void SetStateSerializer(std::shared_ptr<StateSerializer> serializer) { state_serializer_ = serializer; }
-    
     bool ShouldSaveState() const { return saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0; }
     
-    // Метод для отладки
     void DumpPlayerTokens() const {
         BOOST_LOG_TRIVIAL(info) << "=== PlayerTokens dump ===";
         BOOST_LOG_TRIVIAL(info) << "Total tokens in player_tokens_: " << player_tokens_.Size();
@@ -88,9 +83,12 @@ public:
     }
     
     double GetDogRetirementTime() const { return game_.GetDogRetirementTime(); }
-    void RemovePlayerAndSaveRecord(const authentication::Token& token, std::shared_ptr<Player> player);
-	
-    // Database connection pool
+    
+    // Изменена сигнатура: добавлен play_time_ms
+    void RemovePlayerAndSaveRecord(const authentication::Token& token, 
+                                   std::shared_ptr<Player> player,
+                                   int64_t play_time_ms);
+    
     void SetConnectionPool(std::shared_ptr<database::ConnectionPool> pool) { db_pool_ = pool; }
     std::shared_ptr<database::ConnectionPool> GetConnectionPool() const { return db_pool_; }
     
@@ -125,10 +123,7 @@ private:
     PlayerIdToToken player_id_to_token_;
     int save_period_counter_{0};
     
-    // Указатель на StateSerializer
     std::shared_ptr<StateSerializer> state_serializer_;
-    
-    // Database connection pool
     std::shared_ptr<database::ConnectionPool> db_pool_;
 
     std::shared_ptr<Player> CreatePlayer(const std::string& player_name);

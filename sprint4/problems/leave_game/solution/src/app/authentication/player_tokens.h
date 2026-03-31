@@ -1,52 +1,64 @@
 #pragma once
 #include "tagged.h"
-#include "logger.h"
+#include "game_session.h"
 
-#include <random>
-#include <unordered_map>
-#include <memory>
 #include <string>
+#include <chrono>
 
-// Forward declaration
 namespace app {
-class Player;
-}
 
-namespace authentication {
-
-struct TokenTag {};
-
-using Token = util::Tagged<std::string, TokenTag>;
-using TokenHasher = util::TaggedHasher<Token>;
-
-class PlayerTokens {
+class Player {
+    inline static size_t max_id_cont_ = 0;
 public:
-    PlayerTokens() = default;
-    PlayerTokens(const PlayerTokens& other) = default;
-    PlayerTokens(PlayerTokens&& other) = default;
-    PlayerTokens& operator = (const PlayerTokens& other) = default;
-    PlayerTokens& operator = (PlayerTokens&& other) = default;
-    virtual ~PlayerTokens() = default;
-
-    Token AddPlayer(std::shared_ptr<app::Player> player);
-    void AddTokenPlayerPair(Token token, std::shared_ptr<app::Player> player);
-    std::shared_ptr<app::Player> FindPlayerBy(Token token);
-    void RemoveToken(const Token& token);
+    using Id = util::Tagged<size_t, Player>;
     
-    // Для отладки
-    size_t Size() const { return tokenToPalyer_.size(); }
+    Player(std::string name) : 
+        id_(Id{Player::max_id_cont_++}),
+        name_(name),
+        join_time_(std::chrono::steady_clock::now()) {};
+        
+    Player(Id id, std::string name) :
+        id_(id),
+        name_(name),
+        join_time_(std::chrono::steady_clock::now()) {
+        if(*id_ >= Player::max_id_cont_){
+            Player::max_id_cont_ = *id_ + 1;
+        }
+    };
+    
+    Player(const Player& other) = default;
+    Player(Player&& other) = default;
+    Player& operator = (const Player& other) = default;
+    Player& operator = (Player&& other) = default;
+    virtual ~Player() = default;
+
+    const Id& GetId() const;
+    const std::string& GetName() const;
+    const GameSession::Id& GetGameSessionId() const;
+    std::shared_ptr<GameSession> GetGameSession();
+    void SetGameSession(std::shared_ptr<GameSession> session);
+    std::weak_ptr<model::Dog> GetDog();
+    void SetDog(std::weak_ptr<model::Dog> dog);
+    
+    // Время присоединения игрока
+    std::chrono::steady_clock::time_point GetJoinTime() const { return join_time_; }
+    void SetJoinTime(std::chrono::steady_clock::time_point time) { join_time_ = time; }
+    
+    static size_t GetMaxId() { return max_id_cont_; }
+    static void ResetMaxId(size_t new_max) { max_id_cont_ = new_max; }
+    
+    void UpdatePlayerCounter() {
+        if (*id_ >= max_id_cont_) {
+            max_id_cont_ = *id_ + 1;
+        }
+    }
     
 private:
-    std::unordered_map< Token, std::shared_ptr<app::Player>, TokenHasher > tokenToPalyer_;
-    std::random_device random_device_;
-    std::mt19937_64 generator1_{[this] {
-        std::uniform_int_distribution<std::mt19937_64::result_type> dist;
-        return dist(random_device_);
-    }()};
-    std::mt19937_64 generator2_{[this] {
-        std::uniform_int_distribution<std::mt19937_64::result_type> dist;
-        return dist(random_device_);
-    }()};
-}; 
+    Id id_;
+    std::string name_;
+    std::shared_ptr<GameSession> session_;
+    std::weak_ptr<model::Dog> dog_;
+    std::chrono::steady_clock::time_point join_time_;  // Время входа в игру
+};
 
-}  // namespace authentication
+}
