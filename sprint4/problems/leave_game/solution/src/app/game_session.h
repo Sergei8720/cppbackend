@@ -10,13 +10,13 @@
 #include "item_dog_provider.h"
 #include "retirement/retirement_tracker.h"
 #include "player_tokens.h"
+#include "player.h"
 
 #include <chrono>
 #include <vector>
 #include <memory>
-#include <chrono>
-#include <unordered_map>
 #include <functional>
+#include <unordered_map>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
 
@@ -86,8 +86,7 @@ public:
     // Установка callback для уведомления о retirement
     void SetRetirementCallback(RetirementCallback callback) { retirement_callback_ = std::move(callback); }
     
-    // Получить токен по игроку (нужно из Application)
-    std::function<std::optional<authentication::Token>(const Player::Id&)> token_finder_;
+    // Установка finder для поиска токена по ID игрока
     void SetTokenFinder(std::function<std::optional<authentication::Token>(const Player::Id&)> finder) {
         token_finder_ = std::move(finder);
     }

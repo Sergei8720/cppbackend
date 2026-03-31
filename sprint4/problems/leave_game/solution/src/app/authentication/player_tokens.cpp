@@ -35,7 +35,6 @@ std::shared_ptr<app::Player> PlayerTokens::FindPlayerBy(Token token) {
     return it->second;
 };
 
-// <-- ДОБАВИТЬ РЕАЛИЗАЦИЮ
 void PlayerTokens::RemoveToken(const Token& token) {
     auto it = tokenToPalyer_.find(token);
     if (it != tokenToPalyer_.end()) {
