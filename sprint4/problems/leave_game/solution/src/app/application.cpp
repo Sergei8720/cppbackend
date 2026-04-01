@@ -92,6 +92,9 @@ void Application::BoundPlayerAndGameSession(std::shared_ptr<Player> player,
     uint64_t dog_id = *dog.lock()->GetId();
     dog_game_time_[dog_id] = std::chrono::milliseconds{0};
     dog_inactive_time_[dog_id] = std::chrono::milliseconds{0};
+    
+    // Сохраняем время присоединения игрока
+    player->SetJoinTime(std::chrono::steady_clock::now());
 };
 
 const std::vector< std::shared_ptr<Player> >& Application::GetPlayersFromGameSession(const authentication::Token& token) {
@@ -141,10 +144,12 @@ void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
         auto res_future = res_promise.get_future();
         net::dispatch(*(session->GetStrand()),
             [this, session, &delta_time, &res_promise] {
+                // Обновляем время игры для каждой собаки
                 for (const auto& dog_pair : session->GetDogs()) {
                     uint64_t dog_id = *dog_pair.first;
                     auto dog = dog_pair.second;
                     
+                    // Накопление общего времени игры собаки
                     auto it = dog_game_time_.find(dog_id);
                     if (it != dog_game_time_.end()) {
                         it->second += delta_time;
@@ -152,6 +157,7 @@ void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
                         dog_game_time_[dog_id] = delta_time;
                     }
                     
+                    // Отслеживание времени бездействия
                     bool is_active = (dog->GetVelocity().vx != 0 || dog->GetVelocity().vy != 0);
                     auto inactive_it = dog_inactive_time_.find(dog_id);
                     if (inactive_it != dog_inactive_time_.end()) {
@@ -368,7 +374,7 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token,
                 uuid,
                 player->GetName(),
                 static_cast<int64_t>(dog->GetScore()),
-                play_time_ms
+                play_time_ms  // play_time_ms уже в миллисекундах
             };
             
             BOOST_LOG_TRIVIAL(info) << "  Saving to DB: uuid=" << uuid

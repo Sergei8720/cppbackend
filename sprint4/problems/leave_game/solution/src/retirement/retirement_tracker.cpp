@@ -14,7 +14,6 @@ void RetirementTracker::UpdateActivity(uint64_t dog_id, const TimePoint& now) {
         dogs_[dog_id] = data;
     } else {
         it->second.last_activity_time = now;
-        // inactivity_start_time сбрасывается только при движении
         it->second.inactivity_start_time = now;
     }
 }

@@ -69,6 +69,9 @@ std::weak_ptr<model::Dog> GameSession::CreateDog(const std::string& dog_name, co
     auto now = std::chrono::steady_clock::now();
     retirement_tracker_.UpdateActivity(*dog->GetId(), now);
     
+    // Сохраняем начальную позицию для отслеживания бездействия
+    dog_previous_positions_[*dog->GetId()] = dog->GetPosition();
+    
     net::dispatch(*strand_, [self = shared_from_this()]{
         self->GenerateLoot(self->loot_generator_.GetPeriod());
     });
@@ -88,10 +91,14 @@ void GameSession::AddDog(std::shared_ptr<model::Dog> dog) {
     dogs_[dog->GetId()] = dog;
     auto now = std::chrono::steady_clock::now();
     retirement_tracker_.UpdateActivity(*dog->GetId(), now);
+    dog_previous_positions_[*dog->GetId()] = dog->GetPosition();
 };
 
 void GameSession::UpdateGameState(const TimeInterval& delta_time) {
     for(auto [dog_id, dog] : dogs_) {
+        // Сохраняем позицию до движения
+        geom::Point2D old_position = dog->GetPosition();
+        
         auto [new_position, new_velocity] = map_->GetValidMove(
             dog->GetPosition(),
             dog->CalculateNewPosition(delta_time),
@@ -100,11 +107,17 @@ void GameSession::UpdateGameState(const TimeInterval& delta_time) {
         dog->SetPosition(new_position);
         dog->SetVelocity(new_velocity);
         
-        // Обновляем активность только если собака ДВИЖЕТСЯ
-        if (new_velocity.vx != 0 || new_velocity.vy != 0) {
+        // Проверяем, двигалась ли собака (изменилась ли позиция)
+        bool did_move = (old_position.x != new_position.x || old_position.y != new_position.y);
+        
+        // Обновляем активность только если собака двигалась
+        if (did_move) {
             auto now = std::chrono::steady_clock::now();
             retirement_tracker_.UpdateActivity(*dog_id, now);
         }
+        
+        // Обновляем сохраненную позицию
+        dog_previous_positions_[*dog_id] = new_position;
     }
     HandleLoot();
     CheckAndRetireDogs(delta_time);
@@ -262,10 +275,11 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
             
             retirement_tracker_.RemoveDog(*dog->GetId());
             dogs_.erase(dog->GetId());
+            dog_previous_positions_.erase(*dog->GetId());
         }
         
         std::erase(players_, player);
     }
 }
 
-}
+} // namespace app

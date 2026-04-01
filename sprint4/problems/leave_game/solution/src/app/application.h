@@ -96,6 +96,7 @@ public:
     void UpdateDogInactiveTime(uint64_t dog_id, std::chrono::milliseconds delta, bool is_active);
     std::chrono::milliseconds GetDogGameTime(uint64_t dog_id) const;
     void RemoveDogTimeTracking(uint64_t dog_id);
+	
     
 private:
     // ИСПРАВЛЕНО: используем std::string вместо GameSession::Id

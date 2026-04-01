@@ -96,6 +96,9 @@ private:
     RetirementCallback retirement_callback_;
     std::function<std::optional<authentication::Token>(size_t)> token_finder_;
     
+    // Для отслеживания позиции собак
+    std::unordered_map<uint64_t, geom::Point2D> dog_previous_positions_;
+    
     void GenerateLoot(const TimeInterval& delta_time);
     void CreateLostObject();
     void SetRandomLootType(std::shared_ptr<model::LostObject> loot);
