@@ -19,6 +19,7 @@ public:
     void RemoveDog(uint64_t dog_id);
     bool HasDog(uint64_t dog_id) const;
     TimePoint GetInactivityStartTime(uint64_t dog_id) const;
+    TimePoint GetLastActivityTime(uint64_t dog_id) const;  // ДОБАВЛЕНО
     
 private:
     struct DogInactivityData {

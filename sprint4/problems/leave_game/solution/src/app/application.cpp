@@ -125,11 +125,25 @@ bool Application::IsExistPlayer(const authentication::Token& token) {
 
 void Application::SetPlayerAction(const authentication::Token& token, model::Direction direction) {
     auto player = player_tokens_.FindPlayerBy(token);
-    if (!player) return;
+    if (!player) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPlayerAction: player not found for token " << *token;
+        return;
+    }
     auto dog = player->GetDog().lock();
-    if (!dog) return;
+    if (!dog) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPlayerAction: dog not found for player " << player->GetName();
+        return;
+    }
     double velocity = player->GetGameSession()->GetMap()->GetDogVelocity();
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPlayerAction: " << player->GetName() 
+                            << " direction=" << static_cast<int>(direction)
+                            << " velocity=" << velocity;
+    
     dog->SetAction(direction, velocity);
+    
+    auto new_vel = dog->GetVelocity();
+    BOOST_LOG_TRIVIAL(info) << "  Result velocity: (" << new_vel.vx << "," << new_vel.vy << ")";
 };
 
 bool Application::IsManualTimeManagement() {
