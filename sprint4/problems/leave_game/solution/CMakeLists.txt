@@ -46,6 +46,24 @@ endif()
 set(CMAKE_PREFIX_PATH ${CONAN_BOOST_ROOT} ${CMAKE_PREFIX_PATH})
 set(Catch2_DIR ${CONAN_CATCH2_ROOT}/lib/cmake/Catch2)
 
+# ============= ДОБАВЛЯЕМ ПЕРЕМЕННЫЕ ДЛЯ INCLUDE ПУТЕЙ =============
+# Получаем include пути из Conan
+if(DEFINED CONAN_INCLUDE_DIRS)
+    set(CONAN_ALL_INCLUDE_DIRS ${CONAN_INCLUDE_DIRS})
+else()
+    set(CONAN_ALL_INCLUDE_DIRS "")
+endif()
+
+# Добавляем специфичные пути для Catch2
+if(TARGET CONAN_PKG::catch2)
+    get_target_property(CATCH2_INCLUDE_DIRS CONAN_PKG::catch2 INTERFACE_INCLUDE_DIRECTORIES)
+    if(NOT CATCH2_INCLUDE_DIRS)
+        # Альтернативный способ: ищем через find_package
+        find_package(Catch2 REQUIRED)
+        set(CATCH2_INCLUDE_DIRS ${Catch2_INCLUDE_DIR})
+    endif()
+endif()
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -104,10 +122,8 @@ target_include_directories(database_retirement_lib PUBLIC
     src/retirement
 )
 
-# ДОБАВЛЯЕМ ЛИНКОВКУ С BOOST ДЛЯ ЛОГГЕРА
 target_link_libraries(database_retirement_lib PUBLIC CONAN_PKG::boost)
 
-# Проверяем, существуют ли библиотеки libpq и libpqxx (опционально)
 if(TARGET CONAN_PKG::libpq AND TARGET CONAN_PKG::libpqxx)
     target_link_libraries(database_retirement_lib PUBLIC CONAN_PKG::libpq CONAN_PKG::libpqxx)
 else()
@@ -178,7 +194,8 @@ target_include_directories(game_tests PRIVATE
     src/middleware/game_data_store
     src/database
     src/retirement
-    ${CONAN_INCLUDE_DIRS_CATCH2}
+    ${CATCH2_INCLUDE_DIRS}
+    ${CONAN_ALL_INCLUDE_DIRS}
 )
 
 target_link_libraries(game_tests PRIVATE
@@ -202,7 +219,8 @@ target_include_directories(collision_tests PRIVATE
     src/model/physics
     src/database
     src/retirement
-    ${CONAN_INCLUDE_DIRS_CATCH2}
+    ${CATCH2_INCLUDE_DIRS}
+    ${CONAN_ALL_INCLUDE_DIRS}
 )
 
 target_link_libraries(collision_tests PRIVATE
@@ -228,7 +246,8 @@ target_include_directories(state_tests PRIVATE
     src/middleware/game_data_store
     src/database
     src/retirement
-    ${CONAN_INCLUDE_DIRS_CATCH2}
+    ${CATCH2_INCLUDE_DIRS}
+    ${CONAN_ALL_INCLUDE_DIRS}
 )
 
 target_link_libraries(state_tests PRIVATE
