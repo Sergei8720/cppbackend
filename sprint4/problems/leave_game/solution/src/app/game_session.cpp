@@ -36,7 +36,6 @@ void GameSession::Run() {
             }
         );
         update_game_state_ticker_->Start();
-        BOOST_LOG_TRIVIAL(info) << "GameState ticker started with period " << period_of_update_game_state_.count() << "ms";
     }
     generate_loot_ticker_ = std::make_shared<time_m::Ticker>(
         strand_,
@@ -46,7 +45,6 @@ void GameSession::Run() {
         }
     );
     generate_loot_ticker_->Start();
-    BOOST_LOG_TRIVIAL(info) << "Loot generator ticker started";
 };
 
 const GameSession::Id& GameSession::GetId() const noexcept {
@@ -106,11 +104,10 @@ void GameSession::UpdateGameState(const TimeInterval& delta_time) {
     static int call_count = 0;
     call_count++;
     
-    if (call_count % 100 == 0) {
+    if (call_count % 10 == 0) {
         BOOST_LOG_TRIVIAL(info) << "UpdateGameState #" << call_count << " delta=" << delta_time.count() << "ms";
     }
     
-    // Обновляем позиции собак
     for(auto [dog_id, dog] : dogs_) {
         geom::Point2D old_position = dog->GetPosition();
         auto old_velocity = dog->GetVelocity();
@@ -128,15 +125,18 @@ void GameSession::UpdateGameState(const TimeInterval& delta_time) {
         if (did_move) {
             auto now = std::chrono::steady_clock::now();
             retirement_tracker_.UpdateActivity(*dog_id, now);
-            if (call_count % 100 == 0) {
+            if (call_count % 10 == 0) {
                 BOOST_LOG_TRIVIAL(debug) << "Dog " << *dog_id << " moved to (" 
                                          << new_position.x << "," << new_position.y << ")";
             }
+        } else if (old_velocity.vx != 0 || old_velocity.vy != 0) {
+            // Собака только что остановилась
+            BOOST_LOG_TRIVIAL(info) << "Dog " << *dog_id << " STOPPED at position (" 
+                                    << new_position.x << "," << new_position.y << ")";
         }
         
         dog_previous_positions_[*dog_id] = new_position;
     }
-    
     HandleLoot();
     CheckAndRetireDogs(delta_time);
 };
@@ -256,33 +256,27 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     std::vector<model::Dog::Id> dogs_to_remove;
     std::vector<std::shared_ptr<Player>> players_to_remove;
     
-    if (dogs_.empty()) {
-        return;
-    }
-    
-    BOOST_LOG_TRIVIAL(debug) << "CheckAndRetireDogs: checking " << dogs_.size() << " dogs, timeout=" 
-                             << dog_retirement_timeout_.count() << "ms";
+    BOOST_LOG_TRIVIAL(info) << "=== CheckAndRetireDogs ===";
+    BOOST_LOG_TRIVIAL(info) << "  Dogs count: " << dogs_.size();
+    BOOST_LOG_TRIVIAL(info) << "  Timeout: " << dog_retirement_timeout_.count() << " ms";
+    BOOST_LOG_TRIVIAL(info) << "  Current time: " << now.time_since_epoch().count();
     
     for (const auto& [dog_id, dog] : dogs_) {
         auto inactivity = retirement_tracker_.GetInactivityDuration(*dog_id, now);
         bool retired = retirement_tracker_.IsRetired(*dog_id, now, dog_retirement_timeout_);
         
-        // Логируем каждую 10-ю проверку или если собака близка к retirement
-        static int log_counter = 0;
-        if (++log_counter % 50 == 0 || retired || inactivity.count() > dog_retirement_timeout_.count() - 5000) {
-            BOOST_LOG_TRIVIAL(info) << "  Dog " << *dog_id << " (" << dog->GetName() << "):"
-                                    << " inactivity=" << inactivity.count() << "ms"
-                                    << " timeout=" << dog_retirement_timeout_.count() << "ms"
-                                    << " retired=" << retired;
-        }
+        BOOST_LOG_TRIVIAL(info) << "  Dog " << *dog_id << " (" << dog->GetName() << "):"
+                                << " inactivity=" << inactivity.count() << "ms"
+                                << " retired=" << retired;
         
         if (retired) {
             dogs_to_remove.push_back(dog_id);
-            BOOST_LOG_TRIVIAL(info) << "    -> Dog " << *dog_id << " WILL BE RETIRED";
+            BOOST_LOG_TRIVIAL(info) << "    -> WILL BE REMOVED";
         }
     }
     
     if (dogs_to_remove.empty()) {
+        BOOST_LOG_TRIVIAL(debug) << "No dogs to retire";
         return;
     }
     
