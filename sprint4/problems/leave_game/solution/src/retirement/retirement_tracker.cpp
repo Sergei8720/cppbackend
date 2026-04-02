@@ -67,7 +67,6 @@ RetirementTracker::TimePoint RetirementTracker::GetInactivityStartTime(uint64_t 
     return it->second.inactivity_start_time;
 }
 
-// ДОБАВЛЕННЫЙ МЕТОД
 RetirementTracker::TimePoint RetirementTracker::GetLastActivityTime(uint64_t dog_id) const {
     std::lock_guard<std::mutex> lock(mutex_);
     
