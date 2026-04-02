@@ -51,8 +51,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+# Исправлено: используем BOOST_NO_CXX17_HDR_STRING_VIEW вместо устаревшего
 add_compile_definitions(
-    BOOST_BEAST_USE_STD_STRING_VIEW
+    BOOST_NO_CXX17_HDR_STRING_VIEW
     BOOST_JSON_STANDALONE
 )
 
@@ -104,10 +105,8 @@ target_include_directories(database_retirement_lib PUBLIC
     src/retirement
 )
 
-# ДОБАВЛЯЕМ ЛИНКОВКУ С BOOST ДЛЯ ЛОГГЕРА
 target_link_libraries(database_retirement_lib PUBLIC CONAN_PKG::boost)
 
-# Проверяем, существуют ли библиотеки libpq и libpqxx (опционально)
 if(TARGET CONAN_PKG::libpq AND TARGET CONAN_PKG::libpqxx)
     target_link_libraries(database_retirement_lib PUBLIC CONAN_PKG::libpq CONAN_PKG::libpqxx)
 else()
@@ -248,7 +247,8 @@ if(BUILD_TESTING)
     add_test(NAME state_tests COMMAND state_tests)
 endif()
 
-add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
+# Исправлено: устаревшая директива заменена
+add_compile_definitions(BOOST_NO_CXX17_HDR_STRING_VIEW)
 add_compile_definitions(BOOST_THREAD_PROVIDES_FUTURE)
 
 # Цели для запуска тестов

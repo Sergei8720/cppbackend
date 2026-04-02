@@ -35,25 +35,6 @@ public:
             save_period_counter_{0} {
     };
     
-    // ДОБАВЛЕННЫЙ МЕТОД: запуск таймера обновления игры
-    void StartTicker() {
-        if (tick_period_.count() == 0) {
-            BOOST_LOG_TRIVIAL(info) << "Manual time management mode (tick_period = 0)";
-            return;
-        }
-        
-        auto strand = std::make_shared<AppStrand>(net::make_strand(ioc_));
-        game_ticker_ = std::make_shared<time_m::Ticker>(
-            strand,
-            tick_period_,
-            [self = shared_from_this()](const std::chrono::milliseconds& delta_time) {
-                self->UpdateGameState(delta_time);
-            }
-        );
-        game_ticker_->Start();
-        BOOST_LOG_TRIVIAL(info) << "Game ticker started with period " << tick_period_.count() << " ms";
-    };
-    
     Application(const Application& other) = delete;
     Application(Application&& other) = delete;
     Application& operator = (const Application& other) = delete;
@@ -116,8 +97,8 @@ public:
     void UpdateDogInactiveTime(uint64_t dog_id, std::chrono::milliseconds delta, bool is_active);
     std::chrono::milliseconds GetDogGameTime(uint64_t dog_id) const;
     void RemoveDogTimeTracking(uint64_t dog_id);
-	
-	    // Запуск таймера обновления игры
+    
+    // Запуск таймера обновления игры (только одно объявление!)
     void StartTicker() {
         if (tick_period_.count() == 0) {
             BOOST_LOG_TRIVIAL(info) << "Manual time management mode (tick_period = 0)";
@@ -135,8 +116,6 @@ public:
         game_ticker_->Start();
         BOOST_LOG_TRIVIAL(info) << "Game ticker started with period " << tick_period_.count() << " ms";
     };
-	
-	
     
 private:
     using GameSessionIdToPlayers = std::unordered_map<std::string,
@@ -170,10 +149,9 @@ private:
     std::shared_ptr<StateSerializer> state_serializer_;
     std::shared_ptr<database::ConnectionPool> db_pool_;
     
-    // ДОБАВЛЕННЫЙ ЧЛЕН: таймер обновления игры
+    // Только одно объявление game_ticker_!
     std::shared_ptr<time_m::Ticker> game_ticker_;
     
-	std::shared_ptr<time_m::Ticker> game_ticker_;
     // Отслеживание времени игры и бездействия собак
     std::unordered_map<uint64_t, std::chrono::milliseconds> dog_game_time_;
     std::unordered_map<uint64_t, std::chrono::milliseconds> dog_inactive_time_;
