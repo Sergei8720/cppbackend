@@ -1,5 +1,5 @@
 [requires]
-catch2/3.1.0
+catch2/2.13.10
 boost/1.82.0
 libpq/15.3
 libpqxx/7.8.1
