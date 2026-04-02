@@ -144,6 +144,17 @@ void Application::SetPlayerAction(const authentication::Token& token, model::Dir
     
     auto new_vel = dog->GetVelocity();
     BOOST_LOG_TRIVIAL(info) << "  Result velocity: (" << new_vel.vx << "," << new_vel.vy << ")";
+    
+    // ========== ДОБАВЛЕННЫЙ БЛОК ==========
+    // Обновляем активность собаки при любом действии игрока
+    auto session = player->GetGameSession();
+    if (session) {
+        auto now = std::chrono::steady_clock::now();
+        session->UpdateDogActivity(*dog->GetId(), now);
+        BOOST_LOG_TRIVIAL(debug) << "Updated activity for dog " << *dog->GetId() 
+                                 << " due to player action";
+    }
+    // =======================================
 };
 
 bool Application::IsManualTimeManagement() {

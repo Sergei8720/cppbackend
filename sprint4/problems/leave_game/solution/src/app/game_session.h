@@ -77,6 +77,9 @@ public:
     
     TimePoint GetInactivityStartTime(uint64_t dog_id) const;
     
+    // НОВЫЙ МЕТОД: обновление активности собаки по действию игрока
+    void UpdateDogActivity(uint64_t dog_id, const TimePoint& now);
+    
 private:
     std::shared_ptr<model::Map> map_;
     net::io_context& ioc_;
