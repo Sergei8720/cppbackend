@@ -393,13 +393,14 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token,
     
     if (db_pool_) {
         try {
-            std::string uuid = std::to_string(*dog->GetId());
+            // ИЗМЕНЕНО: используем число напрямую, а не преобразуем в строку
+            int64_t uuid = *dog->GetId();  // ← было: std::string uuid = std::to_string(*dog->GetId());
             
             database::PlayerRecord record{
                 uuid,
                 player->GetName(),
                 static_cast<int64_t>(dog->GetScore()),
-                play_time_ms  // play_time_ms уже в миллисекундах
+                play_time_ms
             };
             
             BOOST_LOG_TRIVIAL(info) << "  Saving to DB: uuid=" << uuid

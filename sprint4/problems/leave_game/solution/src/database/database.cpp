@@ -28,9 +28,10 @@ void Database::CreateTableIfNotExists(std::shared_ptr<ConnectionPool> pool) {
     auto conn = pool->GetConnection();
     
     pqxx::work work(*conn);
+    // ИЗМЕНЕНО: UUID -> BIGINT
     work.exec(R"(
         CREATE TABLE IF NOT EXISTS retired_players (
-            id UUID PRIMARY KEY,
+            id BIGINT PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
             score BIGINT NOT NULL,
             play_time_ms BIGINT NOT NULL
@@ -89,7 +90,7 @@ std::vector<PlayerRecord> Database::GetRecords(std::shared_ptr<ConnectionPool> p
     
     for (const auto& row : result) {
         records.emplace_back(
-            row[0].as<std::string>(),
+            row[0].as<int64_t>(),      // ИЗМЕНЕНО: as<std::string>() -> as<int64_t>()
             row[1].as<std::string>(),
             row[2].as<int64_t>(),
             row[3].as<int64_t>()
