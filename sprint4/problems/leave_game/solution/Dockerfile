@@ -83,6 +83,6 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 ENTRYPOINT ["/app/game_server"]
 CMD ["--config-file", "/app/data/config.json", \
      "--www-root", "/app/static", \
-     "--tick-period", "0", \
+     "--tick-period", "50", \
      "--state-file", "/tmp/volume/state", \
      "--save-state-period", "1000"]

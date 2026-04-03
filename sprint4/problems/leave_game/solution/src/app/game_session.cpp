@@ -105,7 +105,7 @@ void GameSession::UpdateGameState(const TimeInterval& delta_time) {
     call_count++;
     
     if (call_count % 10 == 0) {
-        BOOST_LOG_TRIVIAL(info) << "UpdateGameState #" << call_count << " delta=" << delta_time.count() << "ms";
+        BOOST_LOG_TRIVIAL(debug) << "UpdateGameState #" << call_count << " delta=" << delta_time.count() << "ms";
     }
     
     for(auto [dog_id, dog] : dogs_) {
@@ -130,8 +130,7 @@ void GameSession::UpdateGameState(const TimeInterval& delta_time) {
                                          << new_position.x << "," << new_position.y << ")";
             }
         } else if (old_velocity.vx != 0 || old_velocity.vy != 0) {
-            // Собака только что остановилась
-            BOOST_LOG_TRIVIAL(info) << "Dog " << *dog_id << " STOPPED at position (" 
+            BOOST_LOG_TRIVIAL(debug) << "Dog " << *dog_id << " STOPPED at position (" 
                                     << new_position.x << "," << new_position.y << ")";
         }
         
@@ -256,22 +255,43 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     std::vector<model::Dog::Id> dogs_to_remove;
     std::vector<std::shared_ptr<Player>> players_to_remove;
     
-    BOOST_LOG_TRIVIAL(info) << "=== CheckAndRetireDogs ===";
-    BOOST_LOG_TRIVIAL(info) << "  Dogs count: " << dogs_.size();
-    BOOST_LOG_TRIVIAL(info) << "  Timeout: " << dog_retirement_timeout_.count() << " ms";
-    BOOST_LOG_TRIVIAL(info) << "  Current time: " << now.time_since_epoch().count();
+    BOOST_LOG_TRIVIAL(debug) << "=== CheckAndRetireDogs ===";
+    BOOST_LOG_TRIVIAL(debug) << "  Dogs count: " << dogs_.size();
+    BOOST_LOG_TRIVIAL(debug) << "  Retirement timeout: " << dog_retirement_timeout_.count() << " ms";
     
     for (const auto& [dog_id, dog] : dogs_) {
-        auto inactivity = retirement_tracker_.GetInactivityDuration(*dog_id, now);
-        bool retired = retirement_tracker_.IsRetired(*dog_id, now, dog_retirement_timeout_);
+        // Находим игрока для этой собаки
+        std::shared_ptr<Player> owner = nullptr;
+        for (const auto& player : players_) {
+            auto player_dog = player->GetDog().lock();
+            if (player_dog && *player_dog->GetId() == *dog_id) {
+                owner = player;
+                break;
+            }
+        }
         
-        BOOST_LOG_TRIVIAL(info) << "  Dog " << *dog_id << " (" << dog->GetName() << "):"
-                                << " inactivity=" << inactivity.count() << "ms"
-                                << " retired=" << retired;
+        if (!owner) {
+            BOOST_LOG_TRIVIAL(warning) << "No player found for dog " << *dog_id;
+            continue;
+        }
         
-        if (retired) {
+        // Вычисляем общее время игры (от присоединения до текущего момента)
+        auto join_time = owner->GetJoinTime();
+        auto total_play_time = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now - join_time
+        );
+        
+        bool should_retire = total_play_time >= dog_retirement_timeout_;
+        
+        BOOST_LOG_TRIVIAL(debug) << "  Dog " << *dog_id << " (" << dog->GetName() << "):"
+                                 << " total_play_time=" << total_play_time.count() << "ms"
+                                 << " timeout=" << dog_retirement_timeout_.count() << "ms"
+                                 << " should_retire=" << should_retire;
+        
+        if (should_retire) {
             dogs_to_remove.push_back(dog_id);
-            BOOST_LOG_TRIVIAL(info) << "    -> WILL BE REMOVED";
+            players_to_remove.push_back(owner);
+            BOOST_LOG_TRIVIAL(info) << "    -> WILL BE RETIRED";
         }
     }
     
@@ -282,57 +302,48 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     
     BOOST_LOG_TRIVIAL(info) << "Found " << dogs_to_remove.size() << " dogs to retire";
     
-    for (const auto& dog_id : dogs_to_remove) {
-        for (const auto& player : players_) {
-            auto player_dog = player->GetDog().lock();
-            if (player_dog && *player_dog->GetId() == *dog_id) {
-                players_to_remove.push_back(player);
-                BOOST_LOG_TRIVIAL(info) << "  Found player for dog " << *dog_id 
-                                        << ": " << player->GetName() 
-                                        << " (id=" << *player->GetId() << ")";
-                break;
-            }
-        }
-    }
-    
-    for (const auto& player : players_to_remove) {
-        auto dog = player->GetDog().lock();
-        if (dog) {
-            auto join_time = player->GetJoinTime();
-            auto total_play_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                now - join_time
-            ).count();
-            
-            BOOST_LOG_TRIVIAL(info) << "Retiring player: " << player->GetName()
-                                    << " dog=" << dog->GetName()
-                                    << " dog_id=" << *dog->GetId()
-                                    << " score=" << dog->GetScore()
-                                    << " play_time_ms=" << total_play_time_ms;
-            
-            std::optional<authentication::Token> token;
-            if (token_finder_) {
-                token = token_finder_(*player->GetId());
-                if (token.has_value()) {
-                    BOOST_LOG_TRIVIAL(info) << "  Token found: " << *token.value();
-                } else {
-                    BOOST_LOG_TRIVIAL(warning) << "  Token not found for player id=" << *player->GetId();
-                }
-            }
-            
-            if (retirement_callback_ && token.has_value()) {
-                BOOST_LOG_TRIVIAL(info) << "  Calling retirement callback";
-                retirement_callback_(token.value(), *player->GetId(), total_play_time_ms);
-                BOOST_LOG_TRIVIAL(info) << "  Callback completed";
+    for (size_t i = 0; i < dogs_to_remove.size(); ++i) {
+        const auto& dog_id = dogs_to_remove[i];
+        const auto& player = players_to_remove[i];
+        auto dog = dogs_[dog_id];
+        
+        // Вычисляем время игры для записи в БД
+        auto join_time = player->GetJoinTime();
+        auto total_play_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - join_time
+        ).count();
+        
+        BOOST_LOG_TRIVIAL(info) << "Retiring player: " << player->GetName()
+                                << " dog=" << dog->GetName()
+                                << " dog_id=" << *dog_id
+                                << " score=" << dog->GetScore()
+                                << " play_time_ms=" << total_play_time_ms;
+        
+        std::optional<authentication::Token> token;
+        if (token_finder_) {
+            token = token_finder_(*player->GetId());
+            if (token.has_value()) {
+                BOOST_LOG_TRIVIAL(debug) << "  Token found: " << *token.value();
             } else {
-                BOOST_LOG_TRIVIAL(warning) << "  Cannot retire: callback=" << (retirement_callback_ ? "yes" : "no")
-                                           << " token=" << (token.has_value() ? "yes" : "no");
+                BOOST_LOG_TRIVIAL(warning) << "  Token not found for player id=" << *player->GetId();
             }
-            
-            retirement_tracker_.RemoveDog(*dog->GetId());
-            dogs_.erase(dog->GetId());
-            dog_previous_positions_.erase(*dog->GetId());
         }
         
+        if (retirement_callback_ && token.has_value()) {
+            BOOST_LOG_TRIVIAL(debug) << "  Calling retirement callback";
+            retirement_callback_(token.value(), *player->GetId(), total_play_time_ms);
+            BOOST_LOG_TRIVIAL(debug) << "  Callback completed";
+        } else {
+            BOOST_LOG_TRIVIAL(warning) << "  Cannot retire: callback=" << (retirement_callback_ ? "yes" : "no")
+                                       << " token=" << (token.has_value() ? "yes" : "no");
+        }
+        
+        // Удаляем собаку и игрока
+        retirement_tracker_.RemoveDog(*dog_id);
+        dogs_.erase(dog_id);
+        dog_previous_positions_.erase(*dog_id);
+        
+        // Удаляем игрока из вектора
         std::erase(players_, player);
     }
 }
