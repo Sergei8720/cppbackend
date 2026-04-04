@@ -61,13 +61,13 @@ RetirementTracker::TimePoint RetirementTracker::GetInactivityStartTime(uint64_t 
     
     auto it = dogs_.find(dog_id);
     if (it == dogs_.end()) {
+        // Если собака не найдена, возвращаем текущее время (она не может быть на пенсии)
         return TimePoint{};
     }
     
     return it->second.inactivity_start_time;
 }
 
-// ДОБАВЛЕННЫЙ МЕТОД
 RetirementTracker::TimePoint RetirementTracker::GetLastActivityTime(uint64_t dog_id) const {
     std::lock_guard<std::mutex> lock(mutex_);
     

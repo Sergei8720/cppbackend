@@ -112,12 +112,14 @@ const std::vector< std::shared_ptr<Player> >& Application::GetPlayersFromGameSes
 bool Application::IsExistPlayer(const authentication::Token& token) {
     auto player = player_tokens_.FindPlayerBy(token);
     bool exists = static_cast<bool>(player);
-    BOOST_LOG_TRIVIAL(debug) << "IsExistPlayer: token=" << *token 
-                             << " exists=" << exists;
+    BOOST_LOG_TRIVIAL(info) << "IsExistPlayer: token=" << *token 
+                            << " exists=" << exists;
     if (exists && player) {
-        BOOST_LOG_TRIVIAL(debug) << "  Player name=" << player->GetName() 
-                                 << " id=" << *player->GetId()
-                                 << " session_id=" << player->GetGameSessionId();
+        BOOST_LOG_TRIVIAL(info) << "  Player name=" << player->GetName() 
+                                << " id=" << *player->GetId()
+                                << " session_id=" << player->GetGameSessionId();
+    } else {
+        BOOST_LOG_TRIVIAL(warning) << "  Player NOT found for token=" << *token;
     }
     return exists;
 };

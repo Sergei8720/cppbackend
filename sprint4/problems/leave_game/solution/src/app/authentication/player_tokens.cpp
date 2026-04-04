@@ -16,21 +16,27 @@ Token PlayerTokens::AddPlayer(std::shared_ptr<app::Player> player) {
     }
     Token token{ss.str()};
     tokenToPalyer_[token] = player;
-    BOOST_LOG_TRIVIAL(debug) << "PlayerTokens::AddPlayer: token=" << *token 
-                             << " for player id=" << *player->GetId();
+    BOOST_LOG_TRIVIAL(info) << "PlayerTokens::AddPlayer: token=" << *token 
+                            << " for player id=" << *player->GetId()
+                            << " name=" << player->GetName();
     return token;
 };
 
 void PlayerTokens::AddTokenPlayerPair(Token token, std::shared_ptr<app::Player> player) {
-    BOOST_LOG_TRIVIAL(debug) << "PlayerTokens::AddTokenPlayerPair: token=" << *token 
-                             << " for player id=" << *player->GetId();
+    BOOST_LOG_TRIVIAL(info) << "PlayerTokens::AddTokenPlayerPair: token=" << *token 
+                            << " for player id=" << *player->GetId()
+                            << " name=" << player->GetName();
     tokenToPalyer_[token] = player;
 };
 
 std::shared_ptr<app::Player> PlayerTokens::FindPlayerBy(Token token) {
     auto it = tokenToPalyer_.find(token);
     if (it == tokenToPalyer_.end()) {
-        BOOST_LOG_TRIVIAL(debug) << "PlayerTokens::FindPlayerBy: token=" << *token << " NOT found";
+        BOOST_LOG_TRIVIAL(warning) << "PlayerTokens::FindPlayerBy: token=" << *token << " NOT found. Total tokens: " << tokenToPalyer_.size();
+        // Выводим все существующие токены для отладки
+        for (const auto& [t, p] : tokenToPalyer_) {
+            BOOST_LOG_TRIVIAL(debug) << "  Existing token: " << *t;
+        }
         return std::shared_ptr<app::Player>();
     }
     BOOST_LOG_TRIVIAL(debug) << "PlayerTokens::FindPlayerBy: token=" << *token 

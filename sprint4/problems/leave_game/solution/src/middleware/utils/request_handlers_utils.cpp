@@ -1,5 +1,6 @@
 #include "request_handlers_utils.h"
 #include <string>
+#include <cctype>
 
 namespace rh_storage{
 
@@ -13,7 +14,7 @@ std::vector<std::string_view> SplitUrl(std::string_view str) {
     std::vector<std::string_view> result;
     std::string delim = "/";
     if(str.empty() or str == delim) return result;
-    auto start = 1U; // Ignore first slash
+    auto start = 1U;
     auto end = str.find(delim, start);
     while (end != std::string::npos) {
         result.push_back(str.substr(start, end - start));
@@ -39,12 +40,14 @@ std::string GetTokenString(std::string_view bearer_string) {
         end = bearer_string.find(delim, start);
     }
     splitted.push_back(bearer_string.substr(start, end));
+    
     if(splitted.size() != AUTHORIZATION_NUMBER_PARTS ||
-    splitted[BEARER_INDEX] != BEARER ||
-    splitted[TOKEN_INDEX].size() != TOKEN_SIZE) {
+       splitted[BEARER_INDEX] != BEARER) {
         return token;
     }
-    return std::string(splitted[TOKEN_INDEX]);
+    
+    token = std::string(splitted[TOKEN_INDEX]);
+    return token;
 };
 
 bool IsEqualUrls(const std::string& server_url, const std::string_view request_url){

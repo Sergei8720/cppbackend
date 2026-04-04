@@ -1,6 +1,9 @@
 import json
 import random
 import math
+import time
+import re
+import os
 
 from enum import Enum
 from typing import Optional, Tuple, List, Union, Type, KeysView, Any
@@ -10,6 +13,8 @@ from collections import defaultdict
 from urllib.parse import urljoin
 
 import requests
+import pytest
+
 
 @dataclass
 class Cache:
@@ -19,6 +24,7 @@ class Cache:
     def __post_init__(self):
         self.tokens = list()
         self.state = dict()
+
 
 class ServerException(Exception):
     def __init__(self, message: str, data: Any):
@@ -34,7 +40,10 @@ class ServerException(Exception):
         return self.__data
 
     def __str__(self):
-        return f"{self.message}: {json.dumps(self.data)}"
+        try:
+            return f"{self.message}: {json.dumps(self.data, default=str)}"
+        except (TypeError, ValueError):
+            return f"{self.message}: {repr(self.data)}"
 
 
 class DataInconsistency(ServerException):
@@ -121,7 +130,7 @@ class GameServer:
                  **extra_kwargs):
         self.url = f'http://{server_domain}:{port}'
         self.port = port
-
+        self.container = None  # For Docker container reference
 
     def __enter__(self, **kwargs):
         self.__init__(**kwargs)
@@ -132,7 +141,8 @@ class GameServer:
             with requests.Session() as session:
                 return session.send(req)
         except Exception as ex:
-            print(ex)
+            print(f"Request error: {ex}")
+            return None
 
     def get(self, endpoint):
         return requests.get(urljoin(self.url, endpoint))
@@ -163,10 +173,18 @@ class GameServer:
         return res.json()
 
     def join(self, player_name: str, map_id: str) -> Tuple[str, int]:
+        print(f"DEBUG: Joining game with name='{player_name}', map_id='{map_id}'")
         request = 'api/v1/game/join'
         header = {'content-type': 'application/json'}
         data = {"userName": player_name, "mapId": map_id}
         res = self.request('POST', header, request, json=data)
+        
+        if res is None:
+            raise Exception("Failed to connect to server")
+        
+        print(f"DEBUG: Join response status: {res.status_code}")
+        print(f"DEBUG: Join response body: {res.text}")
+        
         res_json: dict = res.json()
 
         GameServer.assert_fields('Join game response', ['authToken', 'playerId'], res_json.keys())
@@ -177,11 +195,11 @@ class GameServer:
         player_id = res_json['playerId']
         GameServer.assert_type('Player id', int, player_id)
 
+        print(f"DEBUG: Join successful - token={token[:8]}..., player_id={player_id}")
         return token, player_id
 
     def add_player(self, player_name: str, map_id: str) -> Tuple[str, int]:
         params = self.join(player_name, map_id)
-        # Temporary "fix"
         return params
 
     def get_state(self, token: str) -> Optional[dict]:
@@ -215,20 +233,25 @@ class GameServer:
         return state
 
     def move(self, token: str, direction: str):
+        print(f"DEBUG: Move - token={token[:8]}..., direction='{direction}'")
         request = '/api/v1/game/player/action'
         header = {'content-type': 'application/json', 'Authorization': f'Bearer {token}'}
         data = {"move": direction}
         res = self.request('POST', header, request, json=data)
         self.validate_response(res)
+        print(f"DEBUG: Move successful")
 
     def tick(self, ticks: int):
+        print(f"DEBUG: Tick - ticks={ticks}ms")
         request = 'api/v1/game/tick'
         header = {'content-type': 'application/json'}
         data = {"timeDelta": ticks}
         res = self.request('POST', header, request, json=data)
         self.validate_response(res)
+        print(f"DEBUG: Tick successful")
 
     def get_records(self, start: int = 0, max_items: int = 100) -> list:
+        print(f"DEBUG: Get records - start={start}, max_items={max_items}")
         request = '/api/v1/game/records'
         header = {'content-type': 'application/json'}
         url_params = {'start': start, 'maxItems': max_items}
@@ -236,7 +259,7 @@ class GameServer:
         self.validate_response(res)
         res_json: list = res.json()
         assert type(res_json) == list
-
+        print(f"DEBUG: Got {len(res_json)} records")
         return res_json
 
     @staticmethod
@@ -257,13 +280,20 @@ class GameServer:
             if key not in given_keys:
                 raise WrongFields(object_name, list(expected_keys), list(given_keys))
 
-    # Wil be rewritten soon
     @staticmethod
     def validate_response(res: requests.Response):
+        if res is None:
+            raise Exception("Response is None - server may not be running")
+            
+        print(f"DEBUG: Response status: {res.status_code}, url: {res.url}")
+        
         if res.status_code != 200:
-            raise BadRequest('Status code isn\'t OK',
-                             {'status code': res.status_code,
-                              'response': res.content})
+            print(f"ERROR: Status code {res.status_code}")
+            print(f"ERROR: Response body: {res.text}")
+            print(f"ERROR: Request headers: {res.request.headers}")
+            raise BadRequest(f'Status code isn\'t OK: {res.status_code}',
+                           {'status code': res.status_code,
+                            'response': res.text})
 
         GameServer.assert_fields('Response headers',
                                 ['content-type', 'cache-control', 'content-length'],
@@ -388,6 +418,7 @@ class GameServer:
         if state['dir'] not in expected_dirs:
             raise UnexpectedData('Player direction', ['R', 'L', 'U', 'D', ''], state['dir'])
 
+
 class Direction(Enum):
     U = 1
     R = 2
@@ -404,6 +435,7 @@ class Direction(Enum):
     @staticmethod
     def random_str():
         return random.choice(Direction.__dict__['_member_names_'])
+
 
 @dataclass
 class Player:
@@ -428,6 +460,7 @@ class Player:
         state = server.get_player_state(self.token, self.player_id)
         self.score = state['score']
 
+
 class Tribe:
 
     def __init__(self,
@@ -439,10 +472,13 @@ class Tribe:
         self.server = server
         self.players: List[Player] = []
         self.r_time = r_time
+        print(f"DEBUG: Creating tribe with {num_of_players} players on map '{map_id}'")
         for i in range(0, num_of_players):
             name = f'{prefix} {i}'
+            print(f"DEBUG: Adding player {i+1}/{num_of_players}: {name}")
             token, player_id = server.join(name, map_id)
             self.players.append(Player(name, token, player_id))
+        print(f"DEBUG: Tribe created successfully")
 
     def __getitem__(self, index: int) -> Player:
         return self.players[index]
@@ -457,12 +493,13 @@ class Tribe:
     def get_list(self) -> list:
         self.players.sort(key=lambda x: x.score, reverse=True)
         res = [pl.get_dict() for pl in self.players]
-
         return res
 
     def update_scores(self):
+        print(f"DEBUG: Updating scores for {len(self.players)} players")
         for player in self.players:
             player.update_score(self.server)
+        print(f"DEBUG: Scores updated")
 
     def randomized_turn(self):
         for pl in self.players:
@@ -470,6 +507,7 @@ class Tribe:
             self.server.move(pl.token, direction)
 
     def randomized_move(self):
+        print(f"DEBUG: Randomized move")
         self.randomized_turn()
         ticks = random.randint(100, min(10000, int(self.r_time*900)))
         seconds = ticks / 1000
@@ -477,17 +515,20 @@ class Tribe:
         self.__tick_seconds(seconds)
 
     def stop(self):
+        print(f"DEBUG: Stopping all players")
         for pl in self.players:
             self.server.move(pl.token, '')
 
 
 def compare(records: List[dict], tribe_records: List[dict]):
+    print(f"DEBUG: Comparing records - records count: {len(records)}, tribe_records count: {len(tribe_records)}")
     assert len(records) == len(tribe_records)
     for record in records:
         name = record['name']
         for t_record in tribe_records:
             if t_record['name'] == name:
                 math.isclose(record['score'], t_record['score'])
+
 
 def add_user_and_wait_loot(docker_server, name, map_id):
     token, _ = docker_server.join(name, map_id)
@@ -498,23 +539,343 @@ def add_user_and_wait_loot(docker_server, name, map_id):
     return token
 
 
-def test_a_hundred_records(server, map_id):
-    tribe = Tribe(server, map_id, num_of_players=100)
-    r_time = 15.0
+def tick_seconds(server, seconds: float):
+    """Helper function to tick for a given number of seconds"""
+    server.tick(int(seconds * 1000))
 
-    for _ in range(0, random.randint(10, 35)):
+
+def get_retirement_time() -> float:
+    """Get retirement time from config or return default"""
+    DEFAULT_RETIREMENT_TIME = 60.0
+    try:
+        # Try to read from config file
+        config_path = os.path.join(os.path.dirname(__file__), 'data', 'config.json')
+        if os.path.exists(config_path):
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+                return config.get('dogRetirementTime', DEFAULT_RETIREMENT_TIME)
+    except Exception:
+        pass
+    return DEFAULT_RETIREMENT_TIME
+
+
+# ==================== TESTS ====================
+
+def test_clean_records():
+    """Test that records are empty initially"""
+    print("\n=== test_clean_records ===")
+    server = GameServer("127.0.0.1", 8080)
+    records = server.get_records()
+    assert len(records) == 0
+    print("✓ test_clean_records passed")
+
+
+def test_retirement_one_standing_player():
+    """Test that a standing player retires after timeout"""
+    print("\n=== test_retirement_one_standing_player ===")
+    server = GameServer("127.0.0.1", 8080)
+    r_time = get_retirement_time()
+    
+    token, player_id = server.join('Julius Can Standing', "map1")
+    server.get_state(token)
+    
+    # Tick almost up to retirement time
+    tick_seconds(server, r_time - 0.001)
+    server.get_state(token)  # Should still be active
+    
+    # Tick the last millisecond
+    tick_seconds(server, 0.001)
+    
+    # Try to get state - should return 401
+    request = '/api/v1/game/state'
+    header = {'content-type': 'application/json', 'Authorization': f'Bearer {token}'}
+    res = server.request('GET', header, request)
+    
+    assert res.status_code == 401
+    
+    records = server.get_records()
+    assert len(records) >= 1
+    assert records[0]['name'] == 'Julius Can Standing'
+    assert records[0]['score'] == 0
+    assert math.isclose(records[0]['playTime'], r_time, rel_tol=0.1)
+    print("✓ test_retirement_one_standing_player passed")
+
+
+def test_retirement_one_player():
+    """Test that a moving player retires after stopping"""
+    print("\n=== test_retirement_one_player ===")
+    server = GameServer("127.0.0.1", 8080)
+    r_time = get_retirement_time()
+    
+    token, player_id = server.join('Julius Can Moving', "map1")
+    server.get_state(token)
+    
+    # Move around for a while
+    for _ in range(100):
+        direction = Direction.random_str()
+        server.move(token, direction)
+        server.tick(random.randint(10, int(r_time * 900)))
+    
+    state = server.get_player_state(token, player_id)
+    score = state['score']
+    
+    # Stop and wait for retirement
+    server.move(token, '')
+    tick_seconds(server, r_time)
+    
+    # Verify token is invalid
+    request = '/api/v1/game/state'
+    header = {'content-type': 'application/json', 'Authorization': f'Bearer {token}'}
+    res = server.request('GET', header, request)
+    assert res.status_code == 401
+    
+    records = server.get_records()
+    assert records[0]['name'] == 'Julius Can Moving'
+    assert math.isclose(float(records[0]['score']), score, rel_tol=0.1)
+    print("✓ test_retirement_one_player passed")
+
+
+def test_a_few_zero_records():
+    """Test with zero-score players"""
+    print("\n=== test_a_few_zero_records ===")
+    server = GameServer("127.0.0.1", 8080)
+    r_time = get_retirement_time()
+    
+    tribe = Tribe(server, "map1", r_time, num_of_players=10)
+    tribe.update_scores()
+    tick_seconds(server, r_time)
+    tribe.add_time(r_time)
+    
+    tribe_records = tribe.get_list()
+    records = server.get_records()
+    compare(records, tribe_records)
+    print("✓ test_a_few_zero_records passed")
+
+
+def test_a_few_records():
+    """Test with a few random moves"""
+    print("\n=== test_a_few_records ===")
+    server = GameServer("127.0.0.1", 8080)
+    r_time = get_retirement_time()
+    
+    tribe = Tribe(server, "map1", r_time, num_of_players=10)
+    
+    for _ in range(random.randint(100, 350)):
         tribe.randomized_move()
-
+    
     tribe.update_scores()
     tribe.stop()
-    server.tick(int(r_time * 1000))
+    tick_seconds(server, r_time)
     tribe.add_time(r_time)
+    
+    tribe_records = tribe.get_list()
+    records = server.get_records()
+    compare(records, tribe_records)
+    print("✓ test_a_few_records passed")
 
+
+def test_old_young_tribes_records():
+    """Test with two tribes of different ages"""
+    print("\n=== test_old_young_tribes_records ===")
+    server = GameServer("127.0.0.1", 8080)
+    r_time = get_retirement_time()
+    
+    old_tribe = Tribe(server, "map1", r_time, num_of_players=10, prefix='Elder')
+    
+    for _ in range(random.randint(50, 200)):
+        old_tribe.randomized_move()
+    
+    old_tribe.update_scores()
+    tick_seconds(server, r_time / 2)
+    old_tribe.add_time(r_time / 2)
+    old_tribe.stop()
+    
+    young_tribe = Tribe(server, "map1", r_time, num_of_players=10, prefix='Infant')
+    
+    for _ in range(random.randint(50, 200)):
+        young_tribe.randomized_turn()
+        ticks = random.randint(100, min(1000, int(r_time * 900)))
+        seconds = ticks / 1000
+        young_tribe.add_time(seconds)
+        old_tribe.add_time(seconds)
+        tick_seconds(server, seconds)
+    
+    young_tribe.update_scores()
+    tick_seconds(server, r_time / 2)
+    old_tribe.add_time(r_time / 2)
+    young_tribe.add_time(r_time / 2)
+    
+    records = server.get_records()
+    tribe_records = old_tribe.get_list()
+    compare(records, tribe_records)
+    print("✓ test_old_young_tribes_records passed")
+
+
+def test_a_hundred_records():
+    """Test with 100 players"""
+    print("\n=== test_a_hundred_records ===")
+    server = GameServer("127.0.0.1", 8080)
+    r_time = get_retirement_time()
+    
+    tribe = Tribe(server, "map1", r_time, num_of_players=100)
+    
+    for _ in range(random.randint(10, 35)):
+        tribe.randomized_move()
+    
+    tribe.update_scores()
+    tribe.stop()
+    tick_seconds(server, r_time)
+    tribe.add_time(r_time)
+    
     records = server.get_records()
     tribe_records = tribe.get_list()
-
     compare(records, tribe_records)
+    print("✓ test_a_hundred_records passed")
+
+
+def test_a_hundred_plus_records():
+    """Test with more than 100 players (should return only top 100)"""
+    print("\n=== test_a_hundred_plus_records ===")
+    server = GameServer("127.0.0.1", 8080)
+    r_time = get_retirement_time()
+    
+    tribe = Tribe(server, "map1", r_time, num_of_players=150)
+    
+    for _ in range(random.randint(10, 35)):
+        tribe.randomized_move()
+    
+    tribe.update_scores()
+    tribe.stop()
+    tick_seconds(server, r_time)
+    tribe.add_time(r_time)
+    
+    records = server.get_records()
+    tribe_records = tribe.get_list()[:100]
+    compare(records, tribe_records)
+    print("✓ test_a_hundred_plus_records passed")
+
+
+def test_two_sequential_tribes_records():
+    """Test with two tribes that play sequentially"""
+    print("\n=== test_two_sequential_tribes_records ===")
+    server = GameServer("127.0.0.1", 8080)
+    r_time = get_retirement_time()
+    
+    red_foxes = Tribe(server, "map1", r_time, num_of_players=50, prefix='Red fox')
+    
+    for _ in range(random.randint(10, 35)):
+        red_foxes.randomized_move()
+    
+    red_foxes.update_scores()
+    red_foxes.stop()
+    tick_seconds(server, r_time)
+    red_foxes.add_time(r_time)
+    
+    tribe_records = red_foxes.get_list()
+    records = server.get_records()
+    compare(records, tribe_records)
+    
+    orange_raccoons = Tribe(server, "map1", r_time, num_of_players=50, prefix='Orange Raccoon')
+    
+    for _ in range(random.randint(10, 35)):
+        orange_raccoons.randomized_move()
+    
+    orange_raccoons.update_scores()
+    orange_raccoons.stop()
+    tick_seconds(server, r_time)
+    orange_raccoons.add_time(r_time)
+    
+    tribe_records.extend(orange_raccoons.get_list())
+    tribe_records.sort(key=lambda x: x['score'], reverse=True)
+    
+    records = server.get_records()
+    compare(records, tribe_records)
+    print("✓ test_two_sequential_tribes_records passed")
+
+
+def test_a_records_selection():
+    """Test records pagination with start and maxItems parameters"""
+    print("\n=== test_a_records_selection ===")
+    server = GameServer("127.0.0.1", 8080)
+    r_time = get_retirement_time()
+    
+    # Random parameters
+    start = random.randint(0, 30)
+    max_items = random.randint(10, 50)
+    extra_players = random.randint(5, 60)
+    
+    print(f"DEBUG: start={start}, max_items={max_items}, extra_players={extra_players}")
+    
+    tribe = Tribe(server, "map1", r_time, num_of_players=start + extra_players)
+    
+    for _ in range(random.randint(5, 15)):
+        tribe.randomized_move()
+    
+    tribe.update_scores()
+    tribe.stop()
+    tick_seconds(server, r_time)
+    tribe.add_time(r_time)
+    
+    end = min(start + extra_players, start + max_items)
+    tribe_records = tribe.get_list()[start:end]
+    records = server.get_records(start, max_items)
+    
+    compare(records, tribe_records)
+    print("✓ test_a_records_selection passed")
+
+
+def run_all_tests():
+    """Run all tests sequentially"""
+    print("=" * 60)
+    print("STARTING ALL TESTS")
+    print("=" * 60)
+    
+    # Check server availability
+    try:
+        response = requests.get("http://127.0.0.1:8080/api/v1/maps", timeout=5)
+        print(f"Server health check: status={response.status_code}")
+        if response.status_code != 200:
+            print(f"WARNING: Server returned {response.status_code}")
+    except requests.exceptions.ConnectionError:
+        print("ERROR: Cannot connect to server! Make sure the server is running on port 8080")
+        print("Start the server with: ./game_server --config-file ./data/config.json --www-root ./static --tick-period 0")
+        return
+    except Exception as e:
+        print(f"ERROR: {e}")
+        return
+    
+    tests = [
+        ("test_clean_records", test_clean_records),
+        ("test_retirement_one_standing_player", test_retirement_one_standing_player),
+        ("test_retirement_one_player", test_retirement_one_player),
+        ("test_a_few_zero_records", test_a_few_zero_records),
+        ("test_a_few_records", test_a_few_records),
+        ("test_old_young_tribes_records", test_old_young_tribes_records),
+        ("test_a_hundred_records", test_a_hundred_records),
+        ("test_a_hundred_plus_records", test_a_hundred_plus_records),
+        ("test_two_sequential_tribes_records", test_two_sequential_tribes_records),
+        ("test_a_records_selection", test_a_records_selection),
+    ]
+    
+    passed = 0
+    failed = 0
+    
+    for test_name, test_func in tests:
+        try:
+            test_func()
+            passed += 1
+        except Exception as e:
+            print(f"\n!!! TEST {test_name} FAILED !!!")
+            print(f"Error: {e}")
+            import traceback
+            traceback.print_exc()
+            failed += 1
+        print("-" * 40)
+    
+    print("\n" + "=" * 60)
+    print(f"RESULTS: {passed} passed, {failed} failed")
+    print("=" * 60)
+
 
 if __name__ == "__main__":
-    server = GameServer("127.0.0.1", 8080)
-    test_a_hundred_records(server, "map1")
+    run_all_tests()

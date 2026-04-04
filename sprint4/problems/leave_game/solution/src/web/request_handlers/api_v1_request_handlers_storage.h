@@ -46,7 +46,7 @@ const std::unordered_set<std::string_view> GAME_API_URLS_WITH_JSON_REQ = {
 const std::string CONTENT_TYPE_APPLICATION_JSON = "application/json";
 const std::string NO_CACHE_CONTROL = "no-cache";
 
-
+// BadRequestActivator
 template <typename Request>
 bool BadRequestActivator(const Request& req) {
     auto url = SplitUrl(req.target());
@@ -84,7 +84,7 @@ std::optional<size_t> BadRequestHandler(
     return std::nullopt;
 };
 
-
+// GetMapListActivator
 template <typename Request>
 bool GetMapListActivator(const Request& req) {
     return IsEqualUrls(api_urls::GET_MAPS_LIST_API, req.target());
@@ -105,7 +105,7 @@ std::optional<size_t> GetMapListHandler(
     return std::nullopt;
 }
 
-
+// GetMapByIdActivator
 template <typename Request>
 bool GetMapByIdActivator(const Request& req) {
     auto url = SplitUrl(req.target());
@@ -150,7 +150,7 @@ std::optional<size_t> MapNotFoundHandler(
     return std::nullopt;
 };
 
-
+// JoinToGame handlers
 template <typename Request>
 bool JoinToGameInvalidJsonReqActivator(const Request& req) {
     return IsEqualUrls(api_urls::JOIN_TO_GAME_API, req.target()) &&
@@ -171,7 +171,6 @@ std::optional<size_t> JoinToGameInvalidJsonReqHandler(
     send(response);
     return std::nullopt;
 }
-
 
 template <typename Request>
 bool JoinToGameEmptyPlayerNameActivator(const Request& req) {
@@ -200,7 +199,6 @@ std::optional<size_t> JoinToGameEmptyPlayerNameHandler(
     send(response);
     return std::nullopt;
 }
-
 
 template <typename Request>
 bool JoinToGameActivator(const Request& req) {
@@ -273,11 +271,17 @@ std::optional<size_t> OnlyPostMethodAllowedHandler(
     return std::nullopt;
 };
 
-
+// EmptyAuthorizationActivator
 template <typename Request>
 bool EmptyAuthorizationActivator(const Request& req) {
-    return (GAME_API_URLS_WITH_AUTHORIZATION.count(req.target()) > 0) &&
-            (req[http::field::authorization].empty() ||
+    bool requires_auth = (GAME_API_URLS_WITH_AUTHORIZATION.count(req.target()) > 0);
+    
+    if (IsEqualUrls(api_urls::GET_RECORDS_API, req.target())) {
+        requires_auth = false;
+    }
+    
+    return requires_auth &&
+           (req[http::field::authorization].empty() ||
             GetTokenString(req[http::field::authorization]).empty());
 }
 
@@ -296,7 +300,7 @@ std::optional<size_t> EmptyAuthorizationHandler(
     return std::nullopt;
 }
 
-
+// GetPlayersList
 template <typename Request>
 bool GetPlayersListActivator(const Request& req) {
     return IsEqualUrls(api_urls::GET_PLAYERS_LIST_API, req.target());
@@ -350,7 +354,7 @@ std::optional<size_t> InvalidMethodHandler(
     return std::nullopt;
 };
 
-
+// GetGameState
 template <typename Request>
 bool GetGameStateActivator(const Request& req) {
     return IsEqualUrls(api_urls::GET_GAME_STATE_API, req.target());
@@ -391,7 +395,7 @@ std::optional<size_t> GetGameStateHandler(
     return std::nullopt;
 }
 
-
+// InvalidContentType
 template <typename Request>
 bool InvalidContentTypeActivator(const Request& req) {
     return (GAME_API_URLS_WITH_JSON_REQ.count(req.target()) > 0) &&
@@ -414,6 +418,7 @@ std::optional<size_t> InvalidContentTypeHandler(
     return std::nullopt;
 }
 
+// PlayerAction
 template <typename Request>
 bool PlayerActionInvalidActionActivator(const Request& req) {
     if(IsEqualUrls(api_urls::MAKE_ACTION_API, req.target())) {
@@ -479,7 +484,6 @@ std::optional<size_t> PlayerActionHandler(
     return res;
 }
 
-
 template <typename Request, typename Send>
 std::optional<size_t> UnknownTokenHandler(
         const Request& req,
@@ -495,7 +499,7 @@ std::optional<size_t> UnknownTokenHandler(
     return std::nullopt;
 }
 
-
+// PageNotFoundHandler - ОДНА ВЕРСИЯ (удалите дубликат)
 template <typename Request, typename Send>
 std::optional<size_t> PageNotFoundHandler(
         const Request& req,
@@ -510,7 +514,7 @@ std::optional<size_t> PageNotFoundHandler(
     return std::nullopt;
 };
 
-
+// TimeTick handlers
 template <typename Request>
 bool TimeTickInvalidMsgActivator(const Request& req) {
     if(IsEqualUrls(api_urls::MAKE_TIME_TICK_API, req.target())) {
@@ -544,7 +548,6 @@ std::optional<size_t> TimeTickInvalidMsgHandler(
     send(response);
     return std::nullopt;
 }
-
 
 template <typename Request>
 bool TimeTickActivator(const Request& req) {
@@ -593,9 +596,7 @@ std::optional<size_t> InvalidEndpointHandler(
     return std::nullopt;
 }
 
-
-// ============ GET /api/v1/game/records ============
-
+// GetRecords
 template <typename Request>
 bool GetRecordsActivator(const Request& req) {
     auto url = SplitUrl(req.target());

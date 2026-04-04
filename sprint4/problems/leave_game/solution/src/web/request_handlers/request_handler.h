@@ -37,7 +37,7 @@ public:
             .Execute(req, static_content_root_path_, std::move(send))) {
             return;
         };
-        rh_storage::PageNotFoundHandler(req, application_, send);
+        rh_storage::BadRequestHandler(req, application_, send);
     }
 
 private:
