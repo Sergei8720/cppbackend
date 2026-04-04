@@ -1,10 +1,10 @@
 #pragma once
 #include "application.h"
-#include "player_tokens.h"
+#include "token_generator.h"
 #include "json_converter.h"
 #include "request_handlers_utils.h"
 #include "api_url_storage.h"
-#include "database/database.h"
+#include "url_invariants.h"
 
 #include <vector>
 #include <optional>
@@ -14,6 +14,8 @@
 #include <sstream>
 #include <boost/beast/http.hpp>
 #include <boost/thread/future.hpp>
+#include <boost/url/url_view.hpp>
+#include <boost/url/parse.hpp>
 
 namespace rh_storage{
 
@@ -27,6 +29,7 @@ const size_t SIZE_OF_THREE_SEGMENT_URL = 3;
 const size_t SIZE_OF_FOUR_SEGMENT_URL = 4;
 const size_t SIZE_OF_FIVE_SEGMENT_URL = 5;
 
+// URLs которые требуют авторизации - records НЕ должен быть здесь!
 const std::unordered_set<std::string_view> GAME_API_URLS_WITH_AUTHORIZATION = {
     api_urls::GET_PLAYERS_LIST_API,
     api_urls::GET_PLAYERS_LIST_API + "/",
@@ -46,10 +49,10 @@ const std::unordered_set<std::string_view> GAME_API_URLS_WITH_JSON_REQ = {
 const std::string CONTENT_TYPE_APPLICATION_JSON = "application/json";
 const std::string NO_CACHE_CONTROL = "no-cache";
 
-// BadRequestActivator
+
 template <typename Request>
 bool BadRequestActivator(const Request& req) {
-    auto url = SplitUrl(req.target());
+    auto url = SplitUrl(boost::urls::url_view{req.target()}.path());
     return !url.empty() &&
             url[0] == "api" &&
             (
@@ -84,7 +87,7 @@ std::optional<size_t> BadRequestHandler(
     return std::nullopt;
 };
 
-// GetMapListActivator
+
 template <typename Request>
 bool GetMapListActivator(const Request& req) {
     return IsEqualUrls(api_urls::GET_MAPS_LIST_API, req.target());
@@ -105,7 +108,7 @@ std::optional<size_t> GetMapListHandler(
     return std::nullopt;
 }
 
-// GetMapByIdActivator
+
 template <typename Request>
 bool GetMapByIdActivator(const Request& req) {
     auto url = SplitUrl(req.target());
@@ -122,13 +125,13 @@ std::optional<size_t> GetMapByIdHandler(
         Send&& send) {
     auto id = SplitUrl(req.target())[3];
     auto map = application->FindMap(model::Map::Id(std::string(id)));
-    if(map == nullptr) {
+    if(!map) {
         return 0;
     }
     http::response<http::string_body> response(http::status::ok, req.version());
     response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
     response.set(http::field::cache_control, NO_CACHE_CONTROL);
-    response.body() = json_converter::ConvertMapToJson(*map);
+    response.body() = json_converter::ConvertMapToJson(**map);
     response.content_length(response.body().size());
     response.keep_alive(req.keep_alive());
     send(response);
@@ -150,7 +153,7 @@ std::optional<size_t> MapNotFoundHandler(
     return std::nullopt;
 };
 
-// JoinToGame handlers
+
 template <typename Request>
 bool JoinToGameInvalidJsonReqActivator(const Request& req) {
     return IsEqualUrls(api_urls::JOIN_TO_GAME_API, req.target()) &&
@@ -171,6 +174,7 @@ std::optional<size_t> JoinToGameInvalidJsonReqHandler(
     send(response);
     return std::nullopt;
 }
+
 
 template <typename Request>
 bool JoinToGameEmptyPlayerNameActivator(const Request& req) {
@@ -200,6 +204,7 @@ std::optional<size_t> JoinToGameEmptyPlayerNameHandler(
     return std::nullopt;
 }
 
+
 template <typename Request>
 bool JoinToGameActivator(const Request& req) {
     return IsEqualUrls(api_urls::JOIN_TO_GAME_API, req.target());
@@ -211,7 +216,7 @@ std::optional<size_t> JoinToGameHandler(
         std::shared_ptr<app::Application> application,
         Send&& send) {
     auto [player_name, map_id] = json_converter::ParseJoinToGameRequest(req.body()).value();
-    if(application->FindMap(map_id) == nullptr) {
+    if(!application->FindMap(map_id)) {
         return 0;
     }
     StringResponse response(http::status::ok, req.version());
@@ -219,7 +224,7 @@ std::optional<size_t> JoinToGameHandler(
     if(session) {
         boost::promise<std::string> res_promise;
         auto res_future = res_promise.get_future();
-        net::dispatch(*(session->GetStrand()),
+        net::dispatch(*(session.value()->GetStrand()),
             [&res_promise
             , application
             , &player_name
@@ -271,17 +276,15 @@ std::optional<size_t> OnlyPostMethodAllowedHandler(
     return std::nullopt;
 };
 
-// EmptyAuthorizationActivator
+
 template <typename Request>
 bool EmptyAuthorizationActivator(const Request& req) {
-    bool requires_auth = (GAME_API_URLS_WITH_AUTHORIZATION.count(req.target()) > 0);
-    
+    // records не требует авторизации!
     if (IsEqualUrls(api_urls::GET_RECORDS_API, req.target())) {
-        requires_auth = false;
+        return false;
     }
-    
-    return requires_auth &&
-           (req[http::field::authorization].empty() ||
+    return (GAME_API_URLS_WITH_AUTHORIZATION.count(req.target()) > 0) &&
+            (req[http::field::authorization].empty() ||
             GetTokenString(req[http::field::authorization]).empty());
 }
 
@@ -300,7 +303,7 @@ std::optional<size_t> EmptyAuthorizationHandler(
     return std::nullopt;
 }
 
-// GetPlayersList
+
 template <typename Request>
 bool GetPlayersListActivator(const Request& req) {
     return IsEqualUrls(api_urls::GET_PLAYERS_LIST_API, req.target());
@@ -317,12 +320,13 @@ std::optional<size_t> GetPlayersListHandler(
     }
     boost::promise<std::variant<std::string, size_t>> res_promise;
     auto res_future = res_promise.get_future();
-    net::dispatch(*(application->FindGameSessionBy(token)->GetStrand()),
+    net::dispatch(*(application->FindGameSessionBy(token).value()->GetStrand()),
         [&res_promise
         , &token
         , application]{
-        auto players = application->GetPlayersFromGameSession(token);
-        res_promise.set_value(json_converter::CreatePlayersListOnMapResponse(players));
+        res_promise.set_value(
+            json_converter::CreatePlayersListOnMapResponse(application->GetPlayersFromGameSession(token))
+        );
     });
     auto res = res_future.get();
     if(std::holds_alternative<size_t>(res)){
@@ -354,7 +358,7 @@ std::optional<size_t> InvalidMethodHandler(
     return std::nullopt;
 };
 
-// GetGameState
+
 template <typename Request>
 bool GetGameStateActivator(const Request& req) {
     return IsEqualUrls(api_urls::GET_GAME_STATE_API, req.target());
@@ -369,16 +373,21 @@ std::optional<size_t> GetGameStateHandler(
     if(!application->IsExistPlayer(token)) {
         return 0;
     }
+    
     boost::promise<std::variant<std::string, size_t>> res_promise;
     auto res_future = res_promise.get_future();
-    net::dispatch(*(application->FindGameSessionBy(token)->GetStrand()),
+    net::dispatch(*(application->FindGameSessionBy(token).value()->GetStrand()),
         [&res_promise
         , &token
         , application] {
-        auto players = application->GetPlayersFromGameSession(token);
+        auto session = application->FindGameSessionBy(token);
+        if(!session) {
+            res_promise.set_value(0ul);
+            return;    
+        }
         res_promise.set_value(json_converter::CreateGameStateResponse(
-            players,
-            application->FindGameSessionBy(token)->GetLostObjects())
+            application->GetPlayersFromGameSession(token),
+            session.value()->GetLostObjects())
         );
     });
     auto res = res_future.get();
@@ -395,7 +404,7 @@ std::optional<size_t> GetGameStateHandler(
     return std::nullopt;
 }
 
-// InvalidContentType
+
 template <typename Request>
 bool InvalidContentTypeActivator(const Request& req) {
     return (GAME_API_URLS_WITH_JSON_REQ.count(req.target()) > 0) &&
@@ -418,7 +427,6 @@ std::optional<size_t> InvalidContentTypeHandler(
     return std::nullopt;
 }
 
-// PlayerAction
 template <typename Request>
 bool PlayerActionInvalidActionActivator(const Request& req) {
     if(IsEqualUrls(api_urls::MAKE_ACTION_API, req.target())) {
@@ -461,7 +469,7 @@ std::optional<size_t> PlayerActionHandler(
     }
     boost::promise<std::optional<size_t>> res_promise;
     auto res_future = res_promise.get_future();
-    net::dispatch(*(application->FindGameSessionBy(token)->GetStrand()),
+    net::dispatch(*(application->FindGameSessionBy(token).value()->GetStrand()),
         [&res_promise
         , &token
         , &req
@@ -484,6 +492,7 @@ std::optional<size_t> PlayerActionHandler(
     return res;
 }
 
+
 template <typename Request, typename Send>
 std::optional<size_t> UnknownTokenHandler(
         const Request& req,
@@ -499,7 +508,7 @@ std::optional<size_t> UnknownTokenHandler(
     return std::nullopt;
 }
 
-// PageNotFoundHandler - ОДНА ВЕРСИЯ (удалите дубликат)
+
 template <typename Request, typename Send>
 std::optional<size_t> PageNotFoundHandler(
         const Request& req,
@@ -514,7 +523,7 @@ std::optional<size_t> PageNotFoundHandler(
     return std::nullopt;
 };
 
-// TimeTick handlers
+
 template <typename Request>
 bool TimeTickInvalidMsgActivator(const Request& req) {
     if(IsEqualUrls(api_urls::MAKE_TIME_TICK_API, req.target())) {
@@ -530,14 +539,7 @@ std::optional<size_t> TimeTickInvalidMsgHandler(
         std::shared_ptr<app::Application> application,
         Send&& send) {
     if(!application->IsManualTimeManagement()) {
-        StringResponse response(http::status::bad_request, req.version());
-        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
-        response.set(http::field::cache_control, NO_CACHE_CONTROL);
-        response.body() = json_converter::CreateBadRequestResponse();
-        response.content_length(response.body().size());
-        response.keep_alive(req.keep_alive());
-        send(response);
-        return std::nullopt;
+        return 0;
     }
     StringResponse response(http::status::bad_request, req.version());
     response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
@@ -548,6 +550,7 @@ std::optional<size_t> TimeTickInvalidMsgHandler(
     send(response);
     return std::nullopt;
 }
+
 
 template <typename Request>
 bool TimeTickActivator(const Request& req) {
@@ -560,14 +563,7 @@ std::optional<size_t> TimeTickHandler(
         std::shared_ptr<app::Application> application,
         Send&& send) {
     if(!application->IsManualTimeManagement()) {
-        StringResponse response(http::status::bad_request, req.version());
-        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
-        response.set(http::field::cache_control, NO_CACHE_CONTROL);
-        response.body() = json_converter::CreateBadRequestResponse();
-        response.content_length(response.body().size());
-        response.keep_alive(req.keep_alive());
-        send(response);
-        return std::nullopt;
+        return 0;
     }
     std::chrono::milliseconds dtime(json_converter::ParseSetDeltaTimeRequest(req.body()).value());
     application->UpdateGameState(dtime);
@@ -596,16 +592,11 @@ std::optional<size_t> InvalidEndpointHandler(
     return std::nullopt;
 }
 
-// GetRecords
+// ============ GET /api/v1/game/records ============
+
 template <typename Request>
 bool GetRecordsActivator(const Request& req) {
-    auto url = SplitUrl(req.target());
-    std::string base_url = api_urls::GET_RECORDS_API;
-    if (req.target().find('?') != std::string::npos) {
-        std::string target_without_query = std::string(req.target().substr(0, req.target().find('?')));
-        return IsEqualUrls(base_url, target_without_query);
-    }
-    return IsEqualUrls(base_url, req.target());
+    return IsEqualUrls(api_urls::GET_RECORDS_API, boost::urls::url_view{req.target()}.path());
 }
 
 template <typename Request, typename Send>
@@ -613,37 +604,20 @@ std::optional<size_t> GetRecordsHandler(
         const Request& req,
         std::shared_ptr<app::Application> application,
         Send&& send) {
-    
-    int start = 0;
-    int maxItems = 100;
-    
-    std::string target(req.target());
-    auto question_pos = target.find('?');
-    if (question_pos != std::string::npos) {
-        std::string query = target.substr(question_pos + 1);
-        std::stringstream ss(query);
-        std::string param;
-        while (std::getline(ss, param, '&')) {
-            auto eq_pos = param.find('=');
-            if (eq_pos != std::string::npos) {
-                std::string key = param.substr(0, eq_pos);
-                std::string value = param.substr(eq_pos + 1);
-                if (key == "start") {
-                    try {
-                        start = std::stoi(value);
-                        if (start < 0) start = 0;
-                    } catch (...) {}
-                } else if (key == "maxItems") {
-                    try {
-                        maxItems = std::stoi(value);
-                        if (maxItems < 0) maxItems = 0;
-                    } catch (...) {}
-                }
-            }
-        }
+    std::optional<size_t> offset;
+    std::optional<size_t> limit;
+    auto params = boost::urls::url_view{req.target()}.params();
+
+    if(params.contains(url_invariants::URL_PARAMETER_START)){
+        offset = GetValueFromUrlParameter<size_t>(params, url_invariants::URL_PARAMETER_START);
+    }
+
+    if(params.contains(url_invariants::URL_PARAMETER_MAX_ITEMS)){
+        limit = GetValueFromUrlParameter<size_t>(params, url_invariants::URL_PARAMETER_MAX_ITEMS);
     }
     
-    if (maxItems > 100) {
+    auto records_table = application->GetRecordsTable(offset, limit);
+    if(!records_table) {
         StringResponse response(http::status::bad_request, req.version());
         response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
         response.set(http::field::cache_control, NO_CACHE_CONTROL);
@@ -654,36 +628,13 @@ std::optional<size_t> GetRecordsHandler(
         return std::nullopt;
     }
     
-    auto pool = application->GetConnectionPool();
-    if (!pool) {
-        StringResponse response(http::status::ok, req.version());
-        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
-        response.set(http::field::cache_control, NO_CACHE_CONTROL);
-        response.body() = "[]";
-        response.content_length(response.body().size());
-        response.keep_alive(req.keep_alive());
-        send(response);
-        return std::nullopt;
-    }
-    
-    try {
-        auto records = database::Database::GetRecords(pool, start, maxItems);
-        StringResponse response(http::status::ok, req.version());
-        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
-        response.set(http::field::cache_control, NO_CACHE_CONTROL);
-        response.body() = json_converter::ConvertRecordsToJson(records);
-        response.content_length(response.body().size());
-        response.keep_alive(req.keep_alive());
-        send(response);
-    } catch (const std::exception& e) {
-        StringResponse response(http::status::internal_server_error, req.version());
-        response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
-        response.set(http::field::cache_control, NO_CACHE_CONTROL);
-        response.body() = json_converter::CreateInternalServerErrorResponse();
-        response.content_length(response.body().size());
-        response.keep_alive(req.keep_alive());
-        send(response);
-    }
+    StringResponse response(http::status::ok, req.version());
+    response.set(http::field::content_type, CONTENT_TYPE_APPLICATION_JSON);
+    response.set(http::field::cache_control, NO_CACHE_CONTROL);
+    response.body() = json_converter::CreateRecordsTableResponse(*records_table);
+    response.content_length(response.body().size());
+    response.keep_alive(req.keep_alive());
+    send(response);
     return std::nullopt;
 }
 
