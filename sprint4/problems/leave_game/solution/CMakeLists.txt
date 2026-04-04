@@ -104,6 +104,7 @@ target_include_directories(database_retirement_lib PUBLIC
     src/retirement
 )
 
+# ДОБАВЛЯЕМ ЛИНКОВКУ С BOOST ДЛЯ ЛОГГЕРА
 target_link_libraries(database_retirement_lib PUBLIC CONAN_PKG::boost)
 
 # Проверяем, существуют ли библиотеки libpq и libpqxx (опционально)

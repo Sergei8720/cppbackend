@@ -4,7 +4,6 @@
 #include "model_key_storage.h"
 #include "loot_generator_config.h"
 #include "json_model_converter.h"
-#include "dog.h"  // <-- ДОБАВИТЬ ЭТОТ INCLUDE
 
 #include <fstream>
 #include <string_view>
@@ -52,10 +51,9 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
         game.SetDefaultBagCapacity(default_bag_capacity);
     } catch(boost::wrapexcept<std::out_of_range>& e) {}
     
-    // ИСПРАВЛЕНО: вызываем Dog::SetMaxInactiveTime
     try {
         double dog_retirement_time = boost::json::value_to<double>(jsonVal.as_object().at(model::DOG_RETIREMENT_TIME));
-        model::Dog::SetMaxInactiveTime(static_cast<size_t>(dog_retirement_time));
+        game.SetDogRetirementTime(dog_retirement_time);
     } catch(boost::wrapexcept<std::out_of_range>& e) {}
     
     return game;
