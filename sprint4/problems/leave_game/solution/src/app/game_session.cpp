@@ -348,7 +348,6 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     }
 }
 
-// НОВЫЙ МЕТОД: обновление активности собаки
 void GameSession::UpdateDogActivity(uint64_t dog_id, const TimePoint& now) {
     retirement_tracker_.UpdateActivity(dog_id, now);
     BOOST_LOG_TRIVIAL(debug) << "Dog " << dog_id << " activity updated at " 

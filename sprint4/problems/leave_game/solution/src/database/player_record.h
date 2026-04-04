@@ -5,10 +5,10 @@
 namespace database {
 
 struct PlayerRecord {
-    int64_t id_uuid;      // ИЗМЕНЕНО: std::string -> int64_t (ID собаки)
-    std::string name;      // Кличка собаки
-    int64_t score;         // Набранные очки
-    int64_t play_time_ms;  // Время в игре в миллисекундах
+    int64_t id_uuid;      // ИЗМЕНЕНО: std::string -> int64_t
+    std::string name;
+    int64_t score;
+    int64_t play_time_ms;
     
     PlayerRecord() = default;
     

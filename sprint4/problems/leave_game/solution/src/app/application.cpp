@@ -145,7 +145,6 @@ void Application::SetPlayerAction(const authentication::Token& token, model::Dir
     auto new_vel = dog->GetVelocity();
     BOOST_LOG_TRIVIAL(info) << "  Result velocity: (" << new_vel.vx << "," << new_vel.vy << ")";
     
-    // ========== ДОБАВЛЕННЫЙ БЛОК ==========
     // Обновляем активность собаки при любом действии игрока
     auto session = player->GetGameSession();
     if (session) {
@@ -154,7 +153,6 @@ void Application::SetPlayerAction(const authentication::Token& token, model::Dir
         BOOST_LOG_TRIVIAL(debug) << "Updated activity for dog " << *dog->GetId() 
                                  << " due to player action";
     }
-    // =======================================
 };
 
 bool Application::IsManualTimeManagement() {
@@ -393,8 +391,8 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token,
     
     if (db_pool_) {
         try {
-            // ИЗМЕНЕНО: используем число напрямую, а не преобразуем в строку
-            int64_t uuid = *dog->GetId();  // ← было: std::string uuid = std::to_string(*dog->GetId());
+            // ИЗМЕНЕНО: используем число напрямую
+            int64_t uuid = *dog->GetId();
             
             database::PlayerRecord record{
                 uuid,
