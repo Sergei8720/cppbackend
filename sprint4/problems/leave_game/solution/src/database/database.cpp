@@ -90,7 +90,7 @@ std::vector<PlayerRecord> Database::GetRecords(std::shared_ptr<ConnectionPool> p
     
     for (const auto& row : result) {
         records.emplace_back(
-            row[0].as<int64_t>(),      // ИЗМЕНЕНО: as<std::string>() -> as<int64_t>()
+            row[0].as<int64_t>(),
             row[1].as<std::string>(),
             row[2].as<int64_t>(),
             row[3].as<int64_t>()

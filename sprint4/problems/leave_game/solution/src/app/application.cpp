@@ -93,7 +93,6 @@ void Application::BoundPlayerAndGameSession(std::shared_ptr<Player> player,
     dog_game_time_[dog_id] = std::chrono::milliseconds{0};
     dog_inactive_time_[dog_id] = std::chrono::milliseconds{0};
     
-    // Сохраняем время присоединения игрока
     player->SetJoinTime(std::chrono::steady_clock::now());
 };
 
@@ -145,7 +144,6 @@ void Application::SetPlayerAction(const authentication::Token& token, model::Dir
     auto new_vel = dog->GetVelocity();
     BOOST_LOG_TRIVIAL(info) << "  Result velocity: (" << new_vel.vx << "," << new_vel.vy << ")";
     
-    // Обновляем активность собаки при любом действии игрока
     auto session = player->GetGameSession();
     if (session) {
         auto now = std::chrono::steady_clock::now();
@@ -167,12 +165,10 @@ void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
         auto res_future = res_promise.get_future();
         net::dispatch(*(session->GetStrand()),
             [this, session, &delta_time, &res_promise] {
-                // Обновляем время игры для каждой собаки
                 for (const auto& dog_pair : session->GetDogs()) {
                     uint64_t dog_id = *dog_pair.first;
                     auto dog = dog_pair.second;
                     
-                    // Накопление общего времени игры собаки
                     auto it = dog_game_time_.find(dog_id);
                     if (it != dog_game_time_.end()) {
                         it->second += delta_time;
@@ -180,7 +176,6 @@ void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
                         dog_game_time_[dog_id] = delta_time;
                     }
                     
-                    // Отслеживание времени бездействия
                     bool is_active = (dog->GetVelocity().vx != 0 || dog->GetVelocity().vy != 0);
                     auto inactive_it = dog_inactive_time_.find(dog_id);
                     if (inactive_it != dog_inactive_time_.end()) {
@@ -204,9 +199,6 @@ void Application::UpdateGameState(const std::chrono::milliseconds& delta_time) {
     if (saving_settings_.period.has_value() && saving_settings_.period.value().count() > 0) {
         static std::chrono::milliseconds elapsed_since_last_save{0};
         elapsed_since_last_save += delta_time;
-        
-        BOOST_LOG_TRIVIAL(debug) << "Save check: elapsed=" << elapsed_since_last_save.count() 
-                                 << "ms, period=" << saving_settings_.period.value().count() << "ms";
         
         if (elapsed_since_last_save >= saving_settings_.period.value()) {
             BOOST_LOG_TRIVIAL(info) << "Periodic save triggered! elapsed=" 
@@ -369,6 +361,7 @@ std::vector<game_data_ser::GameSessionSerialization> Application::GetSerializedD
     return sessions_ser;
 };
 
+// ИЗМЕНЕННЫЙ МЕТОД
 void Application::RemovePlayerAndSaveRecord(const authentication::Token& token, 
                                              std::shared_ptr<Player> player,
                                              int64_t play_time_ms) {
@@ -401,7 +394,7 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token,
                 play_time_ms
             };
             
-            BOOST_LOG_TRIVIAL(info) << "  Saving to DB: uuid=" << uuid
+            BOOST_LOG_TRIVIAL(info) << "  Saving to DB: id=" << uuid
                                     << " name=" << record.name
                                     << " score=" << record.score
                                     << " play_time_ms=" << record.play_time_ms;

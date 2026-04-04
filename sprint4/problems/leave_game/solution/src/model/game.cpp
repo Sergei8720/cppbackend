@@ -80,10 +80,13 @@ size_t Game::GetDefaultBagCapacity() const noexcept {
 
 void Game::SetDogRetirementTime(double seconds) {
     dog_retirement_time_ = std::abs(seconds);
+    BOOST_LOG_TRIVIAL(info) << "Dog retirement time set to " << dog_retirement_time_.value() << " seconds";
 }
 
 double Game::GetDogRetirementTime() const noexcept {
-    return dog_retirement_time_ ? dog_retirement_time_.value() : 60.0;
+    double result = dog_retirement_time_ ? dog_retirement_time_.value() : 60.0;
+    BOOST_LOG_TRIVIAL(debug) << "GetDogRetirementTime returning " << result << " seconds";
+    return result;
 }
 
-}
+} // namespace model
