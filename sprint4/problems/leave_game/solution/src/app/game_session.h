@@ -101,7 +101,7 @@ private:
     // Для отслеживания позиции собак
     std::unordered_map<uint64_t, geom::Point2D> dog_previous_positions_;
     
-    // НОВОЕ ПОЛЕ: накопленное время простоя для каждой собаки (НЕ STATIC!)
+    // Накопленное время простоя для каждой собаки
     std::unordered_map<uint64_t, TimeInterval> dog_idle_accumulated_time_;
     
     void GenerateLoot(const TimeInterval& delta_time);

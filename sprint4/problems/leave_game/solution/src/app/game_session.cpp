@@ -117,7 +117,6 @@ void GameSession::UpdateGameState(const TimeInterval& delta_time) {
     }
     
     // ===== ШАГ 1: СНАЧАЛА проверяем устаревших собак =====
-    // (используем время из предыдущих тиков, когда собака уже стояла)
     CheckAndRetireDogs(delta_time);
     
     // Сохраняем старые позиции для определения движения
@@ -153,8 +152,8 @@ void GameSession::UpdateGameState(const TimeInterval& delta_time) {
                                          << new_position.x << "," << new_position.y << ")";
             }
         } else if (old_velocity.vx != 0 || old_velocity.vy != 0) {
-            // Собака пыталась двигаться, но уперлась в стену - останавливается
-            // НЕ начисляем время простоя в этом тике, но и не сбрасываем
+            // Собака пыталась двигаться, но уперлась в стену
+            // НЕ начисляем время простоя в этом тике
             auto now = std::chrono::steady_clock::now();
             retirement_tracker_.UpdateActivity(*dog_id, now);
             
@@ -175,6 +174,11 @@ void GameSession::UpdateGameState(const TimeInterval& delta_time) {
             if (!did_move) {
                 // Собака стояла весь тик - НАЧИСЛЯЕМ время простоя
                 dog_idle_accumulated_time_[*dog_id] += delta_time;
+                
+                if (call_count % 10 == 0) {
+                    BOOST_LOG_TRIVIAL(debug) << "Dog " << *dog_id << " idle accumulated: " 
+                                             << dog_idle_accumulated_time_[*dog_id].count() << "ms";
+                }
             }
         }
     }
@@ -304,7 +308,7 @@ std::shared_ptr<Player> GameSession::FindOwnerByDogId(uint64_t dog_id) const {
     return nullptr;
 }
 
-// ============ ПРОВЕРКА УСТАРЕВШИХ СОБАК (БЕЗ STATIC!) ============
+// ============ ПРОВЕРКА УСТАРЕВШИХ СОБАК ============
 void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     static int check_count = 0;
     check_count++;
@@ -325,7 +329,7 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
             continue;
         }
         
-        // Проверяем, не устарела ли собака
+        // Проверяем накопленное время простоя
         auto it = dog_idle_accumulated_time_.find(*dog_id);
         if (it == dog_idle_accumulated_time_.end()) {
             continue;
@@ -341,6 +345,10 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
             
             dogs_to_remove.push_back(dog_id);
             players_to_remove.push_back(owner);
+        } else if (check_count % 50 == 0) {
+            BOOST_LOG_TRIVIAL(debug) << "Dog " << *dog_id << " (" << dog->GetName() << "):"
+                                     << " idle_time=" << it->second.count() << "ms"
+                                     << " timeout=" << dog_retirement_timeout_.count() << "ms";
         }
     }
     
@@ -355,8 +363,7 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
         const auto& player = players_to_remove[i];
         auto dog = dogs_[dog_id];
         
-        // Общее время игры = накопленное время простоя (для простоты)
-        // В реальности нужно считать от момента входа, но для тестов сойдет
+        // Общее время игры = накопленное время (с момента создания)
         auto total_play_time_ms = dog_idle_accumulated_time_[*dog_id].count();
         
         BOOST_LOG_TRIVIAL(info) << "Retiring player: " << player->GetName()
@@ -371,7 +378,9 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
         }
         
         if (retirement_callback_ && token.has_value()) {
+            BOOST_LOG_TRIVIAL(info) << "Calling retirement callback for " << player->GetName();
             retirement_callback_(token.value(), *player->GetId(), total_play_time_ms);
+            BOOST_LOG_TRIVIAL(info) << "Retirement callback completed";
         } else {
             BOOST_LOG_TRIVIAL(warning) << "Cannot retire: callback=" << (retirement_callback_ ? "yes" : "no")
                                        << " token=" << (token.has_value() ? "yes" : "no");
