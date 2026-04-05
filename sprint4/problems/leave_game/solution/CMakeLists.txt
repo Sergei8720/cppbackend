@@ -72,10 +72,6 @@ add_executable(game_server
     src/app/application.cpp
     src/app/game_session.cpp
     src/app/player.cpp
-    src/middleware/game_data_store/dog_serialization.cpp
-    src/middleware/game_data_store/game_session_serialization.cpp
-    src/middleware/game_data_store/lost_object_serialization.cpp
-    src/middleware/game_data_store/player_serialization.cpp
     src/middleware/game_data_store/state_serializer.cpp
     src/database/connection_pool.cpp
     src/database/database.cpp

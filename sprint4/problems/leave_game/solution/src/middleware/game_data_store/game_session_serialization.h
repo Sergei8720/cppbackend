@@ -12,7 +12,7 @@ namespace game_data_ser {
 class GameSessionSerialization {
 public:
     GameSessionSerialization() = default;
-    
+
     GameSessionSerialization(
         const app::GameSession& game_session,
         const std::unordered_map<authentication::Token, std::shared_ptr<app::Player>,
@@ -36,11 +36,11 @@ public:
     [[nodiscard]] model::Map::Id RestoreMapId() const {
         return model::Map::Id(map_id_);
     }
-    
+
     [[nodiscard]] const std::vector<LostObjectSerialization>& GetLostObjectsSerialize() const {
         return lost_objects_;
     }
-    
+
     [[nodiscard]] const std::vector<PlayerSerialization>& GetPlayersSerialize() const {
         return players_ser_;
     }
@@ -51,7 +51,7 @@ public:
         ar& players_ser_;
         ar& lost_objects_;
     }
-    
+
 private:
     std::string map_id_;
     std::vector<PlayerSerialization> players_ser_;

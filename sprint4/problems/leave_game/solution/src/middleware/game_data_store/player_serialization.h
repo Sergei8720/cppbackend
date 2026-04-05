@@ -9,7 +9,7 @@ namespace game_data_ser {
 class PlayerSerialization {
 public:
     PlayerSerialization() = default;
-    
+
     PlayerSerialization(const app::Player& player, const authentication::Token& token)
         : id_(*player.GetId())
         , name_(player.GetName())
@@ -33,15 +33,15 @@ public:
         ));
         return player;
     }
-    
+
     [[nodiscard]] model::Dog RestoreDog() const {
         return dog_ser_.Restore();
     }
-    
+
     [[nodiscard]] authentication::Token RestoreToken() const {
         return authentication::Token(token_);
     }
-    
+
     [[nodiscard]] int64_t GetJoinTimeNs() const {
         return join_time_ns_;
     }
@@ -54,7 +54,7 @@ public:
         ar& token_;
         ar& join_time_ns_;
     }
-    
+
 private:
     size_t id_;
     std::string name_;
