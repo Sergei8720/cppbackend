@@ -102,6 +102,9 @@ target_link_libraries(game_server PRIVATE
 
 
 include(CTest)
+find_package(Catch2 REQUIRED)
+include(Catch)
+
 add_executable(game_server_tests
     tests/loot-generator-tests.cpp
     tests/collision-detector-tests.cpp
