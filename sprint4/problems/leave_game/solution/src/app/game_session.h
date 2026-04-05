@@ -64,6 +64,7 @@ public:
     void AddPlayer(std::shared_ptr<Player> player);
     const std::vector<std::shared_ptr<Player>>& GetPlayers() const { return players_; }
     const Dogs& GetDogs() const { return dogs_; }
+	const size_t ONE_MINUTE_IN_SECONDS = 60;
 
     void RestoreDog(std::shared_ptr<model::Dog> dog) {
         dogs_[dog->GetId()] = dog;
@@ -78,6 +79,9 @@ public:
 
     void UpdateDogActivity(uint64_t dog_id, const TimePoint& now);
 
+	void AddRemoveInactivePlayersHandler(std::function<void(const GameSession::Id&)> handler);
+	void AddHandlingFinishedPlayersEvent(std::function<void(const std::vector<domain::PlayerRecord>&)> handler);
+	
 private:
     std::shared_ptr<model::Map> map_;
     net::io_context& ioc_;
@@ -112,6 +116,10 @@ private:
     void CheckAndRetireDogs(const TimeInterval& delta_time);
 
     std::shared_ptr<Player> FindOwnerByDogId(uint64_t dog_id) const;
+	
+	boost::signals2::signal<void (const GameSession::Id&)> remove_inactive_players_sig;
+    boost::signals2::signal<void (const std::vector<domain::PlayerRecord>&)> handle_finished_players_sig;
+    void RemoveInactiveDogs();
 };
 
 }

@@ -57,4 +57,9 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
     return game;
 };
 
+try {
+    double dog_retirement_time = boost::json::value_to<double>(jsonVal.as_object().at(model::DOG_RETIREMENT_TIME));
+    model::Dog::SetMaxInactiveTime(static_cast<size_t>(dog_retirement_time));
+} catch(boost::wrapexcept<std::out_of_range>& e) {}
+
 }

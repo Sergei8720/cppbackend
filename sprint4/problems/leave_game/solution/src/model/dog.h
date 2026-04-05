@@ -9,16 +9,22 @@
 #include <unordered_map>
 #include <chrono>
 #include <memory>
+#include <optional>
 
 namespace model {
 
 class Dog {
     inline static size_t max_id_cont_ = 0;
+    inline static std::chrono::seconds max_inactive_time_{60};
+
 public:
     using Id = util::Tagged<size_t, Dog>;
     using BagType = std::vector< std::shared_ptr<LostObject> >;
 
-    Dog(std::string name, size_t bag_capacity) : 
+    static void SetMaxInactiveTime(size_t max_inactive_time_in_seconds);
+
+    Dog() = default;
+    Dog(std::string name, size_t bag_capacity) :
         id_(Id{Dog::max_id_cont_++}),
         name_(name),
         bag_capacity_(bag_capacity) {};
@@ -47,9 +53,10 @@ public:
 
     void SetVelocity(Velocity velocity);
     const Velocity& GetVelocity() const;
-    
+
     void SetAction(Direction direction, double velocity);
     geom::Point2D CalculateNewPosition(const std::chrono::milliseconds& delta_time);
+    void MakeDogAction(const geom::Point2D& new_position, const Velocity new_velocity, const std::chrono::milliseconds& delta_time);
 
     const BagType& GetBag() const;
     size_t GetBagCapacity() const;
@@ -57,21 +64,22 @@ public:
     bool IsFullBag();
     bool IsEmptyBag();
     void DropLostObjectsFromBag();
+    std::optional<std::chrono::seconds> GetPlayTime() const;
 
     const size_t GetScore() const;
     void SetScore(size_t score) { score_ = score; }
 
     const collision_detector::Gatherer& AsGatherer() const;
-    
+
     static size_t GetMaxId() { return max_id_cont_; }
     static void ResetMaxId(size_t new_max) { max_id_cont_ = new_max; }
-    
+
     void UpdateDogCounter() {
         if (*id_ >= max_id_cont_) {
             max_id_cont_ = *id_ + 1;
         }
     }
-    
+
 private:
     Id id_;
     std::string name_;
@@ -86,8 +94,12 @@ private:
     };
     size_t score_{0};
     size_t bag_capacity_{0};
+    std::chrono::milliseconds inactive_time_{0};
+    std::chrono::milliseconds live_time_{0};
+    bool isInactiveCommandRun{true};
 
     void AddScore(size_t score);
+    void UpdateDogState(const Velocity& new_velocity);
 };
 
 }
