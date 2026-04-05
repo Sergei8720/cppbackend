@@ -19,7 +19,7 @@ public:
     void RemoveDog(uint64_t dog_id);
     bool HasDog(uint64_t dog_id) const;
     TimePoint GetInactivityStartTime(uint64_t dog_id) const;
-    TimePoint GetLastActivityTime(uint64_t dog_id) const;  // ДОБАВЛЕНО
+    TimePoint GetLastActivityTime(uint64_t dog_id) const;
     
 private:
     struct DogInactivityData {
@@ -31,4 +31,4 @@ private:
     mutable std::mutex mutex_;
 };
 
-} // namespace retirement
+}

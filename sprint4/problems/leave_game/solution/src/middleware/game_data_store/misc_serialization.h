@@ -1,14 +1,15 @@
 #pragma once
 #include "geom.h"
-
 #include <boost/serialization/vector.hpp>
 
-namespace geom {
+namespace boost {
+namespace serialization {
 
-template <typename Archive>
-void serialize(Archive& ar, Point2D& point, [[maybe_unused]] const unsigned version) {
+template<class Archive>
+void serialize(Archive& ar, geom::Point2D& point, [[maybe_unused]] const unsigned int version) {
     ar& point.x;
     ar& point.y;
 }
 
+}
 }

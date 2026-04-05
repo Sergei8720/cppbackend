@@ -1,21 +1,22 @@
 #include "sdk.h"
-//
 #include "json_loader.h"
 #include "request_handler.h"
 #include "logger.h"
 #include "application.h"
 #include "program_options.h"
 #include "saving_settings.h"
-#include "database_invariants.h"
-#include "database_exceptions.h"
-#include "database_connection_settings.h"
-
+#include "state_serializer.h"
+#include "database/connection_pool.h"
+#include "database/database.h"
 #include <boost/asio/io_context.hpp>
 #include <thread>
 #include <boost/asio/signal_set.hpp>
 #include <filesystem>
 #include <chrono>
 #include <memory>
+#include <atomic>
+#include <cstdlib>
+#include <cstring>
 
 using namespace std::literals;
 namespace net = boost::asio;
@@ -24,93 +25,135 @@ namespace fs = std::filesystem;
 
 namespace {
 
-// Запускает функцию fn на n потоках, включая текущий
 template <typename Fn>
 void RunWorkers(size_t n, const Fn& fn) {
     n = std::max(static_cast<size_t>(1), n);
     std::vector<std::jthread> workers;
     workers.reserve(n - 1);
-    // Запускаем n-1 рабочих потоков, выполняющих функцию fn
     while (--n) {
         workers.emplace_back(fn);
     }
     fn();
 }
 
-}  // namespace
+}
 
 int main(int argc, const char* argv[]) {
-    // 0. Инициализация логгера.
     logware::InitLogger();
     prog_opt::Args args = prog_opt::ParseCommandLine(argc, argv);
-    const unsigned num_threads = std::thread::hardware_concurrency();
+    
+    std::atomic<bool> final_save_done{false};
+    
     try {
-        // 1. Прочитать из переменной среды url базы данных
-        const char* db_url = std::getenv(db_invariants::DB_URL.c_str());
-        if (!db_url) {
-            throw db_ex::EmptyDatabaseUrl();
-        }
-        db_conn_settings::DbConnectrioSettings db_settings{num_threads, std::move(db_url)};
-        
-        // 2. Загружаем карту из файла и построить модель игры
         model::Game game = json_loader::LoadGame(args.config_file);
-
-        // 3. Устанавливаем путь до статического контента.
         fs::path sc_root_path{args.www_root};
-        //fs::path sc_root_path{"../../static"};
-
-        // 4. Инициализируем io_context
+        const unsigned num_threads = std::thread::hardware_concurrency();
         net::io_context ioc(num_threads);
 
-        // 5. Создание application
-        auto application = std::make_shared<app::Application>(std::move(game)
-                                                            , args.tick_period
-                                                            , args.randomize_spawn_points
-                                                            , ioc
-                                                            , std::move(db_settings));
+        auto application = std::make_shared<app::Application>(std::move(game),
+                                                              args.tick_period,
+                                                              args.randomize_spawn_points,
+                                                              ioc);
 
-        // 6. Инициализация настроек сохранения игрового состояния.
-        saving::SavingSettings saving_settings;
-        if(!args.state_file.empty()) {
-            saving_settings.state_file_path = args.state_file;
-            if(args.save_state_period != 0) {
-                saving_settings.period = std::chrono::milliseconds(args.save_state_period);
+        const char* db_url = std::getenv("GAME_DB_URL");
+        std::shared_ptr<database::ConnectionPool> db_pool;
+        
+        BOOST_LOG_TRIVIAL(info) << "Checking GAME_DB_URL environment variable...";
+        
+        if (db_url && std::strlen(db_url) > 0) {
+            BOOST_LOG_TRIVIAL(info) << "GAME_DB_URL found: " << db_url;
+            try {
+                BOOST_LOG_TRIVIAL(info) << "Creating connection pool with size 2...";
+                db_pool = std::make_shared<database::ConnectionPool>(
+                    2,
+                    [db_url]() -> std::shared_ptr<pqxx::connection> {
+                        BOOST_LOG_TRIVIAL(debug) << "Creating new database connection to: " << db_url;
+                        auto conn = std::make_shared<pqxx::connection>(db_url);
+                        BOOST_LOG_TRIVIAL(debug) << "Connection created, is_open=" << conn->is_open();
+                        return conn;
+                    }
+                );
+                
+                BOOST_LOG_TRIVIAL(info) << "Initializing database (creating tables)...";
+                database::Database::Init(db_pool);
+                
+                application->SetConnectionPool(db_pool);
+                BOOST_LOG_TRIVIAL(info) << "Database connected successfully to: " << db_url;
+            } catch (const std::exception& e) {
+                BOOST_LOG_TRIVIAL(warning) << "Failed to connect to database: " << e.what();
+                BOOST_LOG_TRIVIAL(warning) << "Running without database persistence";
             }
-            application->RestoreGameState(std::move(saving_settings));
-        }        
+        } else {
+            BOOST_LOG_TRIVIAL(info) << "GAME_DB_URL environment variable not set, running without database";
+            BOOST_LOG_TRIVIAL(info) << "To enable database, set: export GAME_DB_URL=postgresql://user:pass@host:port/db";
+        }
 
-        // 7. Добавляем асинхронный обработчик сигналов SIGINT и SIGTERM
+        std::shared_ptr<app::StateSerializer> state_serializer;
+        if (!args.state_file.empty()) {
+            auto save_period = args.save_state_period > 0 
+                ? std::chrono::milliseconds(args.save_state_period)
+                : std::chrono::milliseconds(0);
+            
+            state_serializer = std::make_shared<app::StateSerializer>(
+                *application, 
+                args.state_file, 
+                save_period
+            );
+            
+            application->SetStateSerializer(state_serializer);
+            BOOST_LOG_TRIVIAL(info) << "StateSerializer set in Application";
+            
+            if (!state_serializer->LoadState(ioc)) {
+                if (std::filesystem::exists(args.state_file)) {
+                    BOOST_LOG_TRIVIAL(error) << "Failed to load game state from " << args.state_file;
+                    return EXIT_FAILURE;
+                }
+                BOOST_LOG_TRIVIAL(info) << "Starting with clean state (no state file or empty)";
+            }
+            
+            state_serializer->StartPeriodicSaving(ioc);
+        }
+
         net::signal_set signals(ioc, SIGINT, SIGTERM);
-        signals.async_wait([&ioc, application](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
-            if (!ec) {
-                BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("server exited"sv,
-                                                                        logware::ExitCodeLogData(0));
-                application->SaveGame();
+        signals.async_wait([&ioc, &state_serializer, &final_save_done](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
+            if (!ec && !final_save_done.exchange(true)) {
+                BOOST_LOG_TRIVIAL(info) << "Received signal " << signal_number << ", saving state...";
+                if (state_serializer) {
+                    try {
+                        state_serializer->FinalSave();
+                        BOOST_LOG_TRIVIAL(info) << "State saved successfully";
+                    } catch (const std::exception& e) {
+                        BOOST_LOG_TRIVIAL(error) << "Failed to save state: " << e.what();
+                    }
+                }
                 ioc.stop();
             }
         });
 
-        // 8. Создаём обработчик HTTP-запросов и связываем его с моделью игры, задаем путь до статического контента.
         http_handler::RequestHandler handler{application, sc_root_path};
 
-        // 9. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
         const auto address = net::ip::make_address("0.0.0.0");
         constexpr net::ip::port_type port = 8080;
         http_server::ServeHttp(ioc, {address, port}, [&handler](auto&& req, auto&& send) {
             handler(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
         });
         
-        // Эта надпись сообщает тестам о том, что сервер запущен и готов обрабатывать запросы
-        BOOST_LOG_TRIVIAL(info) << logware::CreateLogMessage("Server has started..."sv,
-                                                                logware::ServerAddressLogData(address.to_string(), port));
+        BOOST_LOG_TRIVIAL(info) << "Server has started...";
 
-        // 10. Запускаем обработку асинхронных операций
         RunWorkers(std::max(1u, num_threads), [&ioc] {
             ioc.run();
         });
+        
+        if (state_serializer && !final_save_done.exchange(true)) {
+            BOOST_LOG_TRIVIAL(info) << "Normal shutdown, saving final state...";
+            state_serializer->FinalSave();
+        }
+        
+        BOOST_LOG_TRIVIAL(info) << "Server stopped";
+        
     } catch (const std::exception& ex) {
-        BOOST_LOG_TRIVIAL(error) << logware::CreateLogMessage("error"sv,
-                                        logware::ExceptionLogData(EXIT_FAILURE, "Server down"sv, ex.what()));
+        BOOST_LOG_TRIVIAL(error) << "Server error: " << ex.what();
         return EXIT_FAILURE;
     }
+    return EXIT_SUCCESS;
 }

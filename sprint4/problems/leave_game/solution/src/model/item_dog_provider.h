@@ -2,7 +2,6 @@
 #include "collision_detector.h"
 #include "lost_object.h"
 #include "dog.h"
-
 #include <unordered_map>
 #include <memory>
 

@@ -1,8 +1,7 @@
 #pragma once
-#include <boost/log/trivial.hpp>     // для BOOST_LOG_TRIVIAL
-#include <boost/log/core.hpp>        // для logging::core
+#include <boost/log/trivial.hpp>
+#include <boost/log/core.hpp>
 #include <boost/log/utility/setup/console.hpp>
-
 #include "logging_data_storage.h"
 
 namespace logware {

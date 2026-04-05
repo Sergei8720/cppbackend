@@ -3,7 +3,6 @@
 #include "support_types.h"
 #include "collision_detector.h"
 #include "model_invariants.h"
-
 #include <cmath>
 #include <string>
 #include <memory>
@@ -28,6 +27,10 @@ public:
 
     Offset GetOffset() const noexcept {
         return offset_;
+    }
+
+    collision_detector::Item AsItem() const {
+        return collision_detector::Item(GetPosition(), GetWidth());
     }
 
 private:

@@ -11,17 +11,16 @@ COPY conanfile.txt /app/
 RUN mkdir -p /app/build && cd /app/build && \
     conan install .. --build=missing -s build_type=Release
 
-# только после этого копируем остальные иходники
 COPY ./src /app/src
+COPY ./tests /app/tests
+COPY ./CMakeLists.txt /app/
 COPY ./data /app/data
 COPY ./static /app/static
-COPY ./tests /app/tests
-COPY CMakeLists.txt /app/
 
 RUN cd /app/build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
     cmake --build . -j$(nproc)
-    
+
 FROM ubuntu:22.04 AS run
 
 RUN apt update && apt install -y libstdc++6 ca-certificates && rm -rf /var/lib/apt/lists/*

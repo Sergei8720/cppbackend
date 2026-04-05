@@ -1,45 +1,30 @@
 #pragma once
-
 #include <string>
-#include <vector>
+#include <cstdint>
 
-namespace domain {
+namespace database {
 
-class PlayerRecord {
-public:
-    PlayerRecord(std::string name, size_t score, int64_t play_time)
-        : name_(std::move(name))
-        , score_(score)
-        , play_time_(play_time) {
-
-    };
-
-    const std::string& GetName() const noexcept {
-        return name_;
+struct PlayerRecord {
+    int64_t id_uuid;
+    std::string name;
+    int64_t score;
+    int64_t play_time_ms;
+    
+    PlayerRecord() = default;
+    
+    PlayerRecord(int64_t uuid,
+                 const std::string& player_name, 
+                 int64_t player_score, 
+                 int64_t player_play_time_ms)
+        : id_uuid(uuid)
+        , name(player_name)
+        , score(player_score)
+        , play_time_ms(player_play_time_ms) {
     }
-
-    size_t GetScore() const noexcept {
-        return score_;
+    
+    double GetPlayTimeSeconds() const {
+        return static_cast<double>(play_time_ms) / 1000.0;
     }
-
-    int64_t GetPlayTime() const noexcept {
-        return play_time_;
-    }
-
-private:
-    std::string name_{};
-    size_t score_{0};
-    int64_t play_time_{0};
-};
-
-
-class PlayerRecordRepository {
-public:
-    virtual void SaveRecordsTable(const std::vector<domain::PlayerRecord>& player_records) = 0;
-    virtual std::vector<PlayerRecord> GetRecordsTable(size_t offset, size_t limit) = 0;
-
-protected:
-    ~PlayerRecordRepository() = default;
 };
 
 }

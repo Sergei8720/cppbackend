@@ -1,6 +1,5 @@
 #include "player_tokens.h"
 #include "player.h"
-
 #include <iomanip>
 #include <sstream>
 
@@ -10,7 +9,6 @@ const size_t TOKEN_LENGTH = 32;
 
 Token PlayerTokens::AddPlayer(std::shared_ptr<app::Player> player) {
     std::stringstream ss;
-    // Генерируем 32-символьный hex токен
     for (size_t i = 0; i < TOKEN_LENGTH; ++i) {
         ss << std::hex << (generator1_() & 0xF);
     }

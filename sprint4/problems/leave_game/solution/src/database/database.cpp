@@ -26,7 +26,6 @@ bool Database::TableExists(std::shared_ptr<ConnectionPool> pool, const std::stri
         auto conn = pool->GetConnection();
         pqxx::work work(*conn);
         
-        // Используем параметризованный запрос для безопасности
         std::string query = "SELECT EXISTS ("
                             "SELECT 1 FROM information_schema.tables "
                             "WHERE table_name = $1"
@@ -52,7 +51,6 @@ void Database::CreateTableIfNotExists(std::shared_ptr<ConnectionPool> pool) {
         auto conn = pool->GetConnection();
         pqxx::work work(*conn);
         
-        // Создаем таблицу
         work.exec(R"(
             CREATE TABLE IF NOT EXISTS retired_players (
                 id BIGINT PRIMARY KEY,
@@ -63,13 +61,11 @@ void Database::CreateTableIfNotExists(std::shared_ptr<ConnectionPool> pool) {
             )
         )");
         
-        // Создаем составной индекс для быстрой сортировки по score DESC, play_time_ms ASC, name ASC
         work.exec(R"(
             CREATE INDEX IF NOT EXISTS idx_retired_players_score_time_name 
             ON retired_players(score DESC, play_time_ms ASC, name ASC)
         )");
         
-        // Дополнительный индекс для быстрой очистки старых записей
         work.exec(R"(
             CREATE INDEX IF NOT EXISTS idx_retired_players_created_at 
             ON retired_players(created_at DESC)
@@ -78,7 +74,6 @@ void Database::CreateTableIfNotExists(std::shared_ptr<ConnectionPool> pool) {
         work.commit();
         BOOST_LOG_TRIVIAL(info) << "Table 'retired_players' is ready";
         
-        // Проверяем, что таблица создалась
         if (TableExists(pool, "retired_players")) {
             BOOST_LOG_TRIVIAL(debug) << "Verified: table 'retired_players' exists";
         } else {
@@ -87,7 +82,7 @@ void Database::CreateTableIfNotExists(std::shared_ptr<ConnectionPool> pool) {
         
     } catch (const std::exception& e) {
         BOOST_LOG_TRIVIAL(error) << "Failed to create table: " << e.what();
-        throw; // Пробрасываем исключение дальше, так как без таблицы работа невозможна
+        throw;
     }
 }
 
@@ -126,7 +121,7 @@ void Database::SaveRecord(std::shared_ptr<ConnectionPool> pool, const PlayerReco
             
             work.commit();
             BOOST_LOG_TRIVIAL(info) << "Record saved successfully: " << record.name;
-            return; // Успешно сохранили, выходим
+            return;
             
         } catch (const pqxx::broken_connection& e) {
             BOOST_LOG_TRIVIAL(warning) << "Broken connection, retry " << attempt + 1 
@@ -134,13 +129,12 @@ void Database::SaveRecord(std::shared_ptr<ConnectionPool> pool, const PlayerReco
             if (attempt == max_retries - 1) {
                 BOOST_LOG_TRIVIAL(error) << "Failed to save record after " << max_retries << " attempts";
             }
-            // Небольшая задержка перед повторной попыткой
             std::this_thread::sleep_for(std::chrono::milliseconds(100 * (attempt + 1)));
             
         } catch (const pqxx::sql_error& e) {
             BOOST_LOG_TRIVIAL(error) << "SQL error while saving record: " << e.what();
             BOOST_LOG_TRIVIAL(error) << "Query was: " << e.query();
-            break; // SQL ошибка не исправится повторением, выходим
+            break;
             
         } catch (const std::exception& e) {
             BOOST_LOG_TRIVIAL(error) << "Failed to save record: " << e.what();
@@ -157,7 +151,6 @@ std::vector<PlayerRecord> Database::GetRecords(std::shared_ptr<ConnectionPool> p
         return {};
     }
     
-    // Валидация параметров
     if (maxItems > 100) {
         BOOST_LOG_TRIVIAL(warning) << "GetRecords: maxItems=" << maxItems << " exceeds 100, using 100";
         maxItems = 100;
@@ -183,7 +176,6 @@ std::vector<PlayerRecord> Database::GetRecords(std::shared_ptr<ConnectionPool> p
         
         pqxx::read_transaction tx(*conn);
         
-        // Используем подготовленный запрос для оптимальной производительности
         static const std::string query = 
             "SELECT id, name, score, play_time_ms "
             "FROM retired_players "
@@ -224,7 +216,6 @@ void Database::CleanupOldRecords(std::shared_ptr<ConnectionPool> pool, int maxRe
         auto conn = pool->GetConnection();
         pqxx::work work(*conn);
         
-        // Удаляем старые записи, оставляя только maxRecords самых новых
         work.exec_params(
             "DELETE FROM retired_players "
             "WHERE id IN ("
@@ -243,4 +234,4 @@ void Database::CleanupOldRecords(std::shared_ptr<ConnectionPool> pool, int maxRe
     }
 }
 
-} // namespace database
+}

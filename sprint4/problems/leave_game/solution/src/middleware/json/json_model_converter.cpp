@@ -10,7 +10,6 @@ LootGeneratorConfig tag_invoke(json::value_to_tag<LootGeneratorConfig>, const js
     return config;
 };
 
-
 void tag_invoke(json::value_from_tag, json::value& jv, const LootType& loot_type) {
     json::object res = {
         {LOOT_TYPES_NAME, json::value_from(loot_type.name)},
@@ -80,7 +79,6 @@ Office tag_invoke(json::value_to_tag<Office>, const json::value& jv) {
     return Office(id, position, offset);
 };
 
-
 void tag_invoke(json::value_from_tag, json::value& jv, const Road& road) {
     if(road.IsHorizontal()) {
         jv = {{ROAD_XO, json::value_from(road.GetStart().x)},
@@ -107,11 +105,9 @@ Road tag_invoke(json::value_to_tag<Road>, const json::value& jv) {
     }
 };
 
-
 void tag_invoke(json::value_from_tag, json::value& jv, const Map& map) {
     jv = {{MAP_ID, json::value_from(*(map.GetId()))},
             {MAP_NAME, json::value_from(map.GetName())},
-            //{MAP_DOG_VELOCITY, json::value_from(map.GetDogVelocity())}, // todo: need?
             {ROADS, json::value_from(map.GetRoads())},
             {BUILDINGS, json::value_from(map.GetBuildings())},
             {OFFICES, json::value_from(map.GetOffices())},

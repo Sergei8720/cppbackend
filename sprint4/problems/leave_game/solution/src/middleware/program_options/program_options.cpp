@@ -1,6 +1,5 @@
 #include "program_options.h"
 #include "logger.h"
-
 #include <boost/program_options.hpp>
 
 namespace prog_opt {

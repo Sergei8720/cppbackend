@@ -19,111 +19,96 @@ add_compile_definitions(
     BOOST_THREAD_PROVIDES_FUTURE
 )
 
-
+# ============= БИБЛИОТЕКА COLLISION DETECTION =============
 add_library(collision_detection_lib STATIC
-	src/model/physics/collision_detector.h
-	src/model/physics/collision_detector.cpp
-	src/model/physics/geom.h
+    src/model/collision_detector.h
+    src/model/collision_detector.cpp
+    src/model/geom.h
 )
 target_link_libraries(collision_detection_lib PUBLIC CONAN_PKG::boost Threads::Threads)
 
+# ============= БИБЛИОТЕКА МОДЕЛИ ИГРЫ =============
 add_library(game_model_lib STATIC
-	src/model/map.cpp
-	src/model/game.cpp
-	src/model/dog.cpp
-	src/model/roadmap.cpp
-	src/model/support_types.cpp
-	src/model/loot_generator.cpp
-	src/model/lost_object.cpp
-	src/model/item_dog_provider.cpp
-	src/middleware/utils/request_handlers_utils.cpp
-	src/middleware/utils/filesystem_utils.cpp
-	src/middleware/utils/random_generators.cpp
+    src/model/map.cpp
+    src/model/game.cpp
+    src/model/dog.cpp
+    src/model/roadmap.cpp
+    src/model/support_types.cpp
+    src/model/loot_generator.cpp
+    src/model/lost_object.cpp
+    src/model/item_dog_provider.cpp
+    src/middleware/utils/request_handlers_utils.cpp
+    src/middleware/utils/filesystem_utils.cpp
+    src/middleware/utils/random_generators.cpp
 )
+
 target_include_directories(game_model_lib PUBLIC 
-	${ZLIB_INCLUDES}
-	src/model
-	src/model/physics
-	src/middleware/utils
+    src/model
+    src/middleware/utils
 )
-target_link_libraries(game_model_lib PUBLIC ${BOOST_LIB} ${ZLIB_LIB} collision_detection_lib)
 
+target_link_libraries(game_model_lib PUBLIC collision_detection_lib CONAN_PKG::boost)
+
+# ============= ОСНОВНОЙ ИСПОЛНЯЕМЫЙ ФАЙЛ =============
 add_executable(game_server
-	src/main.cpp
-	src/middleware/json/json_loader.cpp
-	src/middleware/json/json_converter.cpp
-	src/middleware/json/json_model_converter.cpp
-	src/middleware/json/boost_json.cpp
-	src/middleware/logging/logging_data_storage.cpp
-	src/middleware/logging/logger.cpp
-	src/middleware/program_options/program_options.cpp
-	src/middleware/time_management/ticker.cpp
-	src/middleware/error_handling/error_report.cpp
-	src/middleware/game_data_store/lost_object_serialization.cpp
-	src/middleware/game_data_store/dog_serialization.cpp
-	src/middleware/game_data_store/player_serialization.cpp
-	src/middleware/game_data_store/game_session_serialization.cpp
-	src/web/request_handlers/request_handler.cpp
-	src/web/server/http_server.cpp
-	src/app/authentication/token_generator.cpp
-	src/app/application.cpp
-	src/app/game_session.cpp
-	src/app/player.cpp
-	src/database/postgres.cpp
-	src/database/use_cases_impl.cpp
+    src/main.cpp
+    src/middleware/json/json_loader.cpp
+    src/middleware/json/json_converter.cpp
+    src/middleware/json/json_model_converter.cpp
+    src/middleware/json/boost_json.cpp
+    src/middleware/logging/logging_data_storage.cpp
+    src/middleware/logging/logger.cpp
+    src/middleware/program_options/program_options.cpp
+    src/middleware/time_management/ticker.cpp
+    src/middleware/error_handling/error_report.cpp
+    src/middleware/api/api_v1_request_handlers_storage.h
+    src/middleware/api/api_v1_request_handlers_executor.h
+    src/middleware/api/request_handler_node.h
+    src/middleware/api/static_file_request_handlers_storage.h
+    src/middleware/api/static_file_request_handlers_executor.h
+    src/web/request_handler.cpp
+    src/web/server/http_server.cpp
+    src/app/authentication/token_generator.cpp
+    src/app/authentication/player_tokens.cpp
+    src/app/application.cpp
+    src/app/game_session.cpp
+    src/app/player.cpp
+    src/middleware/game_data_store/dog_serialization.cpp
+    src/middleware/game_data_store/game_session_serialization.cpp
+    src/middleware/game_data_store/lost_object_serialization.cpp
+    src/middleware/game_data_store/player_serialization.cpp
+    src/middleware/game_data_store/state_serializer.cpp
+    src/database/connection_pool.cpp
+    src/database/database.cpp
+    src/retirement/retirement_tracker.cpp
 )
+
 target_include_directories(game_server PRIVATE
-	src
-	src/app
-	src/web
-	src/middleware
-	src/middleware/json
-	src/web/request_handlers
-	src/middleware/logging
-	src/app/authentication
-	src/web/server
-	src/middleware/program_options
-	src/middleware/time_management
-	src/middleware/error_handling
-	src/middleware/game_data_store
-	src/database
+    src
+    src/app
+    src/app/authentication
+    src/web
+    src/web/server
+    src/web/request_handlers
+    src/middleware
+    src/middleware/api
+    src/middleware/json
+    src/middleware/logging
+    src/middleware/program_options
+    src/middleware/time_management
+    src/middleware/error_handling
+    src/middleware/utils
+    src/middleware/game_data_store
+    src/model
+    src/database
+    src/retirement
 )
+
 target_link_libraries(game_server PRIVATE
-	Threads::Threads
-	CONAN_PKG::boost
-	CONAN_PKG::libpq
-	CONAN_PKG::libpqxx
-	game_model_lib
+    Threads::Threads
+    CONAN_PKG::boost
+    CONAN_PKG::libpqxx
+    game_model_lib
 )
 
-#SET(GCC_COVERAGE_LINK_FLAGS    "-lboost_url")
-
-include(CTest)
-include(${CONAN_BUILD_DIRS_CATCH2}/Catch.cmake)
-
-add_executable(game_server_tests
-	tests/loot-generator-tests.cpp
-)
-target_link_libraries(game_server_tests PRIVATE CONAN_PKG::catch2 game_model_lib)
-catch_discover_tests(game_server_tests)
-
-add_executable(collision_detection_tests
-	tests/collision-detector-tests.cpp
-)
-target_link_libraries(collision_detection_tests CONAN_PKG::catch2 collision_detection_lib)
-catch_discover_tests(collision_detection_tests)
-
-add_executable(state_serialization_tests
-	tests/state-serialization-tests.cpp
-)
-target_include_directories(state_serialization_tests PRIVATE
-	src
-	src/middleware
-	src/middleware/game_data_store
-	src/model/physics
-)
-target_link_libraries(state_serialization_tests CONAN_PKG::catch2 collision_detection_lib)
-catch_discover_tests(state_serialization_tests)
-
-add_compile_definitions(BOOST_THREAD_PROVIDES_FUTURE)
 message(STATUS "Build target: game_server")

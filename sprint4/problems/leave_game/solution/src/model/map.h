@@ -6,8 +6,6 @@
 #include "roadmap.h"
 #include "loot_type.h"
 #include "support_types.h"
-
-
 #include <tuple>
 #include <cmath>
 #include <string>
@@ -50,10 +48,10 @@ public:
     void AddLootTypes(const LootTypes& loot_types);
     std::tuple<geom::Point2D, Velocity> GetValidMove(const geom::Point2D& old_position,
                             const geom::Point2D& potential_new_position,
-                            const Velocity& old_velocity) const;
+                            const Velocity& old_velocity);
     geom::Point2D GenerateRandomPosition() const;
     size_t GetNumberOfLootTypes() const noexcept;
-    const LootType& GetLootTypeBy(size_t id) const;
+    const LootType& GetLootTypeBy(size_t id);
     void SetBagCapacity(size_t bag_capacity);
     size_t GetBagCapacity() const noexcept;
 
@@ -74,7 +72,6 @@ private:
     std::optional<size_t> bag_capacity_{std::nullopt};
 };
 
-
 class EmptyLootTypesOnMapException : public std::exception {
 public:
     EmptyLootTypesOnMapException(std::string map_id): map_id_(map_id) {}
@@ -88,4 +85,4 @@ private:
     std::string map_id_;
 };
 
-}  // namespace model
+}

@@ -1,7 +1,6 @@
 #pragma once
 #include "tagged.h"
 #include "logger.h"
-
 #include <random>
 #include <unordered_map>
 #include <memory>
@@ -47,4 +46,4 @@ private:
     }()};
 }; 
 
-}  // namespace authentication
+}
