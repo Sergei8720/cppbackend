@@ -72,7 +72,7 @@ int main(int argc, const char* argv[]) {
         if (db_url && std::strlen(db_url) > 0) {
             try {
                 db_pool = std::make_shared<database::ConnectionPool>(
-                    5,  // pool size
+                    2,  // pool size
                     [db_url]() -> std::shared_ptr<pqxx::connection> {
                         return std::make_shared<pqxx::connection>(db_url);
                     }
