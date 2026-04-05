@@ -32,7 +32,8 @@ public:
             if(item.GetActivator()(req)){
                     auto res = item.GetHandler(req.method())(req, application, std::forward<Send>(send));
                     while(res.has_value()){
-                        res = item.GetEmergeHandlerByIndex(res.value())(req, application, std::forward<Send>(send));
+                        res = item.GetEmergeHandlerByIndex(res.value())
+                            .value()(req, application, std::forward<Send>(send));
                     }
                 return true;
             }
@@ -72,6 +73,11 @@ private:
                                                         OnlyPostMethodAllowedHandler,
                                                         {JoinToGameMapNotFoundHandler}),
 
+        RequestHandlerNode<ActivatorType, HandlerType>(GetRecordsActivator,
+                                                        {{http::verb::get, GetRecordsHandler}},
+                                                        InvalidMethodHandler,
+                                                        {BadRequestHandler}),
+
         RequestHandlerNode<ActivatorType, HandlerType>(EmptyAuthorizationActivator,
                                                         {{http::verb::get, EmptyAuthorizationHandler},
                                                         {http::verb::head, EmptyAuthorizationHandler}},
@@ -103,13 +109,7 @@ private:
         RequestHandlerNode<ActivatorType, HandlerType>(TimeTickActivator,
                                                         {{http::verb::post, TimeTickHandler}},
                                                         InvalidMethodHandler,
-                                                        {InvalidEndpointHandler}),
-        
-        // НОВЫЙ УЗЕЛ ДЛЯ /api/v1/game/records
-        RequestHandlerNode<ActivatorType, HandlerType>(GetRecordsActivator,
-                                                        {{http::verb::get, GetRecordsHandler},
-                                                         {http::verb::head, GetRecordsHandler}},
-                                                        InvalidMethodHandler)
+                                                        {InvalidEndpointHandler})
     };
 
     ApiV1RequestHandlerExecutor() = default;

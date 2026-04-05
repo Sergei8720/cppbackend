@@ -5,6 +5,3 @@ libpqxx/7.7.4
 
 [generators]
 cmake
-
-[options]
-boost:without_test=True

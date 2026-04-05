@@ -1,31 +1,45 @@
 #pragma once
+
 #include <string>
-#include <cstdint>
+#include <vector>
 
-namespace database {
+namespace domain {
 
-struct PlayerRecord {
-    int64_t id_uuid;      // ID игрока/собаки
-    std::string name;     // Кличка собаки
-    int64_t score;        // Набранные очки
-    int64_t play_time_ms; // Время в игре в миллисекундах
-    
-    PlayerRecord() = default;
-    
-    PlayerRecord(int64_t uuid,
-                 const std::string& player_name, 
-                 int64_t player_score, 
-                 int64_t player_play_time_ms)
-        : id_uuid(uuid)
-        , name(player_name)
-        , score(player_score)
-        , play_time_ms(player_play_time_ms) {
+class PlayerRecord {
+public:
+    PlayerRecord(std::string name, size_t score, int64_t play_time)
+        : name_(std::move(name))
+        , score_(score)
+        , play_time_(play_time) {
+
+    };
+
+    const std::string& GetName() const noexcept {
+        return name_;
     }
-    
-    // Конвертация времени в секунды для JSON ответа
-    double GetPlayTimeSeconds() const {
-        return static_cast<double>(play_time_ms) / 1000.0;
+
+    size_t GetScore() const noexcept {
+        return score_;
     }
+
+    int64_t GetPlayTime() const noexcept {
+        return play_time_;
+    }
+
+private:
+    std::string name_{};
+    size_t score_{0};
+    int64_t play_time_{0};
 };
 
-} // namespace database
+
+class PlayerRecordRepository {
+public:
+    virtual void SaveRecordsTable(const std::vector<domain::PlayerRecord>& player_records) = 0;
+    virtual std::vector<PlayerRecord> GetRecordsTable(size_t offset, size_t limit) = 0;
+
+protected:
+    ~PlayerRecordRepository() = default;
+};
+
+}

@@ -3,6 +3,10 @@
 
 namespace model {
 
+void Dog::SetMaxInactiveTime(size_t max_inactive_time_in_seconds) {
+    max_inactive_time_ = std::chrono::seconds(max_inactive_time_in_seconds);
+};
+
 const Dog::Id& Dog::GetId() const {
     return id_;
 };
@@ -31,6 +35,7 @@ const geom::Point2D& Dog::GetPosition() const {
 
 void Dog::SetVelocity(Velocity velocity) {
     velocity_ = velocity;
+    UpdateDogState(velocity);
 };
 
 const Velocity& Dog::GetVelocity() const {
@@ -38,6 +43,11 @@ const Velocity& Dog::GetVelocity() const {
 };
 
 void Dog::SetAction(Direction direction, double velocity) {
+    if((!isInactiveCommandRun && direction == Direction::NONE) 
+        || direction != Direction::NONE) {
+        inactive_time_ = std::chrono::milliseconds{0};
+    }
+    isInactiveCommandRun = (direction == Direction::NONE);
     switch(direction){
         case Direction::NORTH: {
             SetDirection(direction);
@@ -74,6 +84,18 @@ geom::Point2D Dog::CalculateNewPosition(const std::chrono::milliseconds& delta_t
     return position;
 };
 
+void Dog::MakeDogAction(
+        const geom::Point2D& new_position,
+        const Velocity new_velocity,
+        const std::chrono::milliseconds& delta_time) {
+    SetPosition(new_position);
+    SetVelocity(new_velocity);
+    live_time_ += delta_time;
+    if(isInactiveCommandRun && state_ == DogState::INACTIVE) {
+        inactive_time_ += delta_time;
+    }
+};
+
 const Dog::BagType& Dog::GetBag() const {
     return bag_;
 };
@@ -103,6 +125,14 @@ void Dog::DropLostObjectsFromBag() {
     bag_.clear();
 };
 
+std::optional<std::chrono::seconds> Dog::GetPlayTime() {
+    if(state_ == DogState::ACTIVE
+    || inactive_time_ < max_inactive_time_) {
+        return std::nullopt;
+    }
+    return std::chrono::duration_cast<std::chrono::seconds>(live_time_);
+};
+
 const size_t Dog::GetScore() const {
     return score_;
 };
@@ -113,6 +143,14 @@ void Dog::AddScore(size_t score) {
 
 const collision_detector::Gatherer& Dog::AsGatherer() const {
     return gatherer_;
+};
+
+void Dog::UpdateDogState(const Velocity& new_velocity) {
+    if(new_velocity != Velocity{0, 0}) {
+        state_ = DogState::ACTIVE;
+    } else {
+        state_ = DogState::INACTIVE;
+    }
 };
 
 }

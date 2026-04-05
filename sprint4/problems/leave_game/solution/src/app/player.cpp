@@ -1,6 +1,5 @@
 #include "player.h"
-#include "game_session.h"
-#include "dog.h"
+#include "random_generators.h"
 
 namespace app {
 
@@ -12,8 +11,8 @@ const std::string& Player::GetName() const {
     return name_;
 };
 
-std::string Player::GetGameSessionId() const {
-    return session_ ? *session_->GetId() : "";
+const GameSession::Id& Player::GetGameSessionId() const {
+    return session_->GetId();
 };
 
 std::shared_ptr<GameSession> Player::GetGameSession() {
@@ -24,7 +23,7 @@ void Player::SetGameSession(std::shared_ptr<GameSession> session) {
     session_ = session;
 };
 
-std::weak_ptr<model::Dog> Player::GetDog() const {
+std::weak_ptr<model::Dog> Player::GetDog() {
     return dog_;
 };
 

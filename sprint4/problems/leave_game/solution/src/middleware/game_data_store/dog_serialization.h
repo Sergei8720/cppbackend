@@ -10,78 +10,21 @@ namespace game_data_ser {
 class DogSerialization {
 public:
     DogSerialization() = default;
-    
-    DogSerialization(const model::Dog& dog)
-        : id_(*dog.GetId())
-        , name_(dog.GetName())
-        , direction_(static_cast<int>(dog.GetDirection()))
-        , position_(dog.GetPosition())
-        , score_(dog.GetScore())
-        , bag_capacity_(dog.GetBagCapacity()) {
-        std::transform(dog.GetBag().begin(), dog.GetBag().end(), std::back_inserter(bag_),
-            [](std::shared_ptr<model::LostObject> lost_object) -> LostObjectSerialization {
-                return LostObjectSerialization(*lost_object);
-            });
-    }
+    DogSerialization(const model::Dog& dog):
+        id_(*dog.GetId()),
+        name_(dog.GetName()),
+        direction_(static_cast<int>(dog.GetDirection())),
+        position_(dog.GetPosition()),
+        score_(dog.GetScore()),
+        bag_capacity_(dog.GetBagCapacity()) {
+            std::ranges::transform(dog.GetBag(), std::back_inserter(bag_),
+                [](std::shared_ptr<model::LostObject> lost_object)->LostObjectSerialization {
+                    return *lost_object;
+                }
+            );
+        };
 
-    // Конструктор копирования
-    DogSerialization(const DogSerialization& other)
-        : id_(other.id_)
-        , name_(other.name_)
-        , direction_(other.direction_)
-        , position_(other.position_)
-        , score_(other.score_)
-        , bag_capacity_(other.bag_capacity_)
-        , bag_(other.bag_) {}
-
-    // Оператор присваивания копированием
-    DogSerialization& operator=(const DogSerialization& other) {
-        if (this != &other) {
-            id_ = other.id_;
-            name_ = other.name_;
-            direction_ = other.direction_;
-            position_ = other.position_;
-            score_ = other.score_;
-            bag_capacity_ = other.bag_capacity_;
-            bag_ = other.bag_;
-        }
-        return *this;
-    }
-
-    // Конструктор перемещения
-    DogSerialization(DogSerialization&& other) noexcept
-        : id_(std::move(other.id_))
-        , name_(std::move(other.name_))
-        , direction_(other.direction_)
-        , position_(std::move(other.position_))
-        , score_(other.score_)
-        , bag_capacity_(other.bag_capacity_)
-        , bag_(std::move(other.bag_)) {}
-
-    // Оператор присваивания перемещением
-    DogSerialization& operator=(DogSerialization&& other) noexcept {
-        if (this != &other) {
-            id_ = std::move(other.id_);
-            name_ = std::move(other.name_);
-            direction_ = other.direction_;
-            position_ = std::move(other.position_);
-            score_ = other.score_;
-            bag_capacity_ = other.bag_capacity_;
-            bag_ = std::move(other.bag_);
-        }
-        return *this;
-    }
-
-    [[nodiscard]] model::Dog Restore() const {
-        model::Dog dog(model::Dog::Id{id_}, name_, bag_capacity_);
-        dog.SetDirection(static_cast<model::Direction>(direction_));
-        dog.SetPosition(position_);
-        dog.SetScore(score_);  // ДОБАВЛЕНО: восстанавливаем счет собаки
-        for (const auto& lost_obj_ser : bag_) {
-            dog.CollectLostObject(std::make_shared<model::LostObject>(lost_obj_ser.Restore()));
-        }
-        return dog;
-    }
+    [[nodiscard]] model::Dog Restore() const;
 
     template <typename Archive>
     void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {
@@ -93,7 +36,6 @@ public:
         ar& score_;
         ar& bag_capacity_;
     }
-    
 private:
     size_t id_;
     std::string name_;
@@ -104,4 +46,4 @@ private:
     std::vector<LostObjectSerialization> bag_;
 };
 
-} // namespace game_data_ser
+}
