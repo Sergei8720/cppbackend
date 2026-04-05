@@ -8,7 +8,6 @@
 #include "ticker.h"
 #include "model_invariants.h"
 #include "item_dog_provider.h"
-#include "retirement/retirement_tracker.h"
 #include "player_tokens.h"
 #include <chrono>
 #include <vector>
@@ -29,7 +28,6 @@ public:
     using SessionStrand = net::strand<net::io_context::executor_type>;
     using Id = util::Tagged<std::string, GameSession>;
     using TimeInterval = std::chrono::milliseconds;
-    using TimePoint = std::chrono::steady_clock::time_point;
     using LostObjectIdHasher = util::TaggedHasher<model::LostObject::Id>;
     using LostObjects = std::unordered_map<model::LostObject::Id,
                                             std::shared_ptr<model::LostObject>,
@@ -64,7 +62,6 @@ public:
     void AddPlayer(std::shared_ptr<Player> player);
     const std::vector<std::shared_ptr<Player>>& GetPlayers() const { return players_; }
     const Dogs& GetDogs() const { return dogs_; }
-	const size_t ONE_MINUTE_IN_SECONDS = 60;
 
     void RestoreDog(std::shared_ptr<model::Dog> dog) {
         dogs_[dog->GetId()] = dog;
@@ -75,13 +72,6 @@ public:
     void SetRetirementCallback(RetirementCallback callback);
     void SetTokenFinder(std::function<std::optional<authentication::Token>(size_t)> finder);
 
-    TimePoint GetInactivityStartTime(uint64_t dog_id) const;
-
-    void UpdateDogActivity(uint64_t dog_id, const TimePoint& now);
-
-	void AddRemoveInactivePlayersHandler(std::function<void(const GameSession::Id&)> handler);
-	void AddHandlingFinishedPlayersEvent(std::function<void(const std::vector<domain::PlayerRecord>&)> handler);
-	
 private:
     std::shared_ptr<model::Map> map_;
     net::io_context& ioc_;
@@ -95,14 +85,10 @@ private:
     std::shared_ptr<time_m::Ticker> generate_loot_ticker_;
     std::vector<std::shared_ptr<Player>> players_;
 
-    retirement::RetirementTracker retirement_tracker_;
     std::chrono::milliseconds dog_retirement_timeout_;
 
     RetirementCallback retirement_callback_;
     std::function<std::optional<authentication::Token>(size_t)> token_finder_;
-
-    std::unordered_map<uint64_t, geom::Point2D> dog_previous_positions_;
-    std::unordered_map<uint64_t, TimeInterval> dog_idle_accumulated_time_;
 
     void GenerateLoot(const TimeInterval& delta_time);
     void CreateLostObject();
@@ -113,13 +99,9 @@ private:
     void HandleLoot();
     void CollectLoot(const model::ItemDogProvider& provider, size_t item_id, size_t gatherer_id);
     void DropLoot(const model::ItemDogProvider& provider, size_t item_id, size_t gatherer_id);
-    void CheckAndRetireDogs(const TimeInterval& delta_time);
+    void RemoveInactiveDogs();
 
     std::shared_ptr<Player> FindOwnerByDogId(uint64_t dog_id) const;
-	
-	boost::signals2::signal<void (const GameSession::Id&)> remove_inactive_players_sig;
-    boost::signals2::signal<void (const std::vector<domain::PlayerRecord>&)> handle_finished_players_sig;
-    void RemoveInactiveDogs();
 };
 
 }

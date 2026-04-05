@@ -49,17 +49,7 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
         game.SetDefaultBagCapacity(default_bag_capacity);
     } catch(boost::wrapexcept<std::out_of_range>& e) {}
     
-    try {
-        double dog_retirement_time = boost::json::value_to<double>(jsonVal.as_object().at(model::DOG_RETIREMENT_TIME));
-        game.SetDogRetirementTime(dog_retirement_time);
-    } catch(boost::wrapexcept<std::out_of_range>& e) {}
-    
     return game;
 };
-
-try {
-    double dog_retirement_time = boost::json::value_to<double>(jsonVal.as_object().at(model::DOG_RETIREMENT_TIME));
-    model::Dog::SetMaxInactiveTime(static_cast<size_t>(dog_retirement_time));
-} catch(boost::wrapexcept<std::out_of_range>& e) {}
 
 }
