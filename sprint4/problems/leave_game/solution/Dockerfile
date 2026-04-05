@@ -1,19 +1,15 @@
-# Создать образ на основе базового слоя gcc (там будет ОС и сам компилятор).
-# 11.3 — используемая версия gcc.
-FROM gcc:11.3 as build
+FROM gcc:11.3 AS build
 
-# Выполнить установку зависимостей внутри контейнера.
 RUN apt update && \
-    apt install -y \
-      python3-pip \
-      cmake \
-    && \
-    pip3 install conan
+    apt install -y python3-pip cmake && \
+    pip3 install "conan<2"
 
-# копируем conanfile.txt в контейнер и запускаем conan install
+RUN conan profile new default --detect --force && \
+    conan profile update settings.compiler.libcxx=libstdc++11 default
+
 COPY conanfile.txt /app/
-RUN mkdir /app/build && cd /app/build && \
-    conan install .. --build=missing -s compiler.libcxx=libstdc++11 -s build_type=Release
+RUN mkdir -p /app/build && cd /app/build && \
+    conan install .. --build=missing -s build_type=Release
 
 # только после этого копируем остальные иходники
 COPY ./src /app/src
@@ -24,21 +20,20 @@ COPY CMakeLists.txt /app/
 
 RUN cd /app/build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
-    cmake --build .
+    cmake --build . -j$(nproc)
     
-    
-# Второй контейнер в том же докерфайле
-FROM ubuntu:22.04 as run
+FROM ubuntu:22.04 AS run
 
-# Создадим пользователя www
-RUN groupadd -r www && useradd -r -g www www
-USER www
+RUN apt update && apt install -y libstdc++6 ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Скопируем приложение со сборочного контейнера в директорию /app.
-# Не забываем также папку data, она пригодится.
 COPY --from=build /app/build/bin/game_server /app/
 COPY ./data /app/data
 COPY ./static /app/static
 
-# Запускаем игровой сервер
-ENTRYPOINT ["/app/game_server", "--config-file", "/app/data/config.json", "--www-root", "/app/static"] 
+WORKDIR /app
+
+ENTRYPOINT ["/app/game_server"]
+# CMD ["--config-file", "/app/data/config.json", "--www-root", "/app/static", "--tick-period", "0"]
+
+# Альтернативный вариант БЕЗ tick-period (если тесты падают)
+CMD ["--config-file", "/app/data/config.json", "--www-root", "/app/static"]

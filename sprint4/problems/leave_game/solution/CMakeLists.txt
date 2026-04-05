@@ -2,20 +2,23 @@ cmake_minimum_required(VERSION 3.11)
 
 project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -Wall")
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup(TARGETS)
 
-set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-find_package(Boost 1.81.0 REQUIRED)
-if(Boost_FOUND)
-  include_directories(${Boost_INCLUDE_DIRS})
-endif()
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
+
+add_compile_definitions(
+    BOOST_BEAST_USE_STD_STRING_VIEW
+    BOOST_JSON_STANDALONE
+    BOOST_THREAD_PROVIDES_FUTURE
+)
+
 
 add_library(collision_detection_lib STATIC
 	src/model/physics/collision_detector.h
@@ -123,3 +126,4 @@ target_link_libraries(state_serialization_tests CONAN_PKG::catch2 collision_dete
 catch_discover_tests(state_serialization_tests)
 
 add_compile_definitions(BOOST_THREAD_PROVIDES_FUTURE)
+message(STATUS "Build target: game_server")
