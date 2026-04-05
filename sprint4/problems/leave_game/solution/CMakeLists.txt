@@ -123,6 +123,7 @@ target_link_libraries(game_server PRIVATE
 #     Threads::Threads
 #     CONAN_PKG::catch2
 # )
-# catch_discover_tests(game_server_tests)
+# enable_testing()
+# add_test(NAME game_server_tests COMMAND game_server_tests)
 
 message(STATUS "Build target: game_server")
