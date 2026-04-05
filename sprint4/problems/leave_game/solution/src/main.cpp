@@ -69,22 +69,35 @@ int main(int argc, const char* argv[]) {
         // 5. Инициализация подключения к базе данных
         const char* db_url = std::getenv("GAME_DB_URL");
         std::shared_ptr<database::ConnectionPool> db_pool;
+        
+        BOOST_LOG_TRIVIAL(info) << "Checking GAME_DB_URL environment variable...";
+        
         if (db_url && std::strlen(db_url) > 0) {
+            BOOST_LOG_TRIVIAL(info) << "GAME_DB_URL found: " << db_url;
             try {
+                BOOST_LOG_TRIVIAL(info) << "Creating connection pool with size 2...";
                 db_pool = std::make_shared<database::ConnectionPool>(
                     2,  // pool size
                     [db_url]() -> std::shared_ptr<pqxx::connection> {
-                        return std::make_shared<pqxx::connection>(db_url);
+                        BOOST_LOG_TRIVIAL(debug) << "Creating new database connection to: " << db_url;
+                        auto conn = std::make_shared<pqxx::connection>(db_url);
+                        BOOST_LOG_TRIVIAL(debug) << "Connection created, is_open=" << conn->is_open();
+                        return conn;
                     }
                 );
+                
+                BOOST_LOG_TRIVIAL(info) << "Initializing database (creating tables)...";
                 database::Database::Init(db_pool);
+                
                 application->SetConnectionPool(db_pool);
                 BOOST_LOG_TRIVIAL(info) << "Database connected successfully to: " << db_url;
             } catch (const std::exception& e) {
                 BOOST_LOG_TRIVIAL(warning) << "Failed to connect to database: " << e.what();
+                BOOST_LOG_TRIVIAL(warning) << "Running without database persistence";
             }
         } else {
             BOOST_LOG_TRIVIAL(info) << "GAME_DB_URL environment variable not set, running without database";
+            BOOST_LOG_TRIVIAL(info) << "To enable database, set: export GAME_DB_URL=postgresql://user:pass@host:port/db";
         }
 
         // 6. Инициализация настроек сохранения
