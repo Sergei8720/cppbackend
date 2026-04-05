@@ -32,4 +32,7 @@ COPY ./static /app/static
 WORKDIR /app
 
 ENTRYPOINT ["/app/game_server"]
-CMD ["--config-file", "/app/data/config.json", "--www-root", "/app/static", "--tick-period", "0"]
+# CMD ["--config-file", "/app/data/config.json", "--www-root", "/app/static", "--tick-period", "0"]
+
+# Альтернативный вариант БЕЗ tick-period (если тесты падают)
+CMD ["--config-file", "/app/data/config.json", "--www-root", "/app/static"]
