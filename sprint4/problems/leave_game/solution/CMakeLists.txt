@@ -98,33 +98,31 @@ target_link_libraries(game_server PRIVATE
     game_model_lib
 )
 
-#============= ТЕСТЫ (опционально, можно закомментировать) =============
+# ============= ТЕСТЫ (опционально, можно закомментировать) =============
+# Для локальной разработки - раскомментировать
+# Для сборки в Docker - оставить закомментированным
 
-
-include(CTest)
-find_package(Catch2 REQUIRED)
-include(Catch)
-
-add_executable(game_server_tests
-    tests/loot-generator-tests.cpp
-    tests/collision-detector-tests.cpp
-    tests/state-serialization-tests.cpp
-)
-target_include_directories(game_server_tests PRIVATE
-    src
-    src/model
-    src/model/physics
-    src/middleware
-    src/middleware/game_data_store
-    src/database
-    src/retirement
-)
-target_link_libraries(game_server_tests PRIVATE
-    game_model_lib
-    collision_detection_lib
-    Threads::Threads
-    CONAN_PKG::catch2
-)
-catch_discover_tests(game_server_tests)
+# include(CTest)
+# add_executable(game_server_tests
+#     tests/loot-generator-tests.cpp
+#     tests/collision-detector-tests.cpp
+#     tests/state-serialization-tests.cpp
+# )
+# target_include_directories(game_server_tests PRIVATE
+#     src
+#     src/model
+#     src/model/physics
+#     src/middleware
+#     src/middleware/game_data_store
+#     src/database
+#     src/retirement
+# )
+# target_link_libraries(game_server_tests PRIVATE
+#     game_model_lib
+#     collision_detection_lib
+#     Threads::Threads
+#     CONAN_PKG::catch2
+# )
+# catch_discover_tests(game_server_tests)
 
 message(STATUS "Build target: game_server")
