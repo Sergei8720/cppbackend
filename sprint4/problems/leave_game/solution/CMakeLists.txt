@@ -66,7 +66,6 @@ add_executable(game_server
     src/middleware/api/request_handler_node.h
     src/middleware/api/static_file_request_handlers_storage.h
     src/middleware/api/static_file_request_handlers_executor.h
-    src/web/request_handler.cpp
     src/web/server/http_server.cpp
     src/app/authentication/token_generator.cpp
     src/app/authentication/player_tokens.cpp
