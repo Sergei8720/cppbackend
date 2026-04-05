@@ -99,8 +99,7 @@ target_link_libraries(game_server PRIVATE
 )
 
 #============= ТЕСТЫ (опционально, можно закомментировать) =============
-Для локальной разработки - раскомментировать
-Для сборки в Docker - оставить закомментированным
+
 
 include(CTest)
 add_executable(game_server_tests
