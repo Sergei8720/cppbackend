@@ -3,48 +3,11 @@ cmake_minimum_required(VERSION 3.11)
 project(game_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -Wall")
 
-# ============= УНИВЕРСАЛЬНЫЙ ПОИСК CONAN =============
-set(CONAN_BUILDINFO_PATHS
-    "${CMAKE_BINARY_DIR}/conanbuildinfo_multi.cmake"
-    "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake"
-    "${CMAKE_SOURCE_DIR}/build/conanbuildinfo_multi.cmake"
-    "${CMAKE_SOURCE_DIR}/build/conanbuildinfo.cmake"
-    "/app/build/conanbuildinfo_multi.cmake"
-    "/app/build/conanbuildinfo.cmake"
-    "${CMAKE_CURRENT_SOURCE_DIR}/build/conanbuildinfo_multi.cmake"
-    "${CMAKE_CURRENT_SOURCE_DIR}/build/conanbuildinfo.cmake"
-    "${CMAKE_BINARY_DIR}/conan/build/conanbuildinfo_multi.cmake"
-    "${CMAKE_BINARY_DIR}/conan/build/conanbuildinfo.cmake"
-)
-
-set(CONAN_BUILDINFO_FOUND FALSE)
-set(CONAN_IS_MULTI FALSE)
-
-foreach(PATH ${CONAN_BUILDINFO_PATHS})
-    if(EXISTS ${PATH})
-        message(STATUS "✅ Found conanbuildinfo at: ${PATH}")
-        include(${PATH})
-        set(CONAN_BUILDINFO_FOUND TRUE)
-        if(PATH MATCHES ".*_multi\\.cmake$")
-            set(CONAN_IS_MULTI TRUE)
-        endif()
-        break()
-    endif()
-endforeach()
-
-if(NOT CONAN_BUILDINFO_FOUND)
-    message(FATAL_ERROR "❌ conanbuildinfo file not found!")
-endif()
-
-if(CONAN_IS_MULTI)
-    conan_basic_setup(TARGETS)
-else()
-    conan_basic_setup(TARGETS)
-endif()
-
-set(CMAKE_PREFIX_PATH ${CONAN_BOOST_ROOT} ${CMAKE_PREFIX_PATH})
-set(Catch2_DIR ${CONAN_CATCH2_ROOT}/lib/cmake/Catch2)
+# Conan setup
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup(TARGETS)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
@@ -54,6 +17,7 @@ find_package(Threads REQUIRED)
 add_compile_definitions(
     BOOST_BEAST_USE_STD_STRING_VIEW
     BOOST_JSON_STANDALONE
+    BOOST_THREAD_PROVIDES_FUTURE
 )
 
 # ============= БИБЛИОТЕКА COLLISION DETECTION =============
@@ -87,34 +51,6 @@ target_include_directories(game_model_lib PUBLIC
 
 target_link_libraries(game_model_lib PUBLIC collision_detection_lib CONAN_PKG::boost)
 
-# ============= БИБЛИОТЕКА БАЗЫ ДАННЫХ И ОТСЛЕЖИВАНИЯ =============
-add_library(database_retirement_lib STATIC
-    src/database/connection_pool.h
-    src/database/connection_pool.cpp
-    src/database/database.h
-    src/database/database.cpp
-    src/database/player_record.h
-    src/retirement/retirement_tracker.h
-    src/retirement/retirement_tracker.cpp
-)
-
-target_include_directories(database_retirement_lib PUBLIC 
-    src
-    src/database
-    src/retirement
-)
-
-# ДОБАВЛЯЕМ ЛИНКОВКУ С BOOST ДЛЯ ЛОГГЕРА
-target_link_libraries(database_retirement_lib PUBLIC CONAN_PKG::boost)
-
-# Проверяем, существуют ли библиотеки libpq и libpqxx (опционально)
-if(TARGET CONAN_PKG::libpq AND TARGET CONAN_PKG::libpqxx)
-    target_link_libraries(database_retirement_lib PUBLIC CONAN_PKG::libpq CONAN_PKG::libpqxx)
-else()
-    message(WARNING "libpq or libpqxx not found, database features will be disabled")
-    target_compile_definitions(database_retirement_lib PUBLIC WITHOUT_DATABASE)
-endif()
-
 # ============= ОСНОВНОЙ ИСПОЛНЯЕМЫЙ ФАЙЛ =============
 add_executable(game_server
     src/main.cpp
@@ -124,15 +60,19 @@ add_executable(game_server
     src/middleware/json/boost_json.cpp
     src/middleware/logging/logging_data_storage.cpp
     src/middleware/logging/logger.cpp
+    src/middleware/program_options/program_options.cpp
+    src/middleware/time_management/ticker.cpp
+    src/middleware/error_handling/error_report.cpp
     src/app/authentication/player_tokens.cpp
     src/app/application.cpp
     src/app/game_session.cpp
     src/app/player.cpp
     src/web/server/http_server.cpp
-    src/middleware/program_options/program_options.cpp
-    src/middleware/time_management/ticker.cpp
-    src/middleware/error_handling/error_report.cpp
     src/app/state_serializer.cpp
+    # Database and retirement
+    src/database/connection_pool.cpp
+    src/database/database.cpp
+    src/retirement/retirement_tracker.cpp
 )
 
 target_include_directories(game_server PRIVATE
@@ -153,24 +93,24 @@ target_include_directories(game_server PRIVATE
     src/retirement
 )
 
-target_link_libraries(game_server PRIVATE 
-    Threads::Threads 
-    CONAN_PKG::boost 
-    game_model_lib 
-    database_retirement_lib
+target_link_libraries(game_server PRIVATE
+    Threads::Threads
+    CONAN_PKG::boost
+    CONAN_PKG::libpqxx
+    game_model_lib
 )
 
 # ============= ТЕСТЫ =============
 include(CTest)
+include(${CONAN_BUILD_DIRS_CATCH2}/Catch.cmake)
 
-# Объединенный тест
-add_executable(game_tests
+add_executable(game_server_tests
     tests/loot-generator-tests.cpp
     tests/collision-detector-tests.cpp
     tests/state-serialization-tests.cpp
 )
 
-target_include_directories(game_tests PRIVATE
+target_include_directories(game_server_tests PRIVATE
     src
     src/model
     src/model/physics
@@ -178,117 +118,15 @@ target_include_directories(game_tests PRIVATE
     src/middleware/game_data_store
     src/database
     src/retirement
-    ${CONAN_INCLUDE_DIRS_CATCH2}
 )
 
-target_link_libraries(game_tests PRIVATE
+target_link_libraries(game_server_tests PRIVATE
     game_model_lib
     collision_detection_lib
-    database_retirement_lib
     Threads::Threads
     CONAN_PKG::catch2
-    m
 )
 
-target_compile_features(game_tests PRIVATE cxx_std_20)
+catch_discover_tests(game_server_tests)
 
-# Отдельные тесты
-add_executable(collision_tests
-    tests/collision-detector-tests.cpp
-)
-
-target_include_directories(collision_tests PRIVATE
-    src
-    src/model/physics
-    src/database
-    src/retirement
-    ${CONAN_INCLUDE_DIRS_CATCH2}
-)
-
-target_link_libraries(collision_tests PRIVATE
-    game_model_lib
-    collision_detection_lib
-    database_retirement_lib
-    Threads::Threads
-    CONAN_PKG::catch2
-    m
-)
-
-target_compile_features(collision_tests PRIVATE cxx_std_20)
-
-add_executable(state_tests
-    tests/state-serialization-tests.cpp
-)
-
-target_include_directories(state_tests PRIVATE
-    src
-    src/model
-    src/model/physics
-    src/middleware
-    src/middleware/game_data_store
-    src/database
-    src/retirement
-    ${CONAN_INCLUDE_DIRS_CATCH2}
-)
-
-target_link_libraries(state_tests PRIVATE
-    game_model_lib
-    collision_detection_lib
-    database_retirement_lib
-    Threads::Threads
-    CONAN_PKG::catch2
-    m
-)
-
-target_compile_features(state_tests PRIVATE cxx_std_20)
-
-if(BUILD_TESTING)
-    add_test(NAME game_tests COMMAND game_tests)
-    add_test(NAME collision_tests COMMAND collision_tests)
-    add_test(NAME state_tests COMMAND state_tests)
-endif()
-
-add_compile_definitions(BOOST_BEAST_USE_STD_STRING_VIEW)
-add_compile_definitions(BOOST_THREAD_PROVIDES_FUTURE)
-
-# Цели для запуска тестов
-add_custom_target(run_all_tests
-    COMMAND game_tests && collision_tests && state_tests
-    DEPENDS game_tests collision_tests state_tests
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    COMMENT "🚀 Running all tests..."
-)
-
-add_custom_target(run_game_tests
-    COMMAND game_tests
-    DEPENDS game_tests
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    COMMENT "🚀 Running game tests..."
-)
-
-add_custom_target(run_collision_tests
-    COMMAND collision_tests
-    DEPENDS collision_tests
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    COMMENT "🚀 Running collision detection tests..."
-)
-
-add_custom_target(run_state_tests
-    COMMAND state_tests
-    DEPENDS state_tests
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    COMMENT "🚀 Running state serialization tests..."
-)
-
-message(STATUS "🎮 Build targets:")
-message(STATUS "   - game_server (main executable)")
-message(STATUS "   - collision_detection_lib (static library)")
-message(STATUS "   - game_model_lib (game model library)")
-message(STATUS "   - database_retirement_lib (database and retirement library)")
-message(STATUS "   - game_tests (unified game tests)")
-message(STATUS "   - collision_tests (collision tests)")
-message(STATUS "   - state_tests (state serialization tests)")
-message(STATUS "   - run_all_tests (run all tests)")
-message(STATUS "   - run_game_tests (run game tests)")
-message(STATUS "   - run_collision_tests (run collision tests)")
-message(STATUS "   - run_state_tests (run state serialization tests)")
+message(STATUS "Build targets: game_server, game_server_tests")
