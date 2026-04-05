@@ -25,6 +25,9 @@ public:
     
     // Создание таблицы (если не существует)
     static void CreateTableIfNotExists(std::shared_ptr<ConnectionPool> pool);
+    
+    // Очистка старых записей (опционально, для поддержания размера таблицы)
+    static void CleanupOldRecords(std::shared_ptr<ConnectionPool> pool, int maxRecords = 10000);
 };
 
 } // namespace database
