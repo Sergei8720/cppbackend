@@ -38,9 +38,9 @@ public:
     using Dogs = std::unordered_map<model::Dog::Id,
                                     std::shared_ptr<model::Dog>,
                                     DogIdHasher>;
-    
-    using RetirementCallback = std::function<void(const authentication::Token&, 
-                                                   size_t player_id, 
+
+    using RetirementCallback = std::function<void(const authentication::Token&,
+                                                   size_t player_id,
                                                    int64_t play_time_ms)>;
 
     GameSession(std::shared_ptr<model::Map> map,
@@ -48,36 +48,36 @@ public:
                     const model::LootGeneratorConfig& loot_gen_cfg,
                     net::io_context& ioc,
                     double dog_retirement_time_seconds = 60.0);
-    
+
     void Run();
-    
+
     const Id& GetId() const noexcept;
-    const std::shared_ptr<model::Map> GetMap();
+    const std::shared_ptr<model::Map> GetMap() const;
     std::shared_ptr<SessionStrand> GetStrand();
     std::weak_ptr<model::Dog> CreateDog(const std::string& dog_name,
                                         const model::Map& map,
                                         bool randomize_spawn_points);
     void UpdateGameState(const TimeInterval& delta_time);
-    const LostObjects& GetLostObjects();
+    const LostObjects& GetLostObjects() const;
     void AddLostObject(std::shared_ptr<model::LostObject> lost_object);
     void AddDog(std::shared_ptr<model::Dog> dog);
     void AddPlayer(std::shared_ptr<Player> player);
     const std::vector<std::shared_ptr<Player>>& GetPlayers() const { return players_; }
     const Dogs& GetDogs() const { return dogs_; }
-    
+
     void RestoreDog(std::shared_ptr<model::Dog> dog) {
         dogs_[dog->GetId()] = dog;
     }
-    
+
     std::chrono::milliseconds GetDogRetirementTimeout() const { return dog_retirement_timeout_; }
-    
+
     void SetRetirementCallback(RetirementCallback callback);
     void SetTokenFinder(std::function<std::optional<authentication::Token>(size_t)> finder);
-    
+
     TimePoint GetInactivityStartTime(uint64_t dog_id) const;
-    
+
     void UpdateDogActivity(uint64_t dog_id, const TimePoint& now);
-    
+
 private:
     std::shared_ptr<model::Map> map_;
     net::io_context& ioc_;
@@ -90,16 +90,16 @@ private:
     std::shared_ptr<time_m::Ticker> update_game_state_ticker_;
     std::shared_ptr<time_m::Ticker> generate_loot_ticker_;
     std::vector<std::shared_ptr<Player>> players_;
-    
+
     retirement::RetirementTracker retirement_tracker_;
     std::chrono::milliseconds dog_retirement_timeout_;
-    
+
     RetirementCallback retirement_callback_;
     std::function<std::optional<authentication::Token>(size_t)> token_finder_;
-    
+
     std::unordered_map<uint64_t, geom::Point2D> dog_previous_positions_;
     std::unordered_map<uint64_t, TimeInterval> dog_idle_accumulated_time_;
-    
+
     void GenerateLoot(const TimeInterval& delta_time);
     void CreateLostObject();
     void SetRandomLootType(std::shared_ptr<model::LostObject> loot);
@@ -110,7 +110,7 @@ private:
     void CollectLoot(const model::ItemDogProvider& provider, size_t item_id, size_t gatherer_id);
     void DropLoot(const model::ItemDogProvider& provider, size_t item_id, size_t gatherer_id);
     void CheckAndRetireDogs(const TimeInterval& delta_time);
-    
+
     std::shared_ptr<Player> FindOwnerByDogId(uint64_t dog_id) const;
 };
 
