@@ -69,7 +69,6 @@ add_executable(game_server
     src/app/player.cpp
     src/web/server/http_server.cpp
     src/app/state_serializer.cpp
-    # Database and retirement
     src/database/connection_pool.cpp
     src/database/database.cpp
     src/retirement/retirement_tracker.cpp
@@ -100,10 +99,11 @@ target_link_libraries(game_server PRIVATE
     game_model_lib
 )
 
-# ============= ТЕСТЫ =============
+# ============= ТЕСТЫ - ИСПРАВЛЕНО! =============
 include(CTest)
-include(${CONAN_BUILD_DIRS_CATCH2}/Catch.cmake)
 
+# НЕ используем boost_test_exec_monitor!
+# Используем только Catch2
 add_executable(game_server_tests
     tests/loot-generator-tests.cpp
     tests/collision-detector-tests.cpp
@@ -120,13 +120,62 @@ target_include_directories(game_server_tests PRIVATE
     src/retirement
 )
 
+# Линкуем ТОЛЬКО с Catch2, НЕ с boost_test_exec_monitor!
 target_link_libraries(game_server_tests PRIVATE
+    game_model_lib
+    collision_detection_lib
+    Threads::Threads
+    CONAN_PKG::catch2
+    # НЕТ CONAN_PKG::boost_unit_test_framework
+    # НЕТ CONAN_PKG::boost_test_exec_monitor
+)
+
+# Используем стандартный Catch2 макрос
+include(${CONAN_BUILD_DIRS_CATCH2}/Catch.cmake)
+catch_discover_tests(game_server_tests)
+
+# ОТДЕЛЬНЫЕ ТЕСТЫ (если нужны)
+add_executable(collision_tests
+    tests/collision-detector-tests.cpp
+)
+
+target_include_directories(collision_tests PRIVATE
+    src
+    src/model/physics
+    src/database
+    src/retirement
+)
+
+target_link_libraries(collision_tests PRIVATE
     game_model_lib
     collision_detection_lib
     Threads::Threads
     CONAN_PKG::catch2
 )
 
-catch_discover_tests(game_server_tests)
+catch_discover_tests(collision_tests)
+
+add_executable(state_tests
+    tests/state-serialization-tests.cpp
+)
+
+target_include_directories(state_tests PRIVATE
+    src
+    src/model
+    src/model/physics
+    src/middleware
+    src/middleware/game_data_store
+    src/database
+    src/retirement
+)
+
+target_link_libraries(state_tests PRIVATE
+    game_model_lib
+    collision_detection_lib
+    Threads::Threads
+    CONAN_PKG::catch2
+)
+
+catch_discover_tests(state_tests)
 
 message(STATUS "Build targets: game_server, game_server_tests")
