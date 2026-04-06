@@ -7,7 +7,10 @@ size_t ItemDogProvider::ItemsCount() const {
 };
 
 collision_detector::Item ItemDogProvider::GetItem(size_t idx) const {
-    return *items_[idx];
+    if (idx >= items_.size()) {
+        throw std::out_of_range("Item index out of range");
+    }
+    return *items_.at(idx);
 };
 
 size_t ItemDogProvider::GatherersCount() const {
@@ -15,11 +18,17 @@ size_t ItemDogProvider::GatherersCount() const {
 };
 
 collision_detector::Gatherer ItemDogProvider::GetGatherer(size_t idx) const {
-    return dogs_[idx]->AsGatherer();
+    if (idx >= dogs_.size()) {
+        throw std::out_of_range("Gatherer index out of range");
+    }
+    return dogs_.at(idx)->AsGatherer();
 };
 
 const Dog::Id& ItemDogProvider::GetDogId(size_t idx) const {
-    return dogs_[idx]->GetId();
+    if (idx >= dogs_.size()) {
+        throw std::out_of_range("Dog index out of range");
+    }
+    return dogs_.at(idx)->GetId();
 };
 
 }

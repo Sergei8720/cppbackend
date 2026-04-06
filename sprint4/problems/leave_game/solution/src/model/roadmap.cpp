@@ -8,9 +8,7 @@
 
 namespace model {
 
-/*Такой масштаб выбран, чтобы в одной клетке не было нескольких дорог без их наложения друг на друга
-(условие непрерывности маршрута если в клетке есть какая-нибудь дорога).*/
-const int SCALE_FACTOR_OF_CELL = 20;    // Разбиваем карту на квадраты размером 0.05x0.05 папугаев.
+const int SCALE_FACTOR_OF_CELL = 20;
 
 Roadmap::Roadmap(const Roadmap& other) {
     CopyContent(other.roads_);
@@ -36,38 +34,105 @@ Roadmap& Roadmap::operator = (Roadmap&& other) {
     return *this;
 };
 
+void Roadmap::AddHorizontalRoad(const Road& road, int64_t scaled_offset) {
+    auto start = static_cast<int64_t>((road.GetStart().x < road.GetEnd().x) ? road.GetStart().x : road.GetEnd().x);
+    auto end = static_cast<int64_t>((road.GetStart().x < road.GetEnd().x) ? road.GetEnd().x : road.GetStart().x);
+    start = start * SCALE_FACTOR_OF_CELL - scaled_offset;
+    end = end * SCALE_FACTOR_OF_CELL + scaled_offset;
+    auto y = road.GetStart().y * SCALE_FACTOR_OF_CELL;
+    for(auto x = start; x <= end; ++x) {
+        for(auto i = -scaled_offset; i <= scaled_offset; ++i) {
+            matrix_map_[x][y + i].insert(roads_.size() - 1);
+        }
+    }
+}
+
+void Roadmap::AddVerticalRoad(const Road& road, int64_t scaled_offset) {
+    auto start = static_cast<int64_t>((road.GetStart().y < road.GetEnd().y) ? road.GetStart().y : road.GetEnd().y);
+    auto end = static_cast<int64_t>((road.GetStart().y < road.GetEnd().y) ? road.GetEnd().y : road.GetStart().y);
+    start = start * SCALE_FACTOR_OF_CELL - scaled_offset;
+    end = end * SCALE_FACTOR_OF_CELL + scaled_offset;
+    auto x = road.GetStart().x * SCALE_FACTOR_OF_CELL;
+    for(auto y = start; y <= end; ++y) {
+        for(auto i = -scaled_offset; i <= scaled_offset; ++i) {
+            matrix_map_[x + i][y].insert(roads_.size() - 1);
+        }
+    }
+}
+
 void Roadmap::AddRoad(const Road& road) {
     const auto SCALLED_OFFSET = static_cast<int64_t>(OFFSET * SCALE_FACTOR_OF_CELL);
-    auto index = roads_.size();
     roads_.emplace_back(road);
     if(road.IsHorizontal()) {
-        auto start = static_cast<int64_t>((road.GetStart().x < road.GetEnd().x) ? road.GetStart().x : road.GetEnd().x);
-        auto end = static_cast<int64_t>((road.GetStart().x < road.GetEnd().x) ? road.GetEnd().x : road.GetStart().x);
-        start = start * SCALE_FACTOR_OF_CELL - SCALLED_OFFSET;
-        end = end * SCALE_FACTOR_OF_CELL + SCALLED_OFFSET;
-        auto y = road.GetStart().y * SCALE_FACTOR_OF_CELL;
-        for(auto x = start; x <= end; ++x) {
-            for(auto i = -(SCALLED_OFFSET); i <= SCALLED_OFFSET; ++i) {
-                matrix_map_[x][y + i].insert(index);
-            }
-        }
+        AddHorizontalRoad(road, SCALLED_OFFSET);
     } else {
-        auto start = static_cast<int64_t>((road.GetStart().y < road.GetEnd().y) ? road.GetStart().y : road.GetEnd().y);
-        auto end = static_cast<int64_t>((road.GetStart().y < road.GetEnd().y) ? road.GetEnd().y : road.GetStart().y);
-        start = start * SCALE_FACTOR_OF_CELL - SCALLED_OFFSET;
-        end = end * SCALE_FACTOR_OF_CELL + SCALLED_OFFSET;
-        auto x = road.GetStart().x * SCALE_FACTOR_OF_CELL;
-        for(auto y = start; y <= end; ++y) {
-            for(auto i = -SCALLED_OFFSET; i <= SCALLED_OFFSET; ++i) {
-                matrix_map_[x + i][y].insert(index);
-            }
-        }
+        AddVerticalRoad(road, SCALLED_OFFSET);
     }
 };
 
 const Roadmap::Roads& Roadmap::GetRoads() const noexcept {
     return roads_;
 };
+
+std::optional<const Roadmap::MatrixMapCoord> Roadmap::MoveAlongX(
+    const MatrixMapCoord& start_coord,
+    std::optional<const MatrixMapCoord> end,
+    const Velocity& old_velocity) const {
+    
+    int direction = std::signbit(old_velocity.vx) ? -1 : 1;
+    int64_t end_x{0};
+    if(end) {
+        end_x = end.value().x * SCALE_FACTOR_OF_CELL;
+        end_x = (direction > 0) ? (end_x < LLONG_MAX ? end_x + 1 : LLONG_MAX) :
+                                    end_x - 1;
+    } else {
+        end_x = (direction > 0) ? LLONG_MAX : -(OFFSET * SCALE_FACTOR_OF_CELL) - 1;
+    }
+    
+    MatrixMapCoord current_coord = start_coord;
+    for(int64_t index = start_coord.x; index != end_x; index += direction) {
+        if(ValidateCoordinates({index, start_coord.y}) &&
+            IsCrossedSets(
+                matrix_map_.at(start_coord.x).at(start_coord.y),
+                matrix_map_.at(index).at(start_coord.y)
+            )
+        ) {
+            current_coord = {index, start_coord.y};
+        } else {
+            break;
+        }
+    }
+    return current_coord;
+}
+
+std::optional<const Roadmap::MatrixMapCoord> Roadmap::MoveAlongY(
+    const MatrixMapCoord& start_coord,
+    std::optional<const MatrixMapCoord> end,
+    const Velocity& old_velocity) const {
+    
+    int direction = std::signbit(old_velocity.vy) ? -1 : 1;
+    int64_t end_y{0};
+    if(end) {
+        end_y = end.value().y * SCALE_FACTOR_OF_CELL;
+        end_y = (direction > 0) ? (end_y < LLONG_MAX ? end_y + 1 : LLONG_MAX) :
+                                    end_y - 1;
+    } else {
+        end_y = (direction > 0) ? LLONG_MAX : -(OFFSET * SCALE_FACTOR_OF_CELL) - 1;
+    }
+    
+    MatrixMapCoord current_coord = start_coord;
+    for(int64_t index = start_coord.y; index != end_y; index += direction) {
+        if(ValidateCoordinates({start_coord.x, index}) &&
+            IsCrossedSets(
+                matrix_map_.at(start_coord.x).at(start_coord.y),
+                matrix_map_.at(start_coord.x).at(index))) {
+            current_coord = {start_coord.x, index};
+        } else {
+            break;
+        }
+    }
+    return current_coord;
+}
 
 std::tuple<geom::Point2D, Velocity> Roadmap::GetValidMove(const geom::Point2D& old_position,
                             const geom::Point2D& potential_new_position,
@@ -126,62 +191,16 @@ std::optional<const Roadmap::MatrixMapCoord> Roadmap::GetDestinationRoadsOfRoute
                                     std::optional<const MatrixMapCoord> start,
                                     std::optional<const MatrixMapCoord> end,
                                     const Velocity& old_velocity) const {
+    if(!start.has_value()) {
+        return std::nullopt;
+    }
+    
     const MatrixMapCoord start_coord = start.value();
-    MatrixMapCoord current_coord = start_coord;
+    
     if(old_velocity.vx != 0) {
-        int direction = std::signbit(old_velocity.vx) ? -1 : 1;
-        int64_t end_x{0};
-        if(end) {
-            end_x = end.value().x * SCALE_FACTOR_OF_CELL;
-            end_x = (direction > 0) ? (end_x < LLONG_MAX ? end_x + 1 : LLONG_MAX) :
-                                        end_x - 1;
-        } else {
-            end_x = (direction > 0) ? LLONG_MAX : -(OFFSET * SCALE_FACTOR_OF_CELL) - 1;
-        }
-        int64_t index{0};
-        for(index = start_coord.x; index != end_x; index += direction) {
-            if(ValidateCoordinates({index, start_coord.y}) &&
-                IsCrossedSets(
-                    matrix_map_
-                    .at(start_coord.x)
-                    .at(start_coord.y),
-                    matrix_map_
-                    .at(index)
-                    .at(start_coord.y)
-                )
-            ) {
-                current_coord = {index, start_coord.y};
-            } else {
-                break;
-            }
-        }
-        return current_coord;
+        return MoveAlongX(start_coord, end, old_velocity);
     } else if(old_velocity.vy != 0) {
-        int direction = std::signbit(old_velocity.vy) ? -1 : 1;
-        int64_t end_y{0};
-        if(end) {
-            end_y = end.value().y * SCALE_FACTOR_OF_CELL;
-            end_y = (direction > 0) ? (end_y < LLONG_MAX ? end_y + 1 : LLONG_MAX) :
-                                        end_y - 1;
-        } else {
-            end_y = (direction > 0) ? LLONG_MAX : -(OFFSET * SCALE_FACTOR_OF_CELL)  - 1;
-        }
-        int64_t index{0};
-        for(index = start_coord.y; index != end_y; index += direction) {
-            if(ValidateCoordinates({start_coord.x, index}) &&
-                IsCrossedSets(
-                    matrix_map_
-                    .at(start_coord.x)
-                    .at(start_coord.y),
-                    matrix_map_
-                    .at(start_coord.x)
-                    .at(index))) {
-                current_coord =  {start_coord.x, index};
-            } else {
-                break;
-            }
-        }
-        return current_coord;
+        return MoveAlongY(start_coord, end, old_velocity);
     }
     return std::nullopt;
 };
