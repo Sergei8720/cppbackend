@@ -246,7 +246,7 @@ bool Roadmap::ValidateCoordinates(const MatrixMapCoord& coordinates) const{
     return false;
 };
 
-const geom::Point2D Roadmap::GetFarestPoinOfRoute(const MatrixMapCoord& roads_coord,
+geom::Point2D Roadmap::GetFarestPoinOfRoute(const MatrixMapCoord& roads_coord,
                                     const geom::Point2D& old_position,
                                     const Velocity& old_velocity) const {
     geom::Point2D res_position{old_position};
@@ -268,7 +268,7 @@ const geom::Point2D Roadmap::GetFarestPoinOfRoute(const MatrixMapCoord& roads_co
     return res_position;
 };
 
-const std::unordered_map<Direction, geom::Point2D> Roadmap::MatrixCoordinateToPosition(
+std::unordered_map<Direction, geom::Point2D> Roadmap::MatrixCoordinateToPosition(
     const MatrixMapCoord& coord, const geom::Point2D& target_position) const {
     std::unordered_map<Direction, geom::Point2D> res;
     int64_t x_inc_e = (coord.x < 0) ? 0 : 1;
@@ -291,7 +291,7 @@ const std::unordered_map<Direction, geom::Point2D> Roadmap::MatrixCoordinateToPo
     return res;
 }
 
-const Direction Roadmap::VelocityToDirection(const Velocity& velocity) const {
+Direction Roadmap::VelocityToDirection(const Velocity& velocity) const {
     Velocity vel{0, 0};
     if(velocity.vx != 0) {
         vel.vx = std::signbit(velocity.vx) ? -1 : 1;
