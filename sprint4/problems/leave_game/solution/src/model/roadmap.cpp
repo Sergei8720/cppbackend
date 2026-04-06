@@ -8,7 +8,9 @@
 
 namespace model {
 
-const int SCALE_FACTOR_OF_CELL = 20;
+/*Такой масштаб выбран, чтобы в одной клетке не было нескольких дорог без их наложения друг на друга
+(условие непрерывности маршрута если в клетке есть какая-нибудь дорога).*/
+const int SCALE_FACTOR_OF_CELL = 20;    // Разбиваем карту на квадраты размером 0.05x0.05 папугаев.
 
 Roadmap::Roadmap(const Roadmap& other) {
     CopyContent(other.roads_);
@@ -34,6 +36,7 @@ Roadmap& Roadmap::operator = (Roadmap&& other) {
     return *this;
 };
 
+// Вспомогательный метод для добавления горизонтальной дороги
 void Roadmap::AddHorizontalRoad(const Road& road, int64_t scaled_offset) {
     auto start = static_cast<int64_t>((road.GetStart().x < road.GetEnd().x) ? road.GetStart().x : road.GetEnd().x);
     auto end = static_cast<int64_t>((road.GetStart().x < road.GetEnd().x) ? road.GetEnd().x : road.GetStart().x);
@@ -47,6 +50,7 @@ void Roadmap::AddHorizontalRoad(const Road& road, int64_t scaled_offset) {
     }
 }
 
+// Вспомогательный метод для добавления вертикальной дороги
 void Roadmap::AddVerticalRoad(const Road& road, int64_t scaled_offset) {
     auto start = static_cast<int64_t>((road.GetStart().y < road.GetEnd().y) ? road.GetStart().y : road.GetEnd().y);
     auto end = static_cast<int64_t>((road.GetStart().y < road.GetEnd().y) ? road.GetEnd().y : road.GetStart().y);
@@ -74,9 +78,10 @@ const Roadmap::Roads& Roadmap::GetRoads() const noexcept {
     return roads_;
 };
 
-std::optional<const Roadmap::MatrixMapCoord> Roadmap::MoveAlongX(
+// Вспомогательный метод для движения по горизонтали
+std::optional<Roadmap::MatrixMapCoord> Roadmap::MoveAlongX(
     const MatrixMapCoord& start_coord,
-    std::optional<const MatrixMapCoord> end,
+    std::optional<MatrixMapCoord> end,
     const Velocity& old_velocity) const {
     
     int direction = std::signbit(old_velocity.vx) ? -1 : 1;
@@ -105,9 +110,10 @@ std::optional<const Roadmap::MatrixMapCoord> Roadmap::MoveAlongX(
     return current_coord;
 }
 
-std::optional<const Roadmap::MatrixMapCoord> Roadmap::MoveAlongY(
+// Вспомогательный метод для движения по вертикали
+std::optional<Roadmap::MatrixMapCoord> Roadmap::MoveAlongY(
     const MatrixMapCoord& start_coord,
-    std::optional<const MatrixMapCoord> end,
+    std::optional<MatrixMapCoord> end,
     const Velocity& old_velocity) const {
     
     int direction = std::signbit(old_velocity.vy) ? -1 : 1;
@@ -187,9 +193,9 @@ geom::Point2D Roadmap::GenerateValidRandomPosition() const {
     return pos;
 };
 
-std::optional<const Roadmap::MatrixMapCoord> Roadmap::GetDestinationRoadsOfRoute(
-                                    std::optional<const MatrixMapCoord> start,
-                                    std::optional<const MatrixMapCoord> end,
+std::optional<Roadmap::MatrixMapCoord> Roadmap::GetDestinationRoadsOfRoute(
+                                    std::optional<MatrixMapCoord> start,
+                                    std::optional<MatrixMapCoord> end,
                                     const Velocity& old_velocity) const {
     if(!start.has_value()) {
         return std::nullopt;
@@ -205,7 +211,7 @@ std::optional<const Roadmap::MatrixMapCoord> Roadmap::GetDestinationRoadsOfRoute
     return std::nullopt;
 };
 
-std::optional<const Roadmap::MatrixMapCoord> Roadmap::GetCoordinatesOfPosition(const geom::Point2D& position) const {
+std::optional<Roadmap::MatrixMapCoord> Roadmap::GetCoordinatesOfPosition(const geom::Point2D& position) const {
     if(position.x < -OFFSET - EPSILON || position.y < -OFFSET - EPSILON) {
         return std::nullopt;
     }
@@ -337,4 +343,4 @@ void Roadmap::CopyContent(const Roadmap::Roads& roads) {
     }
 };
 
-}
+} // namespace model
