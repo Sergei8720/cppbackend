@@ -1,16 +1,12 @@
 #pragma once
 
-#include "road.h"
-#include "velocity.h"
-#include "direction.h"
-#include "model_invariants.h"
-
 #include <unordered_map>
 #include <unordered_set>
 #include <optional>
 #include <vector>
 #include <tuple>
 #include <cstdint>
+#include <cmath>
 
 namespace geom {
     struct Point2D {
@@ -20,6 +16,77 @@ namespace geom {
 }
 
 namespace model {
+
+// Forward declarations
+struct Velocity {
+    double vx = 0.0;
+    double vy = 0.0;
+    
+    bool operator==(const Velocity& other) const {
+        return std::abs(vx - other.vx) < 1e-9 && std::abs(vy - other.vy) < 1e-9;
+    }
+    
+    bool operator!=(const Velocity& other) const {
+        return !(*this == other);
+    }
+};
+
+enum class Direction {
+    NORTH,
+    SOUTH,
+    WEST,
+    EAST,
+    NONE
+};
+
+class Road {
+public:
+    struct Point {
+        double x;
+        double y;
+    };
+    
+    Road(Point start, Point end) : start_(start), end_(end) {}
+    
+    const Point& GetStart() const { return start_; }
+    const Point& GetEnd() const { return end_; }
+    bool IsHorizontal() const { return std::abs(start_.y - end_.y) < 1e-9; }
+    
+private:
+    Point start_;
+    Point end_;
+};
+
+// Константы из model_invariants.h
+const double OFFSET = 0.4;
+const double EPSILON = 1e-9;
+
+// Отображение Velocity в Direction
+const std::unordered_map<Velocity, Direction> VELOCITY_TO_DIRECTION = {
+    {{1, 0}, Direction::EAST},
+    {{-1, 0}, Direction::WEST},
+    {{0, 1}, Direction::NORTH},
+    {{0, -1}, Direction::SOUTH},
+    {{0, 0}, Direction::NONE}
+};
+
+// Отображение Direction в противоположный Direction
+const std::unordered_map<Direction, Direction> DIRECTION_TO_OPOSITE_DIRECTION = {
+    {Direction::NORTH, Direction::SOUTH},
+    {Direction::SOUTH, Direction::NORTH},
+    {Direction::WEST, Direction::EAST},
+    {Direction::EAST, Direction::WEST},
+    {Direction::NONE, Direction::NONE}
+};
+
+// Отображение Direction в строку
+const std::unordered_map<Direction, std::string> DIRECTION_TO_STRING = {
+    {Direction::NORTH, "N"},
+    {Direction::SOUTH, "S"},
+    {Direction::WEST, "W"},
+    {Direction::EAST, "E"},
+    {Direction::NONE, ""}
+};
 
 class Roadmap {
 public:
