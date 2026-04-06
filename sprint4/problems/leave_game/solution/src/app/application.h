@@ -94,6 +94,9 @@ public:
     void UpdateDogInactiveTime(uint64_t dog_id, std::chrono::milliseconds delta, bool is_active);
     std::chrono::milliseconds GetDogGameTime(uint64_t dog_id) const;
     void RemoveDogTimeTracking(uint64_t dog_id);
+	
+	void CommitGameRecords(const std::vector<domain::PlayerRecord>& player_records);
+	void RemoveInactivePlayers(const GameSession::Id& session_id);
     
 private:
     using GameSessionIdToPlayers = std::unordered_map<std::string,

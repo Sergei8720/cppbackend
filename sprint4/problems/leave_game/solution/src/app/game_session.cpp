@@ -67,6 +67,7 @@ std::weak_ptr<model::Dog> GameSession::CreateDog(const std::string& dog_name, co
         LocateDogInStartPointOnMap(dog);
     }
     dogs_[dog->GetId()] = dog;
+    dog_idle_accumulated_time_[*dog->GetId()] = TimeInterval{0};
     net::dispatch(*strand_, [self = shared_from_this()]{
         self->GenerateLoot(self->loot_generator_.GetPeriod());
     });
@@ -83,19 +84,47 @@ void GameSession::AddLostObject(std::shared_ptr<model::LostObject> lost_object) 
 
 void GameSession::AddDog(std::shared_ptr<model::Dog> dog) {
     dogs_[dog->GetId()] = dog;
+    dog_idle_accumulated_time_[*dog->GetId()] = TimeInterval{0};
 };
 
 void GameSession::UpdateGameState(const TimeInterval& delta_time) {
-    for(auto [dog_id, dog] : dogs_) {
+    std::unordered_map<uint64_t, geom::Point2D> old_positions;
+    for (const auto& [dog_id, dog] : dogs_) {
+        old_positions[*dog_id] = dog->GetPosition();
+    }
+
+    for (auto& [dog_id, dog] : dogs_) {
+        geom::Point2D old_position = dog->GetPosition();
+        auto old_velocity = dog->GetVelocity();
+
         auto [new_position, new_velocity] = map_->GetValidMove(
             dog->GetPosition(),
             dog->CalculateNewPosition(delta_time),
             dog->GetVelocity()
         );
-        dog->MakeDogAction(new_position, new_velocity, delta_time);
+        dog->SetPosition(new_position);
+        dog->SetVelocity(new_velocity);
+
+        bool did_move = (old_position.x != new_position.x || old_position.y != new_position.y);
+
+        if (did_move) {
+            dog_idle_accumulated_time_[*dog_id] = TimeInterval{0};
+        }
     }
+
+    for (const auto& [dog_id, dog] : dogs_) {
+        auto old_it = old_positions.find(*dog_id);
+        if (old_it != old_positions.end()) {
+            bool did_move = (old_it->second.x != dog->GetPosition().x ||
+                            old_it->second.y != dog->GetPosition().y);
+            if (!did_move) {
+                dog_idle_accumulated_time_[*dog_id] += delta_time;
+            }
+        }
+    }
+
     HandleLoot();
-    RemoveInactiveDogs();
+    CheckAndRetireDogs(delta_time);
 };
 
 void GameSession::GenerateLoot(const GameSession::TimeInterval& delta_time) {
@@ -201,6 +230,14 @@ void GameSession::SetTokenFinder(std::function<std::optional<authentication::Tok
     token_finder_ = std::move(finder);
 }
 
+void GameSession::AddRemoveInactivePlayersHandler(std::function<void(const GameSession::Id&)> handler) {
+    remove_inactive_players_sig.connect(handler);
+}
+
+void GameSession::AddHandlingFinishedPlayersEvent(std::function<void(const std::vector<domain::PlayerRecord>&)> handler) {
+    handle_finished_players_sig.connect(handler);
+}
+
 std::shared_ptr<Player> GameSession::FindOwnerByDogId(uint64_t dog_id) const {
     for (const auto& player : players_) {
         auto player_dog = player->GetDog().lock();
@@ -211,26 +248,62 @@ std::shared_ptr<Player> GameSession::FindOwnerByDogId(uint64_t dog_id) const {
     return nullptr;
 }
 
-void GameSession::RemoveInactiveDogs() {
+void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     std::vector<model::Dog::Id> dogs_to_remove;
+    std::vector<std::shared_ptr<Player>> players_to_remove;
+    std::vector<domain::PlayerRecord> player_records;
 
     for (const auto& [dog_id, dog] : dogs_) {
-        if (dog->GetPlayTime().has_value()) {
-            auto owner = FindOwnerByDogId(*dog_id);
-            if (owner && retirement_callback_ && token_finder_) {
-                auto token = token_finder_(*owner->GetId());
-                if (token) {
-                    retirement_callback_(token.value(), *owner->GetId(),
-                                         dog->GetPlayTime().value().count() * 1000);
-                    dogs_to_remove.push_back(dog_id);
-                }
-            }
+        auto owner = FindOwnerByDogId(*dog_id);
+        if (!owner) {
+            continue;
+        }
+
+        auto idle_time = dog_idle_accumulated_time_[*dog_id];
+
+        if (idle_time >= dog_retirement_timeout_) {
+            dogs_to_remove.push_back(dog_id);
+            players_to_remove.push_back(owner);
+            player_records.emplace_back(
+                dog->GetName(),
+                dog->GetScore(),
+                idle_time.count() / 1000
+            );
         }
     }
 
-    for (const auto& dog_id : dogs_to_remove) {
-        dogs_.erase(dog_id);
+    if (dogs_to_remove.empty()) {
+        return;
     }
+
+    handle_finished_players_sig(std::move(player_records));
+
+    for (size_t i = 0; i < dogs_to_remove.size(); ++i) {
+        const auto& dog_id = dogs_to_remove[i];
+        const auto& player = players_to_remove[i];
+        auto dog = dogs_[dog_id];
+
+        auto total_play_time_ms = dog_idle_accumulated_time_[*dog_id].count();
+
+        std::optional<authentication::Token> token;
+        if (token_finder_) {
+            token = token_finder_(*player->GetId());
+        }
+
+        if (retirement_callback_ && token.has_value()) {
+            retirement_callback_(token.value(), *player->GetId(), total_play_time_ms);
+        }
+
+        dog_idle_accumulated_time_.erase(*dog_id);
+        dogs_.erase(dog_id);
+
+        auto it = std::find(players_.begin(), players_.end(), player);
+        if (it != players_.end()) {
+            players_.erase(it);
+        }
+    }
+
+    remove_inactive_players_sig(id_);
 }
 
 }

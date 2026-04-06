@@ -9,6 +9,8 @@
 #include "model_invariants.h"
 #include "item_dog_provider.h"
 #include "player_tokens.h"
+#include "player_record.h"
+#include <boost/signals2/signal.hpp>
 #include <chrono>
 #include <vector>
 #include <memory>
@@ -71,6 +73,9 @@ public:
 
     void SetRetirementCallback(RetirementCallback callback);
     void SetTokenFinder(std::function<std::optional<authentication::Token>(size_t)> finder);
+    
+    void AddRemoveInactivePlayersHandler(std::function<void(const GameSession::Id&)> handler);
+    void AddHandlingFinishedPlayersEvent(std::function<void(const std::vector<domain::PlayerRecord>&)> handler);
 
 private:
     std::shared_ptr<model::Map> map_;
@@ -89,6 +94,11 @@ private:
 
     RetirementCallback retirement_callback_;
     std::function<std::optional<authentication::Token>(size_t)> token_finder_;
+    
+    std::unordered_map<uint64_t, TimeInterval> dog_idle_accumulated_time_;
+    
+    boost::signals2::signal<void (const GameSession::Id&)> remove_inactive_players_sig;
+    boost::signals2::signal<void (const std::vector<domain::PlayerRecord>&)> handle_finished_players_sig;
 
     void GenerateLoot(const TimeInterval& delta_time);
     void CreateLostObject();
@@ -99,7 +109,7 @@ private:
     void HandleLoot();
     void CollectLoot(const model::ItemDogProvider& provider, size_t item_id, size_t gatherer_id);
     void DropLoot(const model::ItemDogProvider& provider, size_t item_id, size_t gatherer_id);
-    void RemoveInactiveDogs();
+    void CheckAndRetireDogs(const TimeInterval& delta_time);
 
     std::shared_ptr<Player> FindOwnerByDogId(uint64_t dog_id) const;
 };

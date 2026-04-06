@@ -60,6 +60,17 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
             }
         );
         
+        game_session->AddHandlingFinishedPlayersEvent(
+            [self = shared_from_this()](const std::vector<domain::PlayerRecord>& player_records) {
+                self->CommitGameRecords(player_records);
+            }
+        );
+        game_session->AddRemoveInactivePlayersHandler(
+            [self = shared_from_this()](const GameSession::Id& session_id) {
+                self->RemoveInactivePlayers(session_id);
+            }
+        );
+        
         AddGameSession(game_session);
         game_session->Run();
     }
@@ -142,7 +153,6 @@ void Application::SetPlayerAction(const authentication::Token& token, model::Dir
     
     auto new_vel = dog->GetVelocity();
     BOOST_LOG_TRIVIAL(info) << "  Result velocity: (" << new_vel.vx << "," << new_vel.vy << ")";
-    
 };
 
 bool Application::IsManualTimeManagement() {
@@ -433,6 +443,25 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token,
     
     BOOST_LOG_TRIVIAL(info) << "=== Player removal completed ===";
 };
+
+void Application::CommitGameRecords(const std::vector<domain::PlayerRecord>& player_records) {
+    use_cases_.AddPlayerRecords(player_records);
+}
+
+void Application::RemoveInactivePlayers(const GameSession::Id& session_id) {
+    std::vector<authentication::Token> tokens_to_remove;
+    
+    for (const auto& [token, player_id] : session_id_to_token_player_pairs_[session_id]) {
+        if (!players_.contains(player_id) || players_[player_id]->GetDog().expired()) {
+            tokens_to_remove.push_back(token);
+        }
+    }
+    
+    for (const auto& token : tokens_to_remove) {
+        session_id_to_token_player_pairs_[session_id].erase(token);
+        player_tokens_.RemoveToken(token);
+    }
+}
 
 void Application::UpdateDogGameTime(uint64_t dog_id, std::chrono::milliseconds delta) {
     auto it = dog_game_time_.find(dog_id);
