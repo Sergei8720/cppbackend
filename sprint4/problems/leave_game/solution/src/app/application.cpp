@@ -61,7 +61,7 @@ std::tuple<authentication::Token, Player::Id> Application::JoinGame(
         );
         
         game_session->AddHandlingFinishedPlayersEvent(
-            [self = shared_from_this()](const std::vector<domain::PlayerRecord>& player_records) {
+            [self = shared_from_this()](const std::vector<database::PlayerRecord>& player_records) {
                 self->CommitGameRecords(player_records);
             }
         );
@@ -444,8 +444,15 @@ void Application::RemovePlayerAndSaveRecord(const authentication::Token& token,
     BOOST_LOG_TRIVIAL(info) << "=== Player removal completed ===";
 };
 
-void Application::CommitGameRecords(const std::vector<domain::PlayerRecord>& player_records) {
-    use_cases_.AddPlayerRecords(player_records);
+void Application::CommitGameRecords(const std::vector<database::PlayerRecord>& player_records) {
+    for (const auto& record : player_records) {
+        domain::PlayerRecord domain_record(
+            record.name,
+            record.score,
+            record.play_time_ms
+        );
+        use_cases_.AddPlayerRecords({domain_record});
+    }
 }
 
 void Application::RemoveInactivePlayers(const GameSession::Id& session_id) {

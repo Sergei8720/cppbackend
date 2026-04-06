@@ -5,10 +5,10 @@
 namespace database {
 
 struct PlayerRecord {
-    int64_t id_uuid;
+    int64_t id_uuid{0};
     std::string name;
-    int64_t score;
-    int64_t play_time_ms;
+    int64_t score{0};
+    int64_t play_time_ms{0};
     
     PlayerRecord() = default;
     
@@ -25,6 +25,10 @@ struct PlayerRecord {
     double GetPlayTimeSeconds() const {
         return static_cast<double>(play_time_ms) / 1000.0;
     }
+	
+	domain::PlayerRecord ToDomain() const {
+		return domain::PlayerRecord(name, score, play_time_ms);
+	}
 };
 
 }

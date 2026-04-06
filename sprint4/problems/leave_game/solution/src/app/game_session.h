@@ -1,5 +1,6 @@
 #pragma once
 #include "map.h"
+#include "database/player_record.h"
 #include "dog.h"
 #include "tagged.h"
 #include "loot_generator_config.h"
@@ -9,7 +10,7 @@
 #include "model_invariants.h"
 #include "item_dog_provider.h"
 #include "player_tokens.h"
-#include "player_record.h"
+#include "database/player_record.h"
 #include <boost/signals2/signal.hpp>
 #include <chrono>
 #include <vector>
@@ -75,7 +76,7 @@ public:
     void SetTokenFinder(std::function<std::optional<authentication::Token>(size_t)> finder);
     
     void AddRemoveInactivePlayersHandler(std::function<void(const GameSession::Id&)> handler);
-    void AddHandlingFinishedPlayersEvent(std::function<void(const std::vector<domain::PlayerRecord>&)> handler);
+    void AddHandlingFinishedPlayersEvent(std::function<void(const std::vector<database::PlayerRecord>&)> handler);
 
 private:
     std::shared_ptr<model::Map> map_;
@@ -98,7 +99,7 @@ private:
     std::unordered_map<uint64_t, TimeInterval> dog_idle_accumulated_time_;
     
     boost::signals2::signal<void (const GameSession::Id&)> remove_inactive_players_sig;
-    boost::signals2::signal<void (const std::vector<domain::PlayerRecord>&)> handle_finished_players_sig;
+    boost::signals2::signal<void (const std::vector<database::PlayerRecord>&)> handle_finished_players_sig;
 
     void GenerateLoot(const TimeInterval& delta_time);
     void CreateLostObject();

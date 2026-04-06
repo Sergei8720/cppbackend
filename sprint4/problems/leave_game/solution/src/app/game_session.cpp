@@ -234,7 +234,7 @@ void GameSession::AddRemoveInactivePlayersHandler(std::function<void(const GameS
     remove_inactive_players_sig.connect(handler);
 }
 
-void GameSession::AddHandlingFinishedPlayersEvent(std::function<void(const std::vector<domain::PlayerRecord>&)> handler) {
+void GameSession::AddHandlingFinishedPlayersEvent(std::function<void(const std::vector<database::PlayerRecord>&)> handler) {
     handle_finished_players_sig.connect(handler);
 }
 
@@ -251,7 +251,7 @@ std::shared_ptr<Player> GameSession::FindOwnerByDogId(uint64_t dog_id) const {
 void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
     std::vector<model::Dog::Id> dogs_to_remove;
     std::vector<std::shared_ptr<Player>> players_to_remove;
-    std::vector<domain::PlayerRecord> player_records;
+    std::vector<database::PlayerRecord> player_records;
 
     for (const auto& [dog_id, dog] : dogs_) {
         auto owner = FindOwnerByDogId(*dog_id);
@@ -265,9 +265,10 @@ void GameSession::CheckAndRetireDogs(const TimeInterval& delta_time) {
             dogs_to_remove.push_back(dog_id);
             players_to_remove.push_back(owner);
             player_records.emplace_back(
+                *dog->GetId(),
                 dog->GetName(),
                 dog->GetScore(),
-                idle_time.count() / 1000
+                idle_time.count()
             );
         }
     }

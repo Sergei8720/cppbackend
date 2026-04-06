@@ -6,6 +6,7 @@
 #include "saving_settings.h"
 #include "game_session_serialization.h"
 #include "ticker.h"
+#include "database/player_record.h"
 #include "database/connection_pool.h"
 #include <vector>
 #include <memory>
@@ -95,7 +96,7 @@ public:
     std::chrono::milliseconds GetDogGameTime(uint64_t dog_id) const;
     void RemoveDogTimeTracking(uint64_t dog_id);
 	
-	void CommitGameRecords(const std::vector<domain::PlayerRecord>& player_records);
+	void CommitGameRecords(const std::vector<database::PlayerRecord>& player_records);
 	void RemoveInactivePlayers(const GameSession::Id& session_id);
     
 private:
