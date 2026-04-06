@@ -1,0 +1,35 @@
+#include "player.h"
+#include "game_session.h"
+#include "dog.h"
+
+namespace app {
+
+const Player::Id& Player::GetId() const {
+    return id_;
+};
+
+const std::string& Player::GetName() const {
+    return name_;
+};
+
+std::string Player::GetGameSessionId() const {
+    return session_ ? *session_->GetId() : "";
+};
+
+std::shared_ptr<GameSession> Player::GetGameSession() {
+    return session_;
+};
+
+void Player::SetGameSession(std::shared_ptr<GameSession> session) {
+    session_ = session;
+};
+
+std::weak_ptr<model::Dog> Player::GetDog() const {
+    return dog_;
+};
+
+void Player::SetDog(std::weak_ptr<model::Dog> dog) {
+    dog_ = dog;
+};
+
+}

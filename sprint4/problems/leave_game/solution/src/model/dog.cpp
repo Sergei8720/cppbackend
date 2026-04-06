@@ -43,7 +43,7 @@ const Velocity& Dog::GetVelocity() const {
 };
 
 void Dog::SetAction(Direction direction, double velocity) {
-    if((!isInactiveCommandRun && direction == Direction::NONE)
+    if((!isInactiveCommandRun && direction == Direction::NONE) 
         || direction != Direction::NONE) {
         inactive_time_ = std::chrono::milliseconds{0};
     }
@@ -84,11 +84,14 @@ geom::Point2D Dog::CalculateNewPosition(const std::chrono::milliseconds& delta_t
     return position;
 };
 
-void Dog::MakeDogAction(const geom::Point2D& new_position, const Velocity new_velocity, const std::chrono::milliseconds& delta_time) {
+void Dog::MakeDogAction(
+        const geom::Point2D& new_position,
+        const Velocity new_velocity,
+        const std::chrono::milliseconds& delta_time) {
     SetPosition(new_position);
     SetVelocity(new_velocity);
     live_time_ += delta_time;
-    if(isInactiveCommandRun && (velocity_.vx == 0 && velocity_.vy == 0)) {
+    if(isInactiveCommandRun && state_ == DogState::INACTIVE) {
         inactive_time_ += delta_time;
     }
 };
@@ -122,8 +125,9 @@ void Dog::DropLostObjectsFromBag() {
     bag_.clear();
 };
 
-std::optional<std::chrono::seconds> Dog::GetPlayTime() const {
-    if(inactive_time_ < max_inactive_time_) {
+std::optional<std::chrono::seconds> Dog::GetPlayTime() {
+    if(state_ == DogState::ACTIVE
+    || inactive_time_ < max_inactive_time_) {
         return std::nullopt;
     }
     return std::chrono::duration_cast<std::chrono::seconds>(live_time_);
@@ -142,8 +146,10 @@ const collision_detector::Gatherer& Dog::AsGatherer() const {
 };
 
 void Dog::UpdateDogState(const Velocity& new_velocity) {
-    if(new_velocity.vx != 0 || new_velocity.vy != 0) {
-        isInactiveCommandRun = false;
+    if(new_velocity != Velocity{0, 0}) {
+        state_ = DogState::ACTIVE;
+    } else {
+        state_ = DogState::INACTIVE;
     }
 };
 

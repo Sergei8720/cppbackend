@@ -15,4 +15,4 @@ Token TokenGenerator::GenerateToken() {
     return token;
 };
 
-} 
+}

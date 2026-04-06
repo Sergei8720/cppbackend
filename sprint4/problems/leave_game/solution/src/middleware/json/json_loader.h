@@ -1,5 +1,7 @@
 #pragma once
+
 #include <filesystem>
+
 #include "game.h"
 
 namespace json_loader {
@@ -13,4 +15,4 @@ public:
     }
 };
 
-}
+}  // namespace json_loader

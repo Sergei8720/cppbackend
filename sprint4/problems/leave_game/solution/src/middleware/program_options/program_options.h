@@ -1,4 +1,5 @@
 #pragma once
+
 #include <string>
 
 namespace prog_opt {
@@ -27,5 +28,6 @@ public:
         return "Static content path is not specified.";
     }
 };
+
 
 }

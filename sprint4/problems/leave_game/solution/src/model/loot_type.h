@@ -14,4 +14,5 @@ struct LootType {
     size_t value{0};
 };
 
+
 }

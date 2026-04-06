@@ -1,6 +1,7 @@
 #pragma once
 #include "application.h"
-#include "database/player_record.h"
+#include "player_record.h"
+
 #include <string>
 #include <tuple>
 #include <optional>
@@ -28,13 +29,10 @@ std::string CreateGameStateResponse(const std::vector< std::shared_ptr<app::Play
 std::string CreateSetDeltaTimeResponse();
 std::string CreateSetDeltaTimeInvalidMsgResponse();
 std::string CreateInvalidEndpointResponse();
+std::string CreateRecordsTableResponse(const std::vector<domain::PlayerRecord>& records_table);
+
 std::string CreateJoinToGameResponse(const std::string& token, size_t player_id);
-
-std::string ConvertRecordsToJson(const std::vector<database::PlayerRecord>& records);
-std::string CreateInternalServerErrorResponse();
-
 std::optional< std::tuple<std::string, model::Map::Id> > ParseJoinToGameRequest(const std::string& msg);
 std::optional<std::string> ParsePlayerActionRequest(const std::string& msg);
 std::optional<int> ParseSetDeltaTimeRequest(const std::string& msg);
-
 }

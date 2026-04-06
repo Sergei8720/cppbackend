@@ -1,10 +1,12 @@
 #include "map.h"
 #include "model_key_storage.h"
 #include "model_invariants.h"
+
 #include <stdexcept>
 
 namespace model {
 using namespace std::literals;
+
 
 const Map::Id& Map::GetId() const noexcept {
     return id_;
@@ -60,6 +62,7 @@ void Map::AddOffice(const Office& office) {
     try {
         warehouse_id_to_index_.emplace(o.GetId(), index);
     } catch (...) {
+        // Удаляем офис из вектора, если не удалось вставить в unordered_map
         offices_.pop_back();
         throw;
     }
@@ -91,7 +94,7 @@ void Map::AddLootTypes(const Map::LootTypes& loot_types) {
 
 std::tuple<geom::Point2D, Velocity> Map::GetValidMove(const geom::Point2D& old_position,
                                                 const geom::Point2D& potential_new_position,
-                                                const Velocity& old_velocity) {
+                                                const Velocity& old_velocity) const {
     return roadmap_.GetValidMove(old_position, potential_new_position, old_velocity);
 };
 
@@ -103,7 +106,7 @@ size_t Map::GetNumberOfLootTypes() const noexcept{
     return loot_types_.size();
 };
 
-const LootType& Map::GetLootTypeBy(size_t id) {
+const LootType& Map::GetLootTypeBy(size_t id) const {
     return loot_types_[id];
 };
 
@@ -115,4 +118,4 @@ size_t Map::GetBagCapacity() const noexcept {
     return bag_capacity_ ? bag_capacity_.value() : INITIAL_BAG_CAPACITY;
 };
 
-}
+}  // namespace model

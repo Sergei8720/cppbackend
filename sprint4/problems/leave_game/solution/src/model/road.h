@@ -2,6 +2,7 @@
 #include "tagged.h"
 #include "dog.h"
 #include "support_types.h"
+
 #include <cmath>
 #include <string>
 #include <memory>

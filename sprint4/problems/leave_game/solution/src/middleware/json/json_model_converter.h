@@ -4,6 +4,7 @@
 #include "building.h"
 #include "office.h"
 #include "map.h"
+
 #include <boost/json.hpp>
 
 namespace model {

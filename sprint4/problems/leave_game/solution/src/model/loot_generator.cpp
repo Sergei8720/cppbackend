@@ -1,4 +1,5 @@
 #include "loot_generator.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -22,4 +23,4 @@ unsigned LootGenerator::Generate(TimeInterval time_delta, unsigned loot_count,
     return generated_loot;
 }
 
-}
+} // namespace loot_gen
