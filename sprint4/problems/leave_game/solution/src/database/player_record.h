@@ -26,9 +26,9 @@ struct PlayerRecord {
         return static_cast<double>(play_time_ms) / 1000.0;
     }
 	
-	domain::PlayerRecord ToDomain() const {
-		return domain::PlayerRecord(name, score, play_time_ms);
-	}
+//	domain::PlayerRecord ToDomain() const {
+//		return domain::PlayerRecord(name, score, play_time_ms);
+//	}
 };
 
 }
