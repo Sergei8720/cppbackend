@@ -1,21 +1,30 @@
 #pragma once
 
-#include "geometry.h"
 #include "road.h"
 #include "velocity.h"
 #include "direction.h"
+#include "model_invariants.h"
 
 #include <unordered_map>
 #include <unordered_set>
 #include <optional>
 #include <vector>
 #include <tuple>
+#include <cstdint>
+
+namespace geom {
+    struct Point2D {
+        double x = 0.0;
+        double y = 0.0;
+    };
+}
 
 namespace model {
 
 class Roadmap {
 public:
     using Roads = std::vector<Road>;
+    
     struct MatrixMapCoord {
         int64_t x;
         int64_t y;
